@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout | The Copper Studio</title>
+    <link rel="stylesheet" href="assets/styles.css?v=pages-1">
+  </head>
+  <body data-page="checkout">
+    <header class="shell-header">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">TCS</span>
+        <span>The Copper Studio</span>
+      </a>
+      <nav class="top-nav" aria-label="Main navigation">
+        <a href="index.html">Pricing Packages</a>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section class="page-heading">
+        <span class="eyebrow">Checkout Form</span>
+        <h1>Verify customer details.</h1>
+        <p>Mobile number and email must be OTP verified before Razorpay payment opens.</p>
+      </section>
+
+      <section class="two-column">
+        <form class="panel customer-form" id="customerForm">
+          <div class="field-grid">
+            <label>
+              <span>Name</span>
+              <input id="customerName" name="customerName" type="text" placeholder="Rohit Sharma" required>
+            </label>
+            <label>
+              <span>Company / Studio</span>
+              <input id="customerCompany" name="customerCompany" type="text" placeholder="DataCircles Studio">
+            </label>
+            <div class="verify-field field-span-2" data-verify-card="phone">
+              <label for="customerPhone"><span>Mobile Number</span></label>
+              <div class="input-action">
+                <div class="phone-field">
+                  <select name="customerCountryCode" aria-label="Country code">
+                    <option value="+91">🇮🇳 +91</option>
+                    <option value="+1">🇺🇸 +1</option>
+                    <option value="+44">🇬🇧 +44</option>
+                    <option value="+61">🇦🇺 +61</option>
+                    <option value="+971">🇦🇪 +971</option>
+                    <option value="+65">🇸🇬 +65</option>
+                    <option value="+60">🇲🇾 +60</option>
+                    <option value="+49">🇩🇪 +49</option>
+                    <option value="+33">🇫🇷 +33</option>
+                    <option value="+81">🇯🇵 +81</option>
+                  </select>
+                  <input id="customerPhone" name="customerPhone" type="tel" placeholder="98765 43210" required>
+                </div>
+                <button class="btn btn-secondary" type="button" data-send-otp="phone">Send OTP</button>
+              </div>
+              <div class="otp-row">
+                <input data-otp-input="phone" inputmode="numeric" maxlength="6" placeholder="Enter 6-digit OTP" disabled>
+                <button class="btn btn-primary" type="button" data-verify="phone" disabled>Verify</button>
+                <small id="phoneVerifyStatus">OTP not sent</small>
+              </div>
+            </div>
+            <div class="verify-field field-span-2" data-verify-card="email">
+              <label for="customerEmail"><span>Email Address</span></label>
+              <div class="input-action">
+                <input id="customerEmail" name="customerEmail" type="email" placeholder="customer@example.com" required>
+                <button class="btn btn-secondary" type="button" data-send-otp="email">Send OTP</button>
+              </div>
+              <div class="otp-row">
+                <input data-otp-input="email" inputmode="numeric" maxlength="6" placeholder="Enter 6-digit OTP" disabled>
+                <button class="btn btn-primary" type="button" data-verify="email" disabled>Verify</button>
+                <small id="emailVerifyStatus">OTP not sent</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <a class="btn btn-secondary" href="index.html">Back to Packages</a>
+            <button class="btn btn-primary" type="submit">Continue to Razorpay</button>
+          </div>
+        </form>
+
+        <aside class="panel sticky-panel">
+          <p class="mini-label">Selected Package</p>
+          <div id="selectedOverview"></div>
+          <div class="summary-divider"></div>
+          <div class="total-row">
+            <span>Total payable</span>
+            <strong id="overviewTotal">-</strong>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="assets/app.js?v=pages-1"></script>
+  </body>
+</html>

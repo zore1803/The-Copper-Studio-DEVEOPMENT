@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | The Copper Studio</title>
+    <link rel="stylesheet" href="assets/styles.css?v=pages-1">
+  </head>
+  <body data-page="admin">
+    <header class="shell-header">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">TCS</span>
+        <span>The Copper Studio</span>
+      </a>
+      <nav class="top-nav" aria-label="Main navigation">
+        <a href="index.html">Pricing Packages</a>
+        <a href="admin.html" aria-current="page">Admin</a>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section class="page-heading">
+        <span class="eyebrow">Admin Side</span>
+        <h1>New client dashboard.</h1>
+        <p>Admin receives notification, sees purchased package, creates project/workspace, and tracks client progress.</p>
+      </section>
+
+      <section class="admin-grid">
+        <aside class="admin-phone panel">
+          <p class="mini-label">Notification</p>
+          <div class="notification-card">
+            <span class="material-symbols-outlined">notifications_active</span>
+            <div>
+              <strong>New package purchased</strong>
+              <p id="adminNotification">No recent payment found.</p>
+            </div>
+          </div>
+          <div class="email-stack">
+            <p class="mini-label">Automatic customer email</p>
+            <div><span class="material-symbols-outlined">vpn_key</span> Portal credentials</div>
+            <div><span class="material-symbols-outlined">receipt_long</span> Invoice</div>
+            <div><span class="material-symbols-outlined">waving_hand</span> Welcome message</div>
+          </div>
+        </aside>
+
+        <section class="admin-dashboard panel">
+          <div class="admin-head">
+            <div>
+              <p class="mini-label">Admin Dashboard</p>
+              <h3>New client queue</h3>
+            </div>
+            <button class="btn btn-primary" type="button" id="createWorkspaceButton">Create workspace</button>
+          </div>
+
+          <div class="client-row">
+            <div>
+              <p class="mini-label">Client</p>
+              <strong id="adminClientName">Customer</strong>
+              <span id="adminClientContact">Awaiting order</span>
+            </div>
+            <div>
+              <p class="mini-label">Package</p>
+              <strong id="adminPackageName">-</strong>
+              <span id="adminPackagePrice">-</span>
+            </div>
+            <div>
+              <p class="mini-label">Status</p>
+              <strong id="workspaceStatus">Payment pending</strong>
+              <span id="workspaceSubstatus">Workspace pending</span>
+            </div>
+          </div>
+
+          <div class="workspace-card">
+            <div>
+              <p class="mini-label">Project / Workspace</p>
+              <h3 id="workspaceTitle">Workspace not created yet</h3>
+              <p id="workspaceDescription">Create the project after verifying package and payment details.</p>
+            </div>
+            <div class="progress-track">
+              <div class="progress-step is-active"><span></span>Purchased</div>
+              <div class="progress-step"><span></span>Workspace</div>
+              <div class="progress-step"><span></span>Onboarding</div>
+              <div class="progress-step"><span></span>In progress</div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="assets/app.js?v=pages-1"></script>
+  </body>
+</html>
