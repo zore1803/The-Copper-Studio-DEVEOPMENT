@@ -10,12 +10,6 @@ channel = "stable-25_05"
 
 [userenv.shared]
 PORT = "3000"
-MONGO_URI = "mongodb+srv://rohitzore_db_user:MAwPvTrAY0WLgRCO@thecopperstudio.xj0szqj.mongodb.net/the-copper-studio?retryWrites=true&w=majority&appName=TheCopperStudio"
-JWT_SECRET = "copper-studio-dev-secret-change-in-production"
-CRM_PUBLIC_URL = "https://9038c749-ed28-4e62-8431-744d53282245-00-2bsdrr4rb218d.pike.replit.dev"
-SUPERADMIN_NAME = "Super Admin"
-SUPERADMIN_EMAIL = "rohit.zore@datacircles.in"
-SUPERADMIN_PASSWORD = "RohitZore@18"
 NODE_ENV = "development"
 
 [workflows]
