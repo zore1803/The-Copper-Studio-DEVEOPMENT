@@ -2,11 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { apiDelete, apiGet, apiPost, apiPut } from "../lib/api";
 import { storeGet, storeSave, storeRemove, storeSet } from "../lib/store";
 
+const EMPTY_FALLBACK = [];
+// The backend free tier spins down when idle and can take 50s+ to wake on the
+// first request, which can time out client-side. Retry a couple of times with
+// backoff before giving up, instead of immediately showing a stale/empty cache.
+const RETRY_DELAYS_MS = [3000, 6000];
+
 function isLocalId(id, type) {
   return !id || String(id).startsWith(type + "-") || String(id).startsWith("demo");
 }
 
-export function useCrmRecords(type, fallback = []) {
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function useCrmRecords(type, fallback = EMPTY_FALLBACK) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -14,24 +24,34 @@ export function useCrmRecords(type, fallback = []) {
   useEffect(() => {
     let alive = true;
 
-    apiGet(`/api/crm/${type}`)
-      .then((data) => {
-        if (!alive) return;
-        const records = Array.isArray(data) ? data : (data.records || []);
-        // Always sync the cache to the server's response, even when empty,
-        // so stale demo/offline records don't linger after the database changes.
-        storeSet(type, records);
-        setRecords(records);
-        setError("");
-      })
-      .catch((err) => {
-        if (!alive) return;
-        setError(err.message || "Failed to fetch records");
-        // Fallback to localStorage only if API fails
-        const cached = storeGet(type);
-        setRecords(cached.length ? cached : fallback);
-      })
-      .finally(() => alive && setLoading(false));
+    async function load() {
+      setLoading(true);
+      for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+        try {
+          const data = await apiGet(`/api/crm/${type}`);
+          if (!alive) return;
+          const fetched = Array.isArray(data) ? data : (data.records || []);
+          // Always sync the cache to the server's response, even when empty,
+          // so stale demo/offline records don't linger after the database changes.
+          storeSet(type, fetched);
+          setRecords(fetched);
+          setError("");
+          return;
+        } catch (err) {
+          if (!alive) return;
+          if (attempt < RETRY_DELAYS_MS.length) {
+            await wait(RETRY_DELAYS_MS[attempt]);
+            continue;
+          }
+          setError(err.message || "Failed to fetch records");
+          // Fallback to localStorage only once every retry has failed
+          const cached = storeGet(type);
+          setRecords(cached.length ? cached : fallback);
+        }
+      }
+    }
+
+    load().finally(() => alive && setLoading(false));
 
     return () => { alive = false; };
   }, [type, fallback]);

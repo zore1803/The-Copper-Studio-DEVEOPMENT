@@ -40,6 +40,11 @@ export const clientApi = {
     }))
   ),
 
+  getProjectTasks: (projectId, token) => withFallback(
+    () => apiGet(`/api/client/projects/${projectId}/tasks`, token),
+    () => []
+  ),
+
   getDocuments: (token) => withFallback(
     () => apiGet("/api/client/documents", token),
     () => storeGet("projects").flatMap(p =>

@@ -275,7 +275,7 @@ function TaskPanel({ company, projects, onClose, onSave }) {
       <div className="space-y-4">
         <Input span label="Task title *" value={form.title} onChange={set("title")} />
         <Select label="Project" value={form.projectId} onChange={set("projectId")}
-          options={projects.map((p) => ({ value: String(p.id || p._id), label: p.name }))} />
+          options={projects.map((p) => ({ value: String(p._id || p.id), label: p.name }))} />
         <Select label="Priority" value={form.priority} onChange={set("priority")} options={["Low", "Medium", "High", "Critical"]} />
         <Select label="Status" value={form.status} onChange={set("status")} options={["Backlog", "To Do", "In Progress", "Review", "Completed", "Blocked"]} />
         <Input label="Assigned to" value={form.assignedTo} onChange={set("assignedTo")} />
@@ -616,7 +616,9 @@ export default function CompanyDetail() {
       return Boolean(str) && (str === String(company?._id) || str === String(company?.id) || str === companyId);
     };
     const linkedProjects = projects.filter((p) => isCompanyMatch(p.companyId) || p.client === name || p.company === name || p.companyName === name);
-    const linkedProjectIds = new Set(linkedProjects.map((project) => String(project.id || project._id)));
+    // Index by both id forms — tasks/documents created at different times may reference
+    // a project by either its real Mongo _id or its human-readable custom id.
+    const linkedProjectIds = new Set(linkedProjects.flatMap((project) => [String(project.id), String(project._id)]));
     return {
       projects: linkedProjects,
       contacts: contacts.filter((c) => isCompanyMatch(c.companyId) || c.company === name || c.companyName === name),

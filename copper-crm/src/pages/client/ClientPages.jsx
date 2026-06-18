@@ -140,11 +140,56 @@ function Spinner() {
 
 /* ─── PROJECT TIMELINE ─── */
 
+function ClientTaskGantt({ tasks }) {
+  const rows = tasks.map((task) => {
+    const start = new Date(task.startDate || task.createdAt || Date.now());
+    const end = new Date(task.dueDate || task.deadline || task.expectedEndDate || Date.now());
+    const safeStart = Number.isNaN(start.getTime()) ? new Date() : start;
+    const safeEnd = Number.isNaN(end.getTime()) || end < start ? safeStart : end;
+    return { ...task, safeStart, safeEnd };
+  });
+  if (!rows.length) return null;
+  const min = Math.min(...rows.map((row) => row.safeStart.getTime()));
+  const max = Math.max(...rows.map((row) => row.safeEnd.getTime()), min + 86400000);
+  const range = Math.max(max - min, 86400000);
+
+  return (
+    <Card className="p-6">
+      <h3 className="text-lg font-semibold mb-5" style={{ color: CS.onSurface, fontFamily: "Inter, sans-serif" }}>Task Timeline</h3>
+      <div className="space-y-3">
+        {rows.map((task) => {
+          const left = ((task.safeStart.getTime() - min) / range) * 100;
+          const width = Math.max(((task.safeEnd.getTime() - task.safeStart.getTime()) / range) * 100, 8);
+          const dateRange = `${task.safeStart.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${task.safeEnd.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
+          return (
+            <div key={task.id || task._id} className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-center">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold" style={{ color: CS.onSurface }}>{task.title || task.taskName || "Untitled task"}</p>
+                <p className="text-xs" style={{ color: CS.secondary }}>{task.status || "Backlog"}</p>
+              </div>
+              <div className="relative h-8 rounded-lg" style={{ background: CS.surfaceLow }}>
+                <div
+                  className="absolute top-1 flex h-6 items-center justify-center rounded-lg px-1.5 text-[10px] font-bold text-white"
+                  style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%`, background: CS.primary }}
+                  title={dateRange}
+                >
+                  <span className="truncate">{dateRange}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 export function ClientTimelinePage() {
   const { token } = useAuth();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [tasks, setTasks] = useState([]);
 
   useEffect(() => {
     clientApi.getProjects(token).then(p => {
@@ -152,6 +197,15 @@ export function ClientTimelinePage() {
       setSelected(p[0] || null);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [token]);
+
+  useEffect(() => {
+    if (!selected?._id) return;
+    let alive = true;
+    clientApi.getProjectTasks(selected._id, token)
+      .then((data) => { if (alive) setTasks(data); })
+      .catch(() => { if (alive) setTasks([]); });
+    return () => { alive = false; };
+  }, [selected, token]);
 
   const statusBadge = (s) => {
     const map = {
@@ -323,6 +377,8 @@ export function ClientTimelinePage() {
                     </div>
                   </Card>
                 )}
+
+                <ClientTaskGantt tasks={tasks} />
               </>
             ) : null}
           </div>

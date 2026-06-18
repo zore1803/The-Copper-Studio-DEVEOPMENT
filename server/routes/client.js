@@ -5,6 +5,7 @@ import Order from "../models/Order.js";
 import Project from "../models/Project.js";
 import Document from "../models/Document.js";
 import Meeting from "../models/Meeting.js";
+import Task from "../models/Task.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -90,6 +91,21 @@ router.get("/projects", async (req, res, next) => {
   try {
     const projects = await Project.find({ clientId: req.auth.sub }).sort({ createdAt: -1 });
     res.json(projects);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/projects/:id/tasks", async (req, res, next) => {
+  try {
+    const project = await Project.findOne({ _id: req.params.id, clientId: req.auth.sub });
+    if (!project) return res.status(404).json({ message: "Project not found." });
+
+    const projectIds = [String(project._id), project.id].filter(Boolean);
+    const tasks = await Task.find({
+      $or: [{ projectId: { $in: projectIds } }, { project: { $in: projectIds } }]
+    }).sort({ startDate: 1, createdAt: 1 });
+    res.json(tasks);
   } catch (error) {
     next(error);
   }
