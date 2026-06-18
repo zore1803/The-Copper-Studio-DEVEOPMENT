@@ -214,12 +214,14 @@ function GanttView({ tasks, onOpenEdit }) {
   const { groups, minDate, maxDate, weeks, summary } = useMemo(() => {
     const referenceYear = new Date().getFullYear();
     const mapped = tasks.map((task) => {
-      const end = task.dueDate ? parseFullDate(task.dueDate) : task.deadline ? parseShortDate(task.deadline, referenceYear) : new Date(TODAY.getTime() + 7 * DAY_MS);
-      const start = task.startDate ? parseFullDate(task.startDate) : new Date(end.getTime() - 3 * DAY_MS);
+      const start = task.startDate ? parseFullDate(task.startDate) : null;
+      const end = task.dueDate ? parseFullDate(task.dueDate) : task.deadline ? parseShortDate(task.deadline, referenceYear) : null;
+      if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
       const safeEnd = end < start ? start : end;
       return { ...task, start, end: safeEnd, status: TASK_STATUSES.includes(task.status) ? task.status : "Backlog" };
-    });
-    if (!mapped.length) return { groups: [], minDate: TODAY, maxDate: TODAY, weeks: [], summary: { total: 0, completed: 0, blocked: 0 } };
+    }).filter(Boolean);
+    const unscheduled = tasks.length - mapped.length;
+    if (!mapped.length) return { groups: [], minDate: TODAY, maxDate: TODAY, weeks: [], summary: { total: 0, completed: 0, blocked: 0, unscheduled } };
 
     const allDates = mapped.flatMap((t) => [t.start, t.end]);
     const min = new Date(Math.min(...allDates.map((d) => d.getTime())) - 3 * DAY_MS);
@@ -244,6 +246,7 @@ function GanttView({ tasks, onOpenEdit }) {
         total: mapped.length,
         completed: mapped.filter((task) => task.status === "Completed").length,
         blocked: mapped.filter((task) => task.status === "Blocked").length,
+        unscheduled,
       },
     };
   }, [tasks]);
@@ -251,8 +254,8 @@ function GanttView({ tasks, onOpenEdit }) {
   if (!groups.length) {
     return (
       <div className="rounded-xl border border-dashed border-[#E1E4EA] bg-white p-10 text-center">
-        <p className="text-sm font-semibold text-[#111827]">No tasks with dates yet.</p>
-        <p className="mt-1 text-sm text-[#6b7280]">Add tasks from the Kanban view to see them on the timeline.</p>
+        <p className="text-sm font-semibold text-[#111827]">No scheduled tasks yet.</p>
+        <p className="mt-1 text-sm text-[#6b7280]">Add real start and due dates to tasks to see them on the Gantt chart.</p>
       </div>
     );
   }
@@ -289,6 +292,9 @@ function GanttView({ tasks, onOpenEdit }) {
           </span>
           {summary.blocked > 0 && (
             <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600">{summary.blocked} blocked</span>
+          )}
+          {summary.unscheduled > 0 && (
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{summary.unscheduled} need dates</span>
           )}
           <div className="flex items-center gap-1 rounded-lg bg-[#F1F1F5] p-1">
           {Object.keys(ZOOM_LEVELS).map((level) => (

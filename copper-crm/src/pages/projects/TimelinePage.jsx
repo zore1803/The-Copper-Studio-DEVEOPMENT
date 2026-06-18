@@ -26,36 +26,39 @@ function fmt(date) {
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-/** Resolve a project's milestone list with real dates, in priority order:
- *  1. the auto-generated `timeline` array (has real startDate/dueDate per milestone)
- *  2. `stages` evenly spread across project.startDate -> expectedEndDate if no timeline exists
- */
+function validDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function resolveMilestones(project) {
   if (project.timeline?.length) {
-    return project.timeline.map((m) => ({
-      name: m.name,
-      start: new Date(m.startDate),
-      end: new Date(m.dueDate || m.startDate),
-      status: m.status === "On Track" ? "in_progress" : m.status === "Completed" ? "completed" : project.stages?.find((s) => s.name === m.name)?.status || (m.status === "Upcoming" ? "not_started" : "not_started"),
-    })).map((m, i, arr) => {
-      // prefer the live status from project.stages (kept in sync by Manage Project), fall back to the timeline's own status
-      const live = project.stages?.find((s) => s.name === m.name);
-      return { ...m, status: live?.status || m.status, index: i, total: arr.length };
-    });
+    return project.timeline
+      .map((m) => {
+        const start = validDate(m.startDate);
+        const end = validDate(m.dueDate || m.endDate);
+        const live = project.stages?.find((s) => s.name === m.name);
+        return {
+          name: m.name,
+          start,
+          end,
+          status: live?.status || (m.status === "On Track" ? "in_progress" : m.status === "Completed" ? "completed" : "not_started"),
+        };
+      })
+      .filter((m) => m.start && m.end)
+      .map((m, i, arr) => ({ ...m, index: i, total: arr.length }));
   }
-  if (project.stages?.length && project.startDate) {
-    const start = new Date(project.startDate);
-    const end = new Date(project.expectedEndDate || project.dueDate || start);
-    const span = Math.max(end.getTime() - start.getTime(), 86400000);
-    const step = span / project.stages.length;
-    return project.stages.map((s, i) => ({
-      name: s.name,
-      start: new Date(start.getTime() + step * i),
-      end: new Date(start.getTime() + step * (i + 1)),
-      status: s.status,
-      index: i,
-      total: project.stages.length,
-    }));
+  if (project.stages?.length) {
+    return project.stages
+      .map((s) => ({
+        name: s.name,
+        start: validDate(s.startDate),
+        end: validDate(s.dueDate || s.endDate),
+        status: s.status,
+      }))
+      .filter((m) => m.start && m.end)
+      .map((m, i, arr) => ({ ...m, index: i, total: arr.length }));
   }
   return [];
 }
@@ -68,7 +71,7 @@ function ProjectGanttChart({ project }) {
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E1E4EA] bg-[#FAFAFA] py-16 text-center">
         <Calendar size={28} className="mb-3 text-[#9ca3af]" />
         <p className="text-sm font-semibold text-[#525866]">No timeline data for this project yet.</p>
-        <p className="mt-1 text-xs text-[#9ca3af]">Set a start date and stages from the project's Manage panel to generate one.</p>
+        <p className="mt-1 text-xs text-[#9ca3af]">Add real start and due dates to timeline milestones to see the Gantt chart.</p>
       </div>
     );
   }
