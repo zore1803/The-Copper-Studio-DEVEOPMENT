@@ -56,6 +56,22 @@ function parseMoney(value) {
   return Number(String(value || "").replace(/[^\d.-]/g, "")) || 0;
 }
 
+function roadmapProgress(stages = []) {
+  if (!stages.length) return 0;
+  const completed = stages.filter((stage) => stage.status === "completed").length;
+  return Math.round((completed / stages.length) * 100);
+}
+
+function isRoadmapComplete(stages = []) {
+  return stages.length > 0 && stages.every((stage) => stage.status === "completed");
+}
+
+function nextPhaseForStages(stages = []) {
+  if (isRoadmapComplete(stages)) return "Completed";
+  const activeStage = stages.find((stage) => stage.status === "in_progress") || stages.find((stage) => stage.status !== "completed");
+  return activeStage?.name || "Requirement Gathering";
+}
+
 function PanelField({ label, value, onChange, type = "text", disabled = false, span = false }) {
   return (
     <label className={`block ${span ? "sm:col-span-2" : ""}`}>
@@ -171,11 +187,22 @@ function ManageProjectPanel({ project, invoices = [], onClose, onSave }) {
     const order = ["not_started", "in_progress", "completed"];
     setForm(prev => ({
       ...prev,
-      stages: prev.stages.map(s =>
+      ...(() => {
+        const nextStages = prev.stages.map(s =>
         s.name === name
           ? { ...s, status: order[(order.indexOf(s.status) + 1) % order.length] }
           : s
-      ),
+        );
+        const complete = isRoadmapComplete(nextStages);
+        const nextPhase = nextPhaseForStages(nextStages);
+        return {
+          stages: nextStages,
+          progress: roadmapProgress(nextStages),
+          currentPhase: nextPhase,
+          status: complete ? "Completed" : nextPhase,
+          clientStatus: complete ? "completed" : prev.clientStatus === "completed" ? "in_progress" : prev.clientStatus,
+        };
+      })(),
     }));
   }
 
@@ -353,6 +380,9 @@ export default function ProjectDetail() {
 
   async function handleSaveProject(updates) {
     const packageName = updates.packageName === "Custom" ? (updates.customPackageName || "Custom") : updates.packageName;
+    const roadmapComplete = isRoadmapComplete(updates.stages);
+    const nextProgress = roadmapComplete ? 100 : Number(updates.progress);
+    const nextPhase = roadmapComplete ? "Completed" : updates.currentPhase;
     const updatedProject = {
       ...project,
       name: updates.name,
@@ -362,7 +392,7 @@ export default function ProjectDetail() {
       expectedEndDate: updates.expectedEndDate,
       dueDate: updates.expectedEndDate,
       priority: updates.priority,
-      status: updates.status,
+      status: roadmapComplete ? "Completed" : updates.status,
       budget: parseMoney(updates.budget),
       packageValue: parseMoney(updates.budget),
       budgetUsed: parseMoney(updates.budgetUsed),
@@ -371,9 +401,9 @@ export default function ProjectDetail() {
       finalAmount: Math.max(parseMoney(updates.budget) - parseMoney(updates.discount), 0),
       linkedInvoiceId: updates.linkedInvoiceId,
       paymentStatus: updates.paymentStatus,
-      progress: Number(updates.progress),
-      clientStatus: updates.clientStatus,
-      currentPhase: updates.currentPhase,
+      progress: nextProgress,
+      clientStatus: roadmapComplete ? "completed" : updates.clientStatus,
+      currentPhase: nextPhase,
       adminNotes: updates.adminNotes,
       stages: updates.stages,
     };
