@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FolderKanban, Plus, Search } from "lucide-react";
+import { CheckCircle2, Clock3, FolderKanban, AlertTriangle, Plus, Search } from "lucide-react";
 import { Button } from "../../components/ui";
 import { useCrmRecords } from "../../hooks/useCrmRecords";
 import { today, daysBetween, parseFullDate } from "../../lib/dates";
@@ -19,6 +19,43 @@ const priorityBar = {
 
 function monthLabel(date) {
   return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+}
+
+function KpiChip({ label, value, icon: Icon, tone = "default" }) {
+  const toneStyles = {
+    default: "bg-[#F1F1F5] text-[#884c2d]",
+    success: "bg-emerald-50 text-emerald-700",
+    warning: "bg-amber-50 text-amber-700",
+    danger: "bg-red-50 text-red-700",
+  };
+  return (
+    <div className="rounded-xl border border-[#E1E4EA] bg-white px-5 py-4">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${toneStyles[tone]}`}>
+          <Icon size={16} />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium text-[#525866]">{label}</p>
+          <p className="mt-0.5 truncate text-base font-bold text-[#0E121B]">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, subtitle, action, children }) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-[#E1E4EA] bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-[#f1f1f5] bg-[#FAFAFA] px-5 py-3.5">
+        <div>
+          <h3 className="text-sm font-bold text-[#0E121B]">{title}</h3>
+          {subtitle && <p className="mt-0.5 text-xs text-[#525866]">{subtitle}</p>}
+        </div>
+        {action}
+      </div>
+      <div className="p-5">{children}</div>
+    </section>
+  );
 }
 
 function DeadlineTimeline({ items }) {
@@ -147,6 +184,17 @@ export default function ProjectsList() {
     );
   }, [projects, search]);
 
+  const kpis = useMemo(() => {
+    const todayDate = today();
+    const completed = projects.filter((p) => String(p.status || p.clientStatus || "").toLowerCase() === "completed").length;
+    const overdue = projects.filter((p) => {
+      const due = parseFullDate(p.dueDate || p.expectedEndDate || "");
+      return !Number.isNaN(due.getTime()) && due < todayDate && String(p.status || "").toLowerCase() !== "completed";
+    }).length;
+    const inProgress = projects.length - completed;
+    return { total: projects.length, inProgress, completed, overdue };
+  }, [projects]);
+
   async function handleCreate(company, form) {
     const { payload, starterTasks } = buildProjectPayload(form, company);
     const created = await save(payload);
@@ -178,24 +226,35 @@ export default function ProjectsList() {
         </div>
       </div>
 
-      {!loading && <DeadlineTimeline items={filtered} />}
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((project) => (
-          <ProjectCard key={project.id || project._id} project={project} />
-        ))}
-      </div>
-
-      {!loading && !filtered.length && (
-        <div className="rounded-xl border border-dashed border-[#E1E4EA] bg-white p-10 text-center">
-          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-[#fff1ec] text-[#884c2d]">
-            <FolderKanban size={20} />
-          </div>
-          <p className="text-sm font-semibold text-[#0E121B]">{search ? "No projects match your search." : "No projects yet."}</p>
-          <p className="mt-1 text-sm text-[#525866]">Create a project and link it to a company to get started.</p>
-          <Button onClick={() => setCreating(true)} className="mt-4"><Plus size={14} /> New Project</Button>
+      {!loading && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <KpiChip label="Total Projects" value={kpis.total} icon={FolderKanban} />
+          <KpiChip label="In Progress" value={kpis.inProgress} icon={Clock3} tone="default" />
+          <KpiChip label="Completed" value={kpis.completed} icon={CheckCircle2} tone="success" />
+          <KpiChip label="Overdue" value={kpis.overdue} icon={AlertTriangle} tone={kpis.overdue ? "danger" : "default"} />
         </div>
       )}
+
+      {!loading && <DeadlineTimeline items={filtered} />}
+
+      <Section title="All Projects" subtitle={`${filtered.length} of ${projects.length} projects across every company`}>
+        {filtered.length ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((project) => (
+              <ProjectCard key={project.id || project._id} project={project} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-[#E1E4EA] bg-[#FAFAFA] p-10 text-center">
+            <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-[#fff1ec] text-[#884c2d]">
+              <FolderKanban size={20} />
+            </div>
+            <p className="text-sm font-semibold text-[#0E121B]">{search ? "No projects match your search." : "No projects yet."}</p>
+            <p className="mt-1 text-sm text-[#525866]">Create a project and link it to a company to get started.</p>
+            <Button onClick={() => setCreating(true)} className="mt-4"><Plus size={14} /> New Project</Button>
+          </div>
+        )}
+      </Section>
 
       {creating && (
         <ProjectFormPanel

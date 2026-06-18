@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  AlertCircle, Calendar, Check, ChevronRight, Edit3, Loader2,
+  AlertCircle, Calendar, Check, ChevronRight, Clock3, Edit3, Loader2,
   Plus, Save, Search, Trash2, X, FolderOpen, Info
 } from "lucide-react";
 import { useAuth } from "../../auth/useAuth";
@@ -83,6 +83,96 @@ function SectionCard({ children, className = "" }) {
   return (
     <div className={`rounded-xl border border-[#E1E4EA] bg-[#FFFFFF] shadow-sm ${className}`}>
       {children}
+    </div>
+  );
+}
+
+function Section({ title, subtitle, action, children }) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-[#E1E4EA] bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f1f1f5] bg-[#FAFAFA] px-5 py-3.5">
+        <div>
+          <h3 className="text-sm font-bold text-[#0E121B]">{title}</h3>
+          {subtitle && <p className="mt-0.5 text-xs text-[#525866]">{subtitle}</p>}
+        </div>
+        {action}
+      </div>
+      <div className="p-5">{children}</div>
+    </section>
+  );
+}
+
+function KpiChip({ label, value, icon: Icon, tone = "default" }) {
+  const toneStyles = {
+    default: "bg-[#F1F1F5] text-[#884c2d]",
+    success: "bg-emerald-50 text-emerald-700",
+    warning: "bg-amber-50 text-amber-700",
+  };
+  return (
+    <div className="rounded-xl border border-[#E1E4EA] bg-white px-5 py-4">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${toneStyles[tone]}`}>
+          <Icon size={16} />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium text-[#525866]">{label}</p>
+          <p className="mt-0.5 truncate text-base font-bold text-[#0E121B]">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientPicker({ clients, value, onChange }) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const selected = clients.find((c) => c._id === value);
+  const filtered = clients.filter((c) => `${c.name} ${c.company || ""} ${c.email}`.toLowerCase().includes(query.toLowerCase()));
+
+  if (selected) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-[#884c2d] bg-[#fff1ec] px-4 py-2.5">
+        <Avatar name={selected.name} size="sm" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-[#0E121B]">{selected.name}</p>
+          <p className="truncate text-xs text-[#525866]">{selected.company || selected.email}</p>
+        </div>
+        <button onClick={() => onChange("All")} className="flex-shrink-0 text-xs font-bold text-[#884c2d] hover:underline">Change client</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <div className="flex h-11 items-center gap-2 rounded-lg border border-[#E1E4EA] bg-white px-3.5 focus-within:border-[#884c2d] focus-within:ring-2 focus-within:ring-[#884c2d]/15">
+        <Search size={16} className="text-[#9ca3af] shrink-0" />
+        <input
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder="Search and select a client…"
+          className="w-full bg-transparent text-sm outline-none"
+        />
+      </div>
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-lg border border-[#E1E4EA] bg-white shadow-lg">
+          {filtered.length ? filtered.map((c) => (
+            <button
+              key={c._id}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onChange(c._id); setQuery(""); setOpen(false); }}
+              className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left hover:bg-[#fff1ec]"
+            >
+              <Avatar name={c.name} size="sm" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#0E121B]">{c.name}</p>
+                <p className="truncate text-xs text-[#525866]">{c.company || c.email}</p>
+              </div>
+            </button>
+          )) : <p className="px-3.5 py-3 text-sm text-[#525866]">No clients found.</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -427,6 +517,7 @@ export default function ClientProjectsPage() {
 
   const [toast, setToast] = useState({ msg: "", type: "success" });
   const [deletingId, setDeletingId] = useState(null);
+  const [clientMeetingsCount, setClientMeetingsCount] = useState(0);
 
   function showToast(msg, type = "success") {
     setToast({ msg, type });
@@ -453,6 +544,15 @@ export default function ClientProjectsPage() {
     load();
     return () => { alive = false; };
   }, [token]);
+
+  useEffect(() => {
+    let alive = true;
+    if (clientFilter === "All") return;
+    adminApi.getClientDetail(clientFilter, token)
+      .then((detail) => { if (alive) setClientMeetingsCount((detail.meetings || []).length); })
+      .catch(() => { if (alive) setClientMeetingsCount(0); });
+    return () => { alive = false; };
+  }, [clientFilter, token]);
 
   function clientIdOf(project) {
     const cid = project?.clientId;
@@ -523,12 +623,19 @@ export default function ClientProjectsPage() {
   }
 
   const sp = statusPill;
-  const filteredProjects = projects.filter((p) => {
+  const selectedClient = clients.find((c) => c._id === clientFilter);
+  const clientProjects = projects.filter((p) => clientFilter === "All" || clientIdOf(p) === clientFilter);
+  const filteredProjects = clientProjects.filter((p) => {
     const matchesSearch = `${p.name} ${clientNameOf(p)} ${p.packageName || ""}`.toLowerCase().includes(search.toLowerCase());
-    const matchesClient = clientFilter === "All" || clientIdOf(p) === clientFilter;
     const matchesStatus = statusFilter === "All" || p.status === statusFilter;
-    return matchesSearch && matchesClient && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
+  const kpis = {
+    total: clientProjects.length,
+    inProgress: clientProjects.filter((p) => !["completed", "cancelled"].includes(p.status)).length,
+    completed: clientProjects.filter((p) => p.status === "completed").length,
+    meetings: clientFilter === "All" ? null : clientMeetingsCount,
+  };
 
   /* ── render ── */
 
@@ -697,61 +804,70 @@ export default function ClientProjectsPage() {
           </div>
         </div>
       ) : (
-        /* ── Table view ── */
-        <>
-          <div className="flex flex-col gap-4 border-b border-[#E1E4EA] bg-white px-6 py-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h1 className="text-base font-medium text-[#0E121B]">Client Projects</h1>
-              <p className="text-xs text-[#525866] mt-0.5">All projects across every client, synced live to their portal.</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex h-11 items-center gap-2 rounded-full border border-[#1F2937]/10 px-3.5 sm:w-64">
-                <Search size={16} className="text-[#1F2937]/50 shrink-0" />
-                <input className="w-full bg-transparent text-sm outline-none" placeholder="Search projects or clients…" value={search} onChange={(e) => setSearch(e.target.value)} />
-              </div>
-              <select value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} className="h-11 rounded-full border border-[#E1E4EA] bg-white px-3 text-sm outline-none">
-                <option value="All">All Clients</option>
-                {clients.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
-              </select>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-11 rounded-full border border-[#E1E4EA] bg-white px-3 text-sm outline-none">
-                {["All", "not_started", "in_progress", "on_hold", "completed", "cancelled"].map((s) => (
-                  <option key={s} value={s}>{s === "All" ? "All Statuses" : sp(s).label}</option>
-                ))}
-              </select>
-              <button
-                onClick={startCreate}
-                disabled={!clients.length}
-                className="flex h-11 items-center gap-1.5 rounded-full bg-[#C57E5B] px-4 text-sm font-medium text-white hover:bg-[#b06a48] transition-colors disabled:opacity-50"
-              >
-                <Plus size={16} /> New Project
-              </button>
-            </div>
+        /* ── 3-section browse view ── */
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          <div className="mb-1">
+            <h1 className="text-base font-medium text-[#0E121B]">Client Projects</h1>
+            <p className="text-xs text-[#525866] mt-0.5">Select a client to see their KPIs, projects, and timelines — synced live to their portal.</p>
           </div>
 
-          <div className="p-6">
+          {/* Section 1: client picker */}
+          <Section title="1. Select Client" subtitle="Choose a client, or leave unselected to browse every project.">
+            <div className="max-w-md">
+              <ClientPicker clients={clients} value={clientFilter} onChange={setClientFilter} />
+            </div>
+          </Section>
+
+          {/* Section 2: KPIs */}
+          <Section title="2. Overview" subtitle={selectedClient ? `${selectedClient.name}'s project KPIs.` : "KPIs across every client."}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <KpiChip label="Total Projects" value={kpis.total} icon={FolderOpen} />
+              <KpiChip label="In Progress" value={kpis.inProgress} icon={Clock3} />
+              <KpiChip label="Completed" value={kpis.completed} icon={Check} tone="success" />
+              <KpiChip label="Meetings" value={kpis.meetings === null ? "—" : kpis.meetings} icon={Calendar} tone="warning" />
+            </div>
+          </Section>
+
+          {/* Section 3: projects */}
+          <Section
+            title="3. Projects"
+            subtitle={selectedClient ? `${filteredProjects.length} project${filteredProjects.length === 1 ? "" : "s"} for ${selectedClient.name}.` : `${filteredProjects.length} of ${projects.length} projects across every client.`}
+            action={
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex h-9 items-center gap-2 rounded-lg border border-[#E1E4EA] bg-white px-3">
+                  <Search size={14} className="text-[#9ca3af] shrink-0" />
+                  <input className="w-40 bg-transparent text-sm outline-none" placeholder="Search projects…" value={search} onChange={(e) => setSearch(e.target.value)} />
+                </div>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-9 rounded-lg border border-[#E1E4EA] bg-white px-3 text-sm outline-none">
+                  {["All", "not_started", "in_progress", "on_hold", "completed", "cancelled"].map((s) => (
+                    <option key={s} value={s}>{s === "All" ? "All Statuses" : sp(s).label}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={startCreate}
+                  disabled={!clients.length}
+                  className="flex h-9 items-center gap-1.5 rounded-lg bg-[#C57E5B] px-3 text-xs font-bold text-white hover:bg-[#b06a48] transition-colors disabled:opacity-50"
+                >
+                  <Plus size={14} /> New Project
+                </button>
+              </div>
+            }
+          >
             {loading ? (
               <div className="flex justify-center py-20"><Spinner size={24} /></div>
             ) : filteredProjects.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-[#E1E4EA] bg-white p-12 text-center">
+              <div className="rounded-xl border border-dashed border-[#E1E4EA] bg-[#FAFAFA] p-12 text-center">
                 <FolderOpen size={32} className="mx-auto mb-3 text-[#525866]/30" />
                 <p className="text-sm font-semibold text-[#525866]">{clients.length === 0 ? "No clients yet" : "No projects match your filters"}</p>
-                <p className="text-xs text-[#525866]/70 mt-1">{clients.length === 0 ? "Clients appear after paying for a package." : "Try adjusting search or filters."}</p>
+                <p className="text-xs text-[#525866]/70 mt-1">{clients.length === 0 ? "Clients appear after paying for a package." : "Try adjusting search, status, or the selected client."}</p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-[#E1E4EA] bg-white shadow-[0_4px_4px_rgba(0,0,0,0.05)]">
+              <div className="overflow-hidden rounded-xl border border-[#E1E4EA]">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <colgroup>
-                      <col className="w-[28%]" />
-                      <col className="w-[18%]" />
-                      <col className="w-[16%]" />
-                      <col className="w-[14%]" />
-                      <col className="w-[16%]" />
-                      <col className="w-[8%]" />
-                    </colgroup>
                     <thead className="bg-[#F5F7FA] border-b border-[#E1E4EA]">
                       <tr>
-                        {["Project", "Client", "Package", "Status", "Progress", "Actions"].map((h) => (
+                        {(selectedClient ? ["Project", "Package", "Status", "Progress", "Actions"] : ["Project", "Client", "Package", "Status", "Progress", "Actions"]).map((h) => (
                           <th key={h} className="px-4 py-3 text-left text-xs font-medium text-[#525866]">{h}</th>
                         ))}
                       </tr>
@@ -767,7 +883,7 @@ export default function ClientProjectsPage() {
                                 <span className="font-semibold text-[#0E121B]">{p.name}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3.5 text-[#374151]">{clientNameOf(p)}</td>
+                            {!selectedClient && <td className="px-4 py-3.5 text-[#374151]">{clientNameOf(p)}</td>}
                             <td className="px-4 py-3.5 text-[#374151]">{p.packageName || "—"}</td>
                             <td className="px-4 py-3.5"><Pill {...s} /></td>
                             <td className="px-4 py-3.5">
@@ -792,8 +908,8 @@ export default function ClientProjectsPage() {
                 </div>
               </div>
             )}
-          </div>
-        </>
+          </Section>
+        </div>
       )}
 
       {editMode && (
