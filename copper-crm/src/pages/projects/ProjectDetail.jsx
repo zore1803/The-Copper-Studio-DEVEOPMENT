@@ -2,8 +2,8 @@ import { Fragment, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ListChecks, Palette, Code2, FlaskConical, ClipboardCheck, Rocket, Zap,
-  Paperclip, UploadCloud, CheckCircle2, MessageSquare, Send, Calendar,
-  Settings2, Save, ChevronDown,
+  UploadCloud, CheckCircle2, MessageSquare, Send, Calendar,
+  Settings2, Save,
 } from "lucide-react";
 import { Button } from "../../components/ui";
 import { useCrmRecords } from "../../hooks/useCrmRecords";
@@ -110,6 +110,34 @@ function PanelSection({ title, children }) {
       <h4 className="text-xs font-bold uppercase tracking-wide text-[#884c2d]">{title}</h4>
       <div className="grid gap-4 sm:grid-cols-2">{children}</div>
     </div>
+  );
+}
+
+function KpiChip({ label, value, icon: Icon }) {
+  return (
+    <div className="rounded-xl border border-[#E1E4EA] bg-white px-5 py-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F1F1F5] text-[#884c2d]">
+          <Icon size={16} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-[#525866]">{label}</p>
+          <p className="mt-0.5 truncate text-base font-bold text-[#0E121B]">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, action, children }) {
+  return (
+    <section className="rounded-2xl border border-[#E1E4EA] bg-white shadow-[0_18px_40px_rgba(79,39,16,0.06)]">
+      <div className="flex items-center justify-between border-b border-[#f3f4f6] bg-[#FAFAFA] rounded-t-2xl px-5 sm:px-7 py-4">
+        <h3 className="font-display text-sm font-bold text-[#0E121B]">{title}</h3>
+        {action}
+      </div>
+      <div className="p-5 sm:p-7">{children}</div>
+    </section>
   );
 }
 
@@ -439,11 +467,20 @@ export default function ProjectDetail() {
         onNewTask={() => navigate(`/admin/companies/${currentCompany.id}/projects/${project.id || project._id}/tasks`)}
       />
 
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <KpiChip label="Progress" value={`${project.progress || 0}%`} icon={Zap} />
+        <KpiChip label="Current Phase" value={PHASES[phaseIndex]?.label || project.currentPhase || "—"} icon={ListChecks} />
+        <KpiChip label="Final Amount" value={formatINR(project.finalAmount || project.budget)} icon={ListChecks} />
+        <KpiChip label="Payment Status" value={project.paymentStatus || "Pending"} icon={ListChecks} />
+        <KpiChip label="Client Status" value={CLIENT_STATUSES.find(s => s.value === project.clientStatus)?.label || "In Progress"} icon={Settings2} />
+        <KpiChip label="Activity" value={project.activity?.length || 0} icon={CheckCircle2} />
+      </div>
+
       <section className="grid grid-cols-12 gap-5">
         <div className="col-span-12 space-y-5 lg:col-span-7 xl:col-span-8">
-          <div className="rounded-2xl border border-[#E1E4EA] bg-white p-5 sm:p-7 shadow-[0_18px_40px_rgba(79,39,16,0.06)]">
-            <div className="mb-8 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-display text-lg font-semibold text-[#0E121B]">Phase Roadmap</h3>
+          <Section
+            title="Phase Roadmap"
+            action={
               <div className="flex items-center gap-3">
                 <span className="inline-flex items-center gap-2 text-xs font-semibold text-[#525866]">
                   <span className="h-2 w-2 rounded-full bg-[#884c2d]" />
@@ -456,8 +493,8 @@ export default function ProjectDetail() {
                   <Settings2 size={11} /> Update
                 </button>
               </div>
-            </div>
-
+            }
+          >
             <div className="flex items-center overflow-x-auto pb-1">
               {PHASES.map((phase, index) => {
                 const Icon = phase.icon;
@@ -499,11 +536,10 @@ export default function ProjectDetail() {
                 );
               })}
             </div>
-          </div>
+          </Section>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            <div className="rounded-2xl border border-[#E1E4EA] bg-white relative overflow-hidden p-6 shadow-[0_18px_40px_rgba(79,39,16,0.06)]">
-              <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-[#884c2d]">Critical Focus</p>
+            <Section title="Critical Focus">
               <p className="text-sm text-[#525866]">View and manage this project's tasks as a Kanban board or Gantt timeline. Open a task to set priority and assign team members.</p>
               <button
                 type="button"
@@ -512,65 +548,61 @@ export default function ProjectDetail() {
               >
                 Open Project Timeline →
               </button>
-            </div>
+            </Section>
 
-            <div className="flex flex-col justify-between rounded-2xl border border-[#E1E4EA] bg-[#F1F1F5] p-6 shadow-[0_18px_40px_rgba(79,39,16,0.06)]">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#525866]">Note for Client</p>
-                  <button
-                    onClick={() => setAddingNote(v => !v)}
-                    className="text-[11px] font-bold text-[#884c2d] hover:underline"
-                  >
-                    {addingNote ? "Cancel" : "Edit"}
-                  </button>
+            <Section
+              title="Note for Client"
+              action={
+                <button onClick={() => setAddingNote(v => !v)} className="text-[11px] font-bold text-[#884c2d] hover:underline">
+                  {addingNote ? "Cancel" : "Edit"}
+                </button>
+              }
+            >
+              <div className="flex h-full flex-col justify-between">
+                <div>
+                  {addingNote ? (
+                    <form onSubmit={handleAddNote} className="space-y-2">
+                      <textarea
+                        value={noteText}
+                        onChange={e => setNoteText(e.target.value)}
+                        placeholder="Message to show the client…"
+                        rows={3}
+                        className="w-full rounded-lg border border-[#E1E4EA] bg-white px-3 py-2 text-xs outline-none focus:border-[#884c2d] focus:ring-1 focus:ring-[#884c2d]/30 resize-none"
+                        autoFocus
+                      />
+                      <button type="submit" className="flex items-center gap-1.5 rounded-lg bg-[#884c2d] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#6f381a]">
+                        <Save size={11} /> Save Note
+                      </button>
+                    </form>
+                  ) : (
+                    <p className="text-sm italic leading-5 text-[#0E121B]">
+                      &ldquo;{project.adminNotes || "No note for client yet. Click Edit to add one."}&rdquo;
+                    </p>
+                  )}
                 </div>
-                {addingNote ? (
-                  <form onSubmit={handleAddNote} className="space-y-2">
-                    <textarea
-                      value={noteText}
-                      onChange={e => setNoteText(e.target.value)}
-                      placeholder="Message to show the client…"
-                      rows={3}
-                      className="w-full rounded-lg border border-[#E1E4EA] bg-white px-3 py-2 text-xs outline-none focus:border-[#884c2d] focus:ring-1 focus:ring-[#884c2d]/30 resize-none"
-                      autoFocus
-                    />
-                    <button type="submit" className="flex items-center gap-1.5 rounded-lg bg-[#884c2d] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#6f381a]">
-                      <Save size={11} /> Save Note
-                    </button>
-                  </form>
-                ) : (
-                  <p className="text-sm italic leading-5 text-[#0E121B]">
-                    &ldquo;{project.adminNotes || "No note for client yet. Click Edit to add one."}&rdquo;
-                  </p>
+                {!addingNote && (
+                  <Button variant="secondary" className="mt-6 w-full justify-center" onClick={() => navigate(`/admin/companies/${currentCompany.id}/projects/${project.id || project._id}/files`)}>
+                    Open Client Workspace
+                  </Button>
                 )}
               </div>
-              {!addingNote && (
-                <Button variant="secondary" className="mt-6 w-full justify-center" onClick={() => navigate(`/admin/companies/${currentCompany.id}/projects/${project.id || project._id}/files`)}>
-                  Open Client Workspace
-                </Button>
-              )}
-            </div>
+            </Section>
           </div>
         </div>
 
         <div className="col-span-12 space-y-5 lg:col-span-5 xl:col-span-4">
-          <div className="rounded-2xl border border-[#E1E4EA] bg-white p-6 shadow-[0_18px_40px_rgba(79,39,16,0.06)]">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="font-display text-lg font-semibold text-[#0E121B]">Project Metadata</h3>
-              <button
-                onClick={() => setManaging(true)}
-                className="flex items-center gap-1 text-xs font-semibold text-[#884c2d] hover:underline"
-              >
+          <Section
+            title="Project Metadata"
+            action={
+              <button onClick={() => setManaging(true)} className="flex items-center gap-1 text-xs font-semibold text-[#884c2d] hover:underline">
                 <Settings2 size={11} /> Edit
               </button>
-            </div>
+            }
+          >
             <div className="space-y-5">
               <MetaRow icon={Calendar} label="Start Date" value={project.startDate} />
               <MetaRow icon={Calendar} label="Expected Completion" value={project.dueDate || project.expectedEndDate} />
               <MetaRow icon={ListChecks} label="Package Purchased" value={project.packagePurchased || project.packageName} />
-              <MetaRow icon={ListChecks} label="Final Amount" value={formatINR(project.finalAmount || project.budget)} />
-              <MetaRow icon={ListChecks} label="Payment Status" value={project.paymentStatus || "Pending"} />
               <div className="border-t border-[#E1E4EA] pt-5">
                 <div className="mb-2 flex items-center justify-between text-xs font-bold text-[#525866]">
                   <span>Budget Usage</span>
@@ -580,22 +612,10 @@ export default function ProjectDetail() {
                   <div className="h-full rounded-full bg-[#884c2d]" style={{ width: `${budgetPct}%` }} />
                 </div>
               </div>
-              <div className="border-t border-[#E1E4EA] pt-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-[#9ca3af] mb-1">Client Status</p>
-                <span className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-bold ${
-                  project.clientStatus === "completed" ? "bg-emerald-50 text-emerald-700" :
-                  project.clientStatus === "on_hold" ? "bg-amber-50 text-amber-700" :
-                  project.clientStatus === "not_started" ? "bg-gray-100 text-gray-600" :
-                  "bg-[#884c2d]/10 text-[#884c2d]"
-                }`}>
-                  {CLIENT_STATUSES.find(s => s.value === project.clientStatus)?.label || "In Progress"}
-                </span>
-              </div>
             </div>
-          </div>
+          </Section>
 
-          <div className="rounded-2xl border border-[#E1E4EA] bg-white p-6 shadow-[0_18px_40px_rgba(79,39,16,0.06)]">
-            <h3 className="font-display mb-5 text-lg font-semibold text-[#0E121B]">Activity</h3>
+          <Section title="Activity">
             <div className="space-y-5">
               {project.activity?.length ? project.activity.map((item, index) => {
                 const Icon = activityIcon[item.icon] || CheckCircle2;
@@ -612,7 +632,7 @@ export default function ProjectDetail() {
                 );
               }) : <p className="text-sm text-[#525866]">No activity recorded yet.</p>}
             </div>
-          </div>
+          </Section>
 
           <InviteCollaborators client={currentCompany.name} />
         </div>

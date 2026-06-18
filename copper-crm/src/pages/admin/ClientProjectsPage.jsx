@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertCircle, Calendar, Check, ChevronRight, Edit3, Loader2,
-  Plus, Save, Search, Trash2, Users, X, FolderOpen, Info
+  Plus, Save, Search, Trash2, X, FolderOpen, Info
 } from "lucide-react";
 import { useAuth } from "../../auth/useAuth";
 import { adminApi } from "../../lib/clientApi";
+import { Avatar } from "../../components/ui";
+import SidePanel from "../../components/SidePanel";
 
 /* ─── helpers ─── */
 
@@ -20,10 +22,6 @@ function fmtDisplay(date) {
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function initials(name = "") {
-  return name.split(" ").map((p) => p[0] || "").join("").slice(0, 2).toUpperCase();
 }
 
 /* ─── tiny design atoms ─── */
@@ -341,8 +339,9 @@ function MeetingsPanel({ meetings, token, onUpdated }) {
     try {
       const updated = await adminApi.updateMeeting(m._id, { ...m, status }, token);
       onUpdated(updated);
-    } catch {}
-    finally { setUpdatingId(null); }
+    } catch (err) {
+      console.error("Failed to update meeting status:", err);
+    } finally { setUpdatingId(null); }
   }
 
   if (meetings.length === 0) {
@@ -410,17 +409,21 @@ export default function ClientProjectsPage() {
   const { token } = useAuth();
 
   const [clients, setClients] = useState([]);
-  const [clientsLoading, setClientsLoading] = useState(true);
-  const [clientSearch, setClientSearch] = useState("");
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [clientProjects, setClientProjects] = useState([]);
-  const [clientMeetings, setClientMeetings] = useState([]);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [clientFilter, setClientFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   const [selectedProject, setSelectedProject] = useState(null);
-  const [editMode, setEditMode] = useState(false); // "create" | "edit" | false
-  const [rightTab, setRightTab] = useState("timeline"); // "timeline" | "meetings"
+  const [clientMeetings, setClientMeetings] = useState([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [rightTab, setRightTab] = useState("timeline");
+
+  const [editMode, setEditMode] = useState(false); // false | "create" | "edit"
+  const [editingProject, setEditingProject] = useState(null);
+  const [createClientId, setCreateClientId] = useState("");
 
   const [toast, setToast] = useState({ msg: "", type: "success" });
   const [deletingId, setDeletingId] = useState(null);
@@ -430,38 +433,61 @@ export default function ClientProjectsPage() {
     setTimeout(() => setToast({ msg: "", type: "success" }), 4000);
   }
 
-  // Load clients
   useEffect(() => {
-    adminApi.getClients(token)
-      .then(data => setClients(data))
-      .catch(() => showToast("Could not load clients.", "error"))
-      .finally(() => setClientsLoading(false));
+    let alive = true;
+    async function load() {
+      try {
+        const [clientList, projectList] = await Promise.all([
+          adminApi.getClients(token),
+          adminApi.getProjects(token),
+        ]);
+        if (!alive) return;
+        setClients(clientList);
+        setProjects(projectList);
+      } catch {
+        if (alive) showToast("Could not load client projects.", "error");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+    load();
+    return () => { alive = false; };
   }, [token]);
 
-  // Load client detail when selected
-  const loadClientDetail = useCallback(async (client) => {
-    setSelectedClient(client);
-    setSelectedProject(null);
-    setEditMode(false);
+  function clientIdOf(project) {
+    const cid = project?.clientId;
+    return (cid && typeof cid === "object") ? cid._id : cid;
+  }
+
+  function clientNameOf(project) {
+    const cid = project?.clientId;
+    if (cid && typeof cid === "object") return cid.name || cid.company || cid.email || "Unknown client";
+    const found = clients.find((c) => c._id === cid);
+    return found?.name || found?.company || "Unknown client";
+  }
+
+  async function openProject(project) {
+    setSelectedProject(project);
+    setRightTab("timeline");
     setDetailLoading(true);
     try {
-      const detail = await adminApi.getClientDetail(client._id, token);
-      setClientProjects(detail.projects || []);
+      const detail = await adminApi.getClientDetail(clientIdOf(project), token);
       setClientMeetings(detail.meetings || []);
     } catch {
-      showToast("Could not load client detail.", "error");
+      setClientMeetings([]);
     } finally {
       setDetailLoading(false);
     }
-  }, [token]);
+  }
 
   function handleProjectSaved(saved) {
-    setClientProjects(prev => {
-      const exists = prev.some(p => p._id === saved._id);
-      return exists ? prev.map(p => p._id === saved._id ? saved : p) : [saved, ...prev];
+    setProjects((prev) => {
+      const exists = prev.some((p) => p._id === saved._id);
+      return exists ? prev.map((p) => (p._id === saved._id ? saved : p)) : [saved, ...prev];
     });
-    setSelectedProject(saved);
+    if (selectedProject?._id === saved._id) setSelectedProject(saved);
     setEditMode(false);
+    setEditingProject(null);
     showToast(editMode === "edit" ? "Project updated — client portal refreshed." : "Project created — client can see it now.");
   }
 
@@ -470,11 +496,8 @@ export default function ClientProjectsPage() {
     setDeletingId(project._id);
     try {
       await adminApi.deleteProject(project._id, token);
-      setClientProjects(prev => prev.filter(p => p._id !== project._id));
-      if (selectedProject?._id === project._id) {
-        setSelectedProject(null);
-        setEditMode(false);
-      }
+      setProjects((prev) => prev.filter((p) => p._id !== project._id));
+      if (selectedProject?._id === project._id) setSelectedProject(null);
       showToast("Project deleted.");
     } catch (err) {
       showToast(err.message || "Delete failed.", "error");
@@ -484,267 +507,99 @@ export default function ClientProjectsPage() {
   }
 
   function handleMeetingUpdated(updated) {
-    setClientMeetings(prev => prev.map(m => m._id === updated._id ? updated : m));
+    setClientMeetings((prev) => prev.map((m) => (m._id === updated._id ? updated : m)));
     showToast("Meeting status updated.");
   }
 
-  const filteredClients = clients.filter(c =>
-    `${c.name} ${c.email} ${c.company || ""}`.toLowerCase().includes(clientSearch.toLowerCase())
-  );
+  function startEdit(project) {
+    setEditingProject(project);
+    setEditMode("edit");
+  }
+
+  function startCreate() {
+    setCreateClientId(clients[0]?._id || "");
+    setEditingProject(null);
+    setEditMode("create");
+  }
 
   const sp = statusPill;
+  const filteredProjects = projects.filter((p) => {
+    const matchesSearch = `${p.name} ${clientNameOf(p)} ${p.packageName || ""}`.toLowerCase().includes(search.toLowerCase());
+    const matchesClient = clientFilter === "All" || clientIdOf(p) === clientFilter;
+    const matchesStatus = statusFilter === "All" || p.status === statusFilter;
+    return matchesSearch && matchesClient && matchesStatus;
+  });
 
   /* ── render ── */
 
   return (
-    <div className="flex h-[calc(100vh-80px)] overflow-hidden -m-10">
+    <div className="min-h-full bg-[#F1F1F5] -m-10">
       <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ msg: "", type: "success" })} />
 
-      {/* ── COL 1: Client List ── */}
-      <aside className="w-72 flex-shrink-0 flex flex-col border-r border-[#E1E4EA] bg-[#F1F1F5]">
-        <div className="px-4 pt-5 pb-3">
-          <h2 className="text-base font-bold text-[#0E121B] mb-3 flex items-center gap-2">
-            <Users size={16} className="text-[#884c2d]" />
-            Clients
-            {!clientsLoading && (
-              <span className="ml-auto rounded-full bg-[#884c2d]/10 px-2 py-0.5 text-[10px] font-bold text-[#884c2d]">
-                {clients.length}
-              </span>
-            )}
-          </h2>
-          <div className="flex h-9 items-center gap-2 rounded-xl border border-[#E1E4EA] bg-white px-3 focus-within:border-[#884c2d] focus-within:ring-2 focus-within:ring-[#C57E5B]/60">
-            <Search size={13} className="text-[#525866]" />
-            <input value={clientSearch} onChange={e => setClientSearch(e.target.value)}
-              placeholder="Search clients…" className="w-full bg-transparent text-xs outline-none placeholder:text-[#525866]/60" />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-3 pb-4">
-          {clientsLoading ? (
-            <div className="flex justify-center pt-12"><Spinner /></div>
-          ) : filteredClients.length === 0 ? (
-            <div className="pt-12 text-center">
-              <Users size={28} className="mx-auto mb-2 text-[#525866]/30" />
-              <p className="text-xs font-semibold text-[#525866]">{clientSearch ? "No matches" : "No clients yet"}</p>
-              <p className="text-[11px] text-[#525866]/70 mt-1">Clients appear after paying for a package.</p>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {filteredClients.map(client => (
+      {selectedProject ? (
+        /* ── Project Detail ── */
+        <div className="flex flex-col">
+          <div className="border-b border-[#E1E4EA] bg-white px-6 py-5">
+            <button onClick={() => setSelectedProject(null)} className="mb-3 flex items-center gap-1 text-xs font-bold text-[#884c2d] hover:underline">
+              <ChevronRight size={12} className="rotate-180" /> Back to all projects
+            </button>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <h2 className="text-lg font-bold text-[#0E121B]">{selectedProject.name}</h2>
+                  <Pill {...sp(selectedProject.status)} />
+                </div>
+                <p className="text-xs text-[#525866]">
+                  {clientNameOf(selectedProject)} · {selectedProject.packageName || "No package"}
+                  {selectedProject.expectedEndDate && ` · Due ${fmtDisplay(selectedProject.expectedEndDate)}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button onClick={() => startEdit(selectedProject)} className="flex h-8 items-center gap-1.5 rounded-xl border border-[#E1E4EA] bg-white px-3 text-xs font-bold text-[#884c2d] hover:bg-[#fff1ec] transition-colors">
+                  <Edit3 size={12} /> Edit
+                </button>
                 <button
-                  key={client._id}
-                  onClick={() => loadClientDetail(client)}
-                  className={`w-full rounded-xl p-3 text-left transition-all ${
-                    selectedClient?._id === client._id
-                      ? "bg-[#884c2d] text-white shadow-md"
-                      : "bg-white hover:bg-[#fff1ec] text-[#0E121B]"
-                  }`}
+                  onClick={() => handleDeleteProject(selectedProject)}
+                  disabled={deletingId === selectedProject._id}
+                  className="flex h-8 items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                      selectedClient?._id === client._id ? "bg-white/20 text-white" : "bg-[#884c2d] text-white"
-                    }`}>
-                      {initials(client.name)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-xs font-bold truncate ${selectedClient?._id === client._id ? "text-white" : "text-[#0E121B]"}`}>
-                        {client.name}
-                      </p>
-                      <p className={`text-[10px] truncate ${selectedClient?._id === client._id ? "text-white/70" : "text-[#525866]"}`}>
-                        {client.company || client.email}
-                      </p>
-                    </div>
-                    <ChevronRight size={13} className={selectedClient?._id === client._id ? "text-white/70" : "text-[#525866]/50"} />
-                  </div>
+                  {deletingId === selectedProject._id ? <Spinner size={12} /> : <Trash2 size={12} />}
+                  Delete
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-1 mt-4 border-b border-[#E1E4EA]">
+              {[
+                { key: "timeline", label: "Timeline & Stages" },
+                { key: "meetings", label: `Meetings ${clientMeetings.length ? `(${clientMeetings.length})` : ""}` },
+              ].map((tab) => (
+                <button key={tab.key} onClick={() => setRightTab(tab.key)}
+                  className={`pb-2.5 px-1 mr-4 text-xs font-bold border-b-2 transition-all ${
+                    rightTab === tab.key ? "border-[#884c2d] text-[#884c2d]" : "border-transparent text-[#525866] hover:text-[#0E121B]"
+                  }`}>
+                  {tab.label}
                 </button>
               ))}
             </div>
-          )}
-        </div>
-      </aside>
-
-      {/* ── COL 2: Project List ── */}
-      <div className="w-72 flex-shrink-0 flex flex-col border-r border-[#E1E4EA] bg-[#F1F1F5]">
-        {!selectedClient ? (
-          <div className="flex flex-col items-center justify-center flex-1 text-center px-6">
-            <FolderOpen size={36} className="mb-3 text-[#525866]/25" />
-            <p className="text-sm font-semibold text-[#525866]">Select a client</p>
-            <p className="text-xs text-[#525866]/70 mt-1">Choose a client from the left panel to see their projects.</p>
           </div>
-        ) : (
-          <>
-            <div className="px-4 pt-5 pb-3 border-b border-[#E1E4EA]">
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#525866]">Client</p>
-                  <h3 className="text-sm font-bold text-[#0E121B] truncate">{selectedClient.name}</h3>
-                  <p className="text-xs text-[#525866] truncate">{selectedClient.company || selectedClient.email}</p>
-                </div>
-                <button
-                  onClick={() => { setSelectedProject(null); setEditMode("create"); setRightTab("timeline"); }}
-                  className="flex h-8 items-center gap-1.5 rounded-xl bg-[#884c2d] px-3 text-xs font-bold text-white hover:bg-[#6f381a] transition-colors flex-shrink-0"
-                >
-                  <Plus size={12} /> New
-                </button>
-              </div>
-            </div>
 
-            <div className="flex-1 overflow-y-auto px-3 py-3">
-              {detailLoading ? (
-                <div className="flex justify-center pt-12"><Spinner /></div>
-              ) : clientProjects.length === 0 ? (
-                <div className="flex flex-col items-center pt-12 text-center">
-                  <FolderOpen size={28} className="mb-2 text-[#525866]/30" />
-                  <p className="text-xs font-semibold text-[#525866]">No projects yet</p>
-                  <button
-                    onClick={() => { setSelectedProject(null); setEditMode("create"); }}
-                    className="mt-3 flex items-center gap-1 text-xs font-bold text-[#884c2d] hover:underline"
-                  >
-                    <Plus size={12} /> Create first project
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {clientProjects.map(p => {
-                    const s = sp(p.status);
-                    const isSelected = selectedProject?._id === p._id;
-                    return (
-                      <button
-                        key={p._id}
-                        onClick={() => { setSelectedProject(p); setEditMode(false); setRightTab("timeline"); }}
-                        className={`w-full rounded-xl border p-3.5 text-left transition-all ${
-                          isSelected
-                            ? "border-[#884c2d] bg-[#fff1ec] shadow-sm"
-                            : "border-[#E1E4EA] bg-white hover:border-[#884c2d]/40"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <p className="text-xs font-bold text-[#0E121B] leading-tight">{p.name}</p>
-                          <Pill label={s.label} color={s.color} />
-                        </div>
-                        <p className="text-[11px] text-[#525866] mb-2">{p.packageName || "No package"}</p>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 rounded-full bg-[#E1E4EA] overflow-hidden">
-                            <div className="h-full rounded-full bg-[#884c2d]" style={{ width: `${p.progress || 0}%` }} />
-                          </div>
-                          <span className="text-[10px] font-bold text-[#884c2d]">{p.progress || 0}%</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* ── COL 3: Project Detail / Form ── */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-[#F1F1F5]">
-        {!selectedClient ? (
-          <div className="flex flex-col items-center justify-center flex-1 text-center px-10">
-            <div className="w-16 h-16 rounded-2xl bg-[#884c2d]/10 flex items-center justify-center mb-4">
-              <FolderOpen size={30} className="text-[#884c2d]" />
-            </div>
-            <h2 className="text-xl font-bold text-[#0E121B] mb-2">Client Projects Panel</h2>
-            <p className="text-sm text-[#525866] max-w-md">
-              Select a client to view their projects, create new ones, and update project stages. All changes sync instantly to the client portal.
-            </p>
-          </div>
-        ) : editMode ? (
-          /* ── Project Form ── */
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="max-w-2xl mx-auto">
-              <div className="flex items-center gap-3 mb-5">
-                <button onClick={() => setEditMode(false)} className="p-2 rounded-xl border border-[#E1E4EA] bg-white hover:bg-[#fff1ec] transition-colors">
-                  <X size={14} className="text-[#525866]" />
-                </button>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#525866]">
-                    {editMode === "edit" ? "Edit Project" : "New Project"} · {selectedClient.name}
-                  </p>
-                  <h2 className="text-lg font-bold text-[#0E121B]">
-                    {editMode === "edit" ? selectedProject?.name : "Create Project"}
-                  </h2>
-                </div>
-              </div>
-              <SectionCard className="p-5">
-                <ProjectForm
-                  initial={editMode === "edit" ? selectedProject : null}
-                  clientId={selectedClient._id}
-                  token={token}
-                  onSaved={handleProjectSaved}
-                  onCancel={() => setEditMode(false)}
-                />
-              </SectionCard>
-            </div>
-          </div>
-        ) : selectedProject ? (
-          /* ── Project Detail ── */
-          <div className="flex-1 overflow-y-auto">
-            {/* Header */}
-            <div className="sticky top-0 z-10 bg-[#F1F1F5]/90 backdrop-blur border-b border-[#E1E4EA] px-6 py-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                    <h2 className="text-lg font-bold text-[#0E121B] truncate">{selectedProject.name}</h2>
-                    <Pill {...statusPill(selectedProject.status)} />
+          <div className="p-6 space-y-5 max-w-4xl">
+            {rightTab === "timeline" && (
+              <>
+                <SectionCard>
+                  <div className="px-5 py-4 border-b border-[#E1E4EA] bg-[#FAFAFA] rounded-t-xl">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#525866]">Project Overview</h3>
                   </div>
-                  <p className="text-xs text-[#525866]">
-                    {selectedProject.packageName || "No package"} · {selectedClient.name}
-                    {selectedProject.expectedEndDate && ` · Due ${fmtDisplay(selectedProject.expectedEndDate)}`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => setEditMode("edit")}
-                    className="flex h-8 items-center gap-1.5 rounded-xl border border-[#E1E4EA] bg-white px-3 text-xs font-bold text-[#884c2d] hover:bg-[#fff1ec] transition-colors"
-                  >
-                    <Edit3 size={12} /> Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteProject(selectedProject)}
-                    disabled={deletingId === selectedProject._id}
-                    className="flex h-8 items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                  >
-                    {deletingId === selectedProject._id ? <Spinner size={12} /> : <Trash2 size={12} />}
-                    Delete
-                  </button>
-                </div>
-              </div>
-
-              {/* Tabs */}
-              <div className="flex gap-1 mt-3 border-b border-[#E1E4EA]">
-                {[
-                  { key: "timeline", label: "Timeline & Stages" },
-                  { key: "meetings", label: `Meetings ${clientMeetings.length ? `(${clientMeetings.length})` : ""}` },
-                ].map(tab => (
-                  <button key={tab.key} onClick={() => setRightTab(tab.key)}
-                    className={`pb-2.5 px-1 mr-4 text-xs font-bold border-b-2 transition-all ${
-                      rightTab === tab.key
-                        ? "border-[#884c2d] text-[#884c2d]"
-                        : "border-transparent text-[#525866] hover:text-[#0E121B]"
-                    }`}>
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-6 space-y-5">
-              {rightTab === "timeline" && (
-                <>
-                  {/* Overview */}
-                  <SectionCard className="p-5">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#525866] mb-4">Project Overview</h3>
+                  <div className="p-5">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                       {[
                         { label: "Progress", value: `${selectedProject.progress || 0}%` },
                         { label: "Current Phase", value: selectedProject.currentPhase || "—" },
                         { label: "Start Date", value: fmtDisplay(selectedProject.startDate) },
                         { label: "Expected End", value: fmtDisplay(selectedProject.expectedEndDate) },
-                      ].map(r => (
-                        <div key={r.label}>
+                      ].map((r) => (
+                        <div key={r.label} className="rounded-lg border border-[#F1F1F5] bg-[#FAFAFA] px-3 py-2.5">
                           <p className="text-[10px] font-bold uppercase tracking-wider text-[#525866]">{r.label}</p>
                           <p className="text-sm font-bold text-[#0E121B] mt-0.5 truncate">{r.value}</p>
                         </div>
@@ -752,115 +607,214 @@ export default function ClientProjectsPage() {
                     </div>
                     <div className="flex items-center gap-3 mt-2">
                       <div className="flex-1 h-3 rounded-full bg-[#E1E4EA] overflow-hidden">
-                        <div className="h-full rounded-full bg-[#884c2d] transition-all duration-700"
-                          style={{ width: `${selectedProject.progress || 0}%` }} />
+                        <div className="h-full rounded-full bg-[#884c2d] transition-all duration-700" style={{ width: `${selectedProject.progress || 0}%` }} />
                       </div>
                       <span className="text-sm font-bold text-[#884c2d]">{selectedProject.progress || 0}%</span>
                     </div>
-                  </SectionCard>
-
-                  {/* Admin notes */}
-                  {selectedProject.adminNotes && (
-                    <SectionCard className="p-5">
-                      <div className="flex items-center gap-2 mb-3">
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#525866]">Notes for Client</h3>
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700 uppercase">Visible</span>
-                      </div>
-                      <p className="text-sm text-[#0E121B] leading-relaxed">{selectedProject.adminNotes}</p>
-                    </SectionCard>
-                  )}
-
-                  {/* Stages */}
-                  <SectionCard>
-                    <div className="px-5 py-4 border-b border-[#E1E4EA] flex items-center justify-between">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#525866]">
-                        Stages ({selectedProject.stages?.length || 0})
-                      </h3>
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700 uppercase">Client visible</span>
-                    </div>
-                    {!selectedProject.stages?.length ? (
-                      <div className="flex flex-col items-center py-8 text-center px-6">
-                        <p className="text-xs text-[#525866]">No stages defined. Click Edit to add stages.</p>
-                        <button onClick={() => setEditMode("edit")}
-                          className="mt-3 flex items-center gap-1 text-xs font-bold text-[#884c2d] hover:underline">
-                          <Plus size={12} /> Add Stages
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-[#E1E4EA]/40">
-                        {selectedProject.stages.map((stage, i) => {
-                          const sp = stagePill(stage.status);
-                          return (
-                            <div key={i} className="px-5 py-4 flex items-start gap-4">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
-                                stage.status === "completed" ? "bg-emerald-100 text-emerald-700" :
-                                stage.status === "in_progress" ? "bg-[#fff1ec] text-[#884c2d]" :
-                                "bg-[#F1F1F5] text-[#525866]"
-                              }`}>
-                                {stage.status === "completed" ? <Check size={14} /> : i + 1}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap mb-1">
-                                  <p className="text-sm font-bold text-[#0E121B]">{stage.name}</p>
-                                  <Pill label={sp.label} color={sp.color} />
-                                </div>
-                                {stage.notes && <p className="text-xs text-[#525866] mt-1">{stage.notes}</p>}
-                                {(stage.startDate || stage.endDate) && (
-                                  <div className="flex items-center gap-3 mt-1.5">
-                                    {stage.startDate && (
-                                      <span className="flex items-center gap-1 text-[11px] text-[#525866]">
-                                        <Calendar size={11} /> {fmtDisplay(stage.startDate)}
-                                      </span>
-                                    )}
-                                    {stage.endDate && (
-                                      <span className="flex items-center gap-1 text-[11px] text-[#525866]">
-                                        → {fmtDisplay(stage.endDate)}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </SectionCard>
-                </>
-              )}
-
-              {rightTab === "meetings" && (
-                <SectionCard>
-                  <div className="px-5 py-4 border-b border-[#E1E4EA]">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#525866]">Meeting Requests</h3>
-                    <p className="text-xs text-[#525866]/70 mt-0.5">Approve or cancel client meeting requests from here.</p>
                   </div>
-                  <MeetingsPanel
-                    meetings={clientMeetings}
-                    token={token}
-                    onUpdated={handleMeetingUpdated}
-                  />
                 </SectionCard>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* ── Nothing selected ── */
-          <div className="flex flex-col items-center justify-center flex-1 text-center px-10">
-            <div className="w-14 h-14 rounded-2xl bg-[#884c2d]/10 flex items-center justify-center mb-3">
-              <FolderOpen size={26} className="text-[#884c2d]" />
-            </div>
-            <p className="text-sm font-semibold text-[#0E121B] mb-1">Select or create a project</p>
-            <p className="text-xs text-[#525866]">Pick a project from the list or create a new one.</p>
-            {selectedClient && (
-              <button onClick={() => setEditMode("create")}
-                className="mt-4 flex items-center gap-2 rounded-xl bg-[#884c2d] px-4 py-2 text-xs font-bold text-white hover:bg-[#6f381a] transition-colors">
-                <Plus size={13} /> New Project for {selectedClient.name.split(" ")[0]}
-              </button>
+
+                {selectedProject.adminNotes && (
+                  <SectionCard>
+                    <div className="px-5 py-4 border-b border-[#E1E4EA] bg-[#FAFAFA] rounded-t-xl flex items-center gap-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#525866]">Notes for Client</h3>
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700 uppercase">Visible</span>
+                    </div>
+                    <p className="p-5 text-sm text-[#0E121B] leading-relaxed">{selectedProject.adminNotes}</p>
+                  </SectionCard>
+                )}
+
+                <SectionCard>
+                  <div className="px-5 py-4 border-b border-[#E1E4EA] bg-[#FAFAFA] rounded-t-xl flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#525866]">
+                      Stages ({selectedProject.stages?.length || 0})
+                    </h3>
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-700 uppercase">Client visible</span>
+                  </div>
+                  {!selectedProject.stages?.length ? (
+                    <div className="flex flex-col items-center py-8 text-center px-6">
+                      <p className="text-xs text-[#525866]">No stages defined. Click Edit to add stages.</p>
+                      <button onClick={() => startEdit(selectedProject)} className="mt-3 flex items-center gap-1 text-xs font-bold text-[#884c2d] hover:underline">
+                        <Plus size={12} /> Add Stages
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[#E1E4EA]/40">
+                      {selectedProject.stages.map((stage, i) => {
+                        const stp = stagePill(stage.status);
+                        return (
+                          <div key={i} className="px-5 py-4 flex items-start gap-4">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
+                              stage.status === "completed" ? "bg-emerald-100 text-emerald-700" :
+                              stage.status === "in_progress" ? "bg-[#fff1ec] text-[#884c2d]" :
+                              "bg-[#F1F1F5] text-[#525866]"
+                            }`}>
+                              {stage.status === "completed" ? <Check size={14} /> : i + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <p className="text-sm font-bold text-[#0E121B]">{stage.name}</p>
+                                <Pill label={stp.label} color={stp.color} />
+                              </div>
+                              {stage.notes && <p className="text-xs text-[#525866] mt-1">{stage.notes}</p>}
+                              {(stage.startDate || stage.endDate) && (
+                                <div className="flex items-center gap-3 mt-1.5">
+                                  {stage.startDate && (
+                                    <span className="flex items-center gap-1 text-[11px] text-[#525866]">
+                                      <Calendar size={11} /> {fmtDisplay(stage.startDate)}
+                                    </span>
+                                  )}
+                                  {stage.endDate && (
+                                    <span className="flex items-center gap-1 text-[11px] text-[#525866]">
+                                      → {fmtDisplay(stage.endDate)}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </SectionCard>
+              </>
+            )}
+
+            {rightTab === "meetings" && (
+              <SectionCard>
+                <div className="px-5 py-4 border-b border-[#E1E4EA] bg-[#FAFAFA] rounded-t-xl">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#525866]">Meeting Requests</h3>
+                  <p className="text-xs text-[#525866]/70 mt-0.5">Approve or cancel client meeting requests from here.</p>
+                </div>
+                {detailLoading ? (
+                  <div className="flex justify-center py-10"><Spinner /></div>
+                ) : (
+                  <MeetingsPanel meetings={clientMeetings} token={token} onUpdated={handleMeetingUpdated} />
+                )}
+              </SectionCard>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* ── Table view ── */
+        <>
+          <div className="flex flex-col gap-4 border-b border-[#E1E4EA] bg-white px-6 py-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h1 className="text-base font-medium text-[#0E121B]">Client Projects</h1>
+              <p className="text-xs text-[#525866] mt-0.5">All projects across every client, synced live to their portal.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex h-11 items-center gap-2 rounded-full border border-[#1F2937]/10 px-3.5 sm:w-64">
+                <Search size={16} className="text-[#1F2937]/50 shrink-0" />
+                <input className="w-full bg-transparent text-sm outline-none" placeholder="Search projects or clients…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              </div>
+              <select value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} className="h-11 rounded-full border border-[#E1E4EA] bg-white px-3 text-sm outline-none">
+                <option value="All">All Clients</option>
+                {clients.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+              </select>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-11 rounded-full border border-[#E1E4EA] bg-white px-3 text-sm outline-none">
+                {["All", "not_started", "in_progress", "on_hold", "completed", "cancelled"].map((s) => (
+                  <option key={s} value={s}>{s === "All" ? "All Statuses" : sp(s).label}</option>
+                ))}
+              </select>
+              <button
+                onClick={startCreate}
+                disabled={!clients.length}
+                className="flex h-11 items-center gap-1.5 rounded-full bg-[#C57E5B] px-4 text-sm font-medium text-white hover:bg-[#b06a48] transition-colors disabled:opacity-50"
+              >
+                <Plus size={16} /> New Project
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {loading ? (
+              <div className="flex justify-center py-20"><Spinner size={24} /></div>
+            ) : filteredProjects.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#E1E4EA] bg-white p-12 text-center">
+                <FolderOpen size={32} className="mx-auto mb-3 text-[#525866]/30" />
+                <p className="text-sm font-semibold text-[#525866]">{clients.length === 0 ? "No clients yet" : "No projects match your filters"}</p>
+                <p className="text-xs text-[#525866]/70 mt-1">{clients.length === 0 ? "Clients appear after paying for a package." : "Try adjusting search or filters."}</p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-[#E1E4EA] bg-white shadow-[0_4px_4px_rgba(0,0,0,0.05)]">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-[#F5F7FA] border-b border-[#E1E4EA]">
+                      <tr>
+                        {["Project", "Client", "Package", "Status", "Progress", "Actions"].map((h) => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-medium text-[#525866]">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#f3f4f6]">
+                      {filteredProjects.map((p) => {
+                        const s = sp(p.status);
+                        return (
+                          <tr key={p._id} onClick={() => openProject(p)} className="cursor-pointer hover:bg-[#fafafa] transition-colors">
+                            <td className="px-4 py-3.5">
+                              <div className="flex items-center gap-3">
+                                <Avatar name={p.name} size="sm" />
+                                <span className="font-semibold text-[#0E121B]">{p.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3.5 text-[#374151]">{clientNameOf(p)}</td>
+                            <td className="px-4 py-3.5 text-[#374151]">{p.packageName || "—"}</td>
+                            <td className="px-4 py-3.5"><Pill {...s} /></td>
+                            <td className="px-4 py-3.5">
+                              <div className="flex items-center gap-2 w-32">
+                                <div className="flex-1 h-1.5 rounded-full bg-[#E1E4EA] overflow-hidden">
+                                  <div className="h-full rounded-full bg-[#884c2d]" style={{ width: `${p.progress || 0}%` }} />
+                                </div>
+                                <span className="text-xs font-bold text-[#884c2d]">{p.progress || 0}%</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => startEdit(p)} className="rounded-lg p-1.5 text-[#525866] hover:bg-[#fff1ec] hover:text-[#884c2d]"><Edit3 size={14} /></button>
+                                <button onClick={() => handleDeleteProject(p)} disabled={deletingId === p._id} className="rounded-lg p-1.5 text-[#525866] hover:bg-red-50 hover:text-red-600 disabled:opacity-50"><Trash2 size={14} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {editMode && (
+        <SidePanel
+          title={editMode === "edit" ? "Edit Project" : "New Project"}
+          subtitle={editMode === "edit" ? `${editingProject?.name} · ${clientNameOf(editingProject)}` : "Create a project for a client."}
+          onClose={() => { setEditMode(false); setEditingProject(null); }}
+        >
+          {editMode === "create" && (
+            <label className="block mb-5">
+              <span className="text-xs font-bold text-[#525866]">Client *</span>
+              <select
+                value={createClientId}
+                onChange={(e) => setCreateClientId(e.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-[#E1E4EA] bg-white px-3 py-2 text-sm outline-none focus:border-[#884c2d]"
+              >
+                {clients.map((c) => <option key={c._id} value={c._id}>{c.name} ({c.company || c.email})</option>)}
+              </select>
+            </label>
+          )}
+          <ProjectForm
+            initial={editMode === "edit" ? editingProject : null}
+            clientId={editMode === "edit" ? clientIdOf(editingProject) : createClientId}
+            token={token}
+            onSaved={handleProjectSaved}
+            onCancel={() => { setEditMode(false); setEditingProject(null); }}
+          />
+        </SidePanel>
+      )}
     </div>
   );
 }
