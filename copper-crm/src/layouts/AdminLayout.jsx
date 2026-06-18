@@ -124,14 +124,19 @@ const searchablePages = [
   { label: "Settings", to: "/admin/settings", keywords: "profile password admin settings" },
 ];
 
-function getBreadcrumbs(pathname) {
+function getBreadcrumbs(pathname, companies = [], projects = []) {
   const segments = pathname.split("/").filter(Boolean);
   const crumbs = [{ label: "Dashboard", to: "/admin" }];
   let path = "";
   for (const seg of segments.slice(1)) {
     path += "/" + seg;
     const fullPath = "/admin" + path;
-    const name = pageNames[fullPath] || (seg.length > 8 ? seg.slice(0, 8) + "…" : seg.charAt(0).toUpperCase() + seg.slice(1));
+    let name = pageNames[fullPath];
+    if (!name) {
+      const company = companies.find((c) => String(c.id) === seg || String(c._id) === seg);
+      const project = projects.find((p) => String(p.id) === seg || String(p._id) === seg);
+      name = company?.name || project?.name || (seg.length > 8 ? seg.slice(0, 8) + "…" : seg.charAt(0).toUpperCase() + seg.slice(1));
+    }
     crumbs.push({ label: name, to: fullPath });
   }
   return crumbs;
@@ -295,6 +300,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const auth = useAuth();
   const { records: companies } = useCrmRecords("companies");
+  const { records: projects } = useCrmRecords("projects");
   const [collapsed, setCollapsed] = useState(false);
   const [pinnedCompanyId, setPinnedCompanyId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -320,7 +326,7 @@ export default function AdminLayout() {
 
   const name = auth.user?.name || "Admin";
   const initials = initialsOf(name);
-  const breadcrumbs = getBreadcrumbs(location.pathname);
+  const breadcrumbs = getBreadcrumbs(location.pathname, companies, projects);
 
   const urlCompanyMatch = location.pathname.match(/^\/admin\/companies\/([^/]+)/);
   const activeCompanyId = urlCompanyMatch ? urlCompanyMatch[1] : (pinnedCompanyId || companies[0]?.id || companies[0]?._id || null);

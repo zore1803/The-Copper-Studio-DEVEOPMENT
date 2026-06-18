@@ -121,7 +121,7 @@ function KpiChip({ label, value, icon: Icon }) {
           <Icon size={16} />
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-[#525866]">{label}</p>
+          <p className="truncate text-xs font-medium text-[#525866]">{label}</p>
           <p className="mt-0.5 truncate text-base font-bold text-[#0E121B]">{value}</p>
         </div>
       </div>
@@ -467,7 +467,7 @@ export default function ProjectDetail() {
         onNewTask={() => navigate(`/admin/companies/${currentCompany.id}/projects/${project.id || project._id}/tasks`)}
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <KpiChip label="Progress" value={`${project.progress || 0}%`} icon={Zap} />
         <KpiChip label="Current Phase" value={PHASES[phaseIndex]?.label || project.currentPhase || "—"} icon={ListChecks} />
         <KpiChip label="Final Amount" value={formatINR(project.finalAmount || project.budget)} icon={ListChecks} />

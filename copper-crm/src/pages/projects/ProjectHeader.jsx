@@ -34,8 +34,8 @@ export default function ProjectHeader({ company, project, activeTab, onShare, on
 
   return (
     <>
-      <section className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-        <div>
+      <section className="flex flex-col gap-6 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
+        <div className="min-w-0 flex-1">
           <Breadcrumb
             items={[
               { label: "Companies", to: "/admin/companies" },
@@ -66,7 +66,7 @@ export default function ProjectHeader({ company, project, activeTab, onShare, on
             )}
           </div>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap shrink-0 gap-3">
           <Button variant="secondary" size="lg" onClick={onShare}><Share2 size={15} /> Share Project</Button>
           <Button variant="primary" size="lg" onClick={onNewTask}><Plus size={15} /> New Task</Button>
         </div>
