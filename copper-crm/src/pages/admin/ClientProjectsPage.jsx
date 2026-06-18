@@ -533,7 +533,7 @@ export default function ClientProjectsPage() {
   /* ── render ── */
 
   return (
-    <div className="min-h-full bg-[#F1F1F5] -m-10">
+    <div className="flex h-full flex-col bg-[#F1F1F5]">
       <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ msg: "", type: "success" })} />
 
       {selectedProject ? (
@@ -740,7 +740,15 @@ export default function ClientProjectsPage() {
             ) : (
               <div className="overflow-hidden rounded-xl border border-[#E1E4EA] bg-white shadow-[0_4px_4px_rgba(0,0,0,0.05)]">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
+                  <table className="w-full text-sm">
+                    <colgroup>
+                      <col className="w-[28%]" />
+                      <col className="w-[18%]" />
+                      <col className="w-[16%]" />
+                      <col className="w-[14%]" />
+                      <col className="w-[16%]" />
+                      <col className="w-[8%]" />
+                    </colgroup>
                     <thead className="bg-[#F5F7FA] border-b border-[#E1E4EA]">
                       <tr>
                         {["Project", "Client", "Package", "Status", "Progress", "Actions"].map((h) => (
