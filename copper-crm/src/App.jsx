@@ -30,7 +30,6 @@ import {
 } from "./pages/client/ClientPages";
 import { ForgotPasswordPage, LoginPage, SetPasswordPage } from "./pages/auth/AuthPages";
 import {
-  ReportsPage,
   SettingsPage,
   TasksPage
 } from "./pages/admin/AdminWorkflows";
@@ -72,15 +71,12 @@ export default function App() {
               <Route path="payments" element={<Orders mode="payments" />} />
               <Route path="invoices" element={<Invoices />} />
               <Route path="coupons" element={<Coupons />} />
-              <Route path="reports" element={<ReportsPage />} />
               <Route path="services" element={<Navigate to="/admin/services/proposal-generator" replace />} />
               <Route path="services/coupon-generator" element={<ServicesPage />} />
               <Route path="services/proposal-generator" element={<ProposalGeneratorPage />} />
               <Route path="services/communications" element={<Navigate to="/admin/communication/email-templates" replace />} />
               <Route path="documents/company-folders" element={<DocumentCenter mode="company" />} />
               <Route path="documents/project-folders" element={<DocumentCenter mode="project" />} />
-              <Route path="documents/internal" element={<DocumentCenter mode="internal" />} />
-              <Route path="documents/client-shared" element={<DocumentCenter mode="client" />} />
               <Route path="communication/email-templates" element={<CommunicationCenter mode="email" />} />
               <Route path="communication/whatsapp-templates" element={<CommunicationCenter mode="whatsapp" />} />
               <Route path="proposal-generator" element={<Navigate to="/admin/services/proposal-generator" replace />} />

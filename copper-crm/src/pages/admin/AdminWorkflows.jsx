@@ -1,31 +1,15 @@
 import { useMemo, useState } from "react";
 import {
-  BellRing, Building2, Calendar, CreditCard, Edit3, Eye,
-  FileText, Globe2, LayoutGrid, List, LockKeyhole, Mail, MoreHorizontal,
-  MoreVertical, Plus, Save, Search, Send,
+  BellRing, Building2, Calendar, CreditCard, Edit3,
+  Globe2, LayoutGrid, List, LockKeyhole, Mail,
+  Plus, Save, Search,
   Settings as SettingsIcon, SlidersHorizontal,
-  Trash2, TrendingUp, UploadCloud, UserPlus, Workflow
+  Trash2, UploadCloud, UserPlus
 } from "lucide-react";
 import { Button } from "../../components/ui";
 import { useCrmRecords } from "../../hooks/useCrmRecords";
 import { useToast } from "../../components/useToast";
 import SidePanel from "../../components/SidePanel";
-
-function PageShell({ title, subtitle, action, children }) {
-  return (
-    <div className="p-5 xl:p-6">
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">SuperAdmin workflow</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">{title}</h1>
-          <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
-        </div>
-        {action}
-      </div>
-      {children}
-    </div>
-  );
-}
 
 function Card({ children, className = "" }) {
   return <section className={`rounded-xl border border-gray-200 bg-white shadow-sm shadow-gray-100/60 ${className}`}>{children}</section>;
@@ -47,20 +31,128 @@ function Field({ label, value, onChange, placeholder, type = "text" }) {
 }
 
 const TASK_STAGES = ["Backlog", "To Do", "In Progress", "Review", "Completed", "Blocked"];
+const MEETING_STAGES = ["requested", "confirmed", "completed", "cancelled"];
+const MEETING_STAGE_LABEL = { requested: "Requested", confirmed: "Confirmed", completed: "Completed", cancelled: "Cancelled" };
 
 function TaskStatusPill({ status = "Accepted" }) {
-  const map = { Accepted: "bg-blue-50 text-blue-600", High: "bg-red-50 text-red-600", Medium: "bg-yellow-50 text-yellow-600", Low: "bg-gray-100 text-gray-500" };
+  const map = {
+    Accepted: "bg-blue-50 text-blue-600", High: "bg-red-50 text-red-600", Medium: "bg-yellow-50 text-yellow-600", Low: "bg-gray-100 text-gray-500",
+    requested: "bg-amber-50 text-amber-700", confirmed: "bg-blue-50 text-blue-600", completed: "bg-emerald-50 text-emerald-700", cancelled: "bg-gray-100 text-gray-500",
+  };
   return <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${map[status] ?? "bg-gray-100 text-gray-600"}`}>{status}</span>;
 }
 
+function meetingWhen(meeting) {
+  const raw = meeting.scheduledAt || meeting.preferredDate;
+  if (!raw) return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function sameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function MeetingCalendarView({ meetings }) {
+  const todayDate = useMemo(() => new Date(), []);
+  const [cursor, setCursor] = useState(() => new Date(todayDate.getFullYear(), todayDate.getMonth(), 1));
+  const [selectedDay, setSelectedDay] = useState(null);
+
+  const withDates = useMemo(
+    () => meetings.map((meeting) => ({ meeting, when: meetingWhen(meeting) })).filter((m) => m.when),
+    [meetings]
+  );
+
+  const cells = useMemo(() => {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+    const firstWeekday = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const list = [];
+    for (let i = 0; i < firstWeekday; i++) list.push(null);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      list.push({ date, meetings: withDates.filter((m) => sameDay(m.when, date)).map((m) => m.meeting) });
+    }
+    return list;
+  }, [cursor, withDates]);
+
+  const monthLabel = cursor.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  const selectedMeetings = selectedDay ? cells.find((c) => c && sameDay(c.date, selectedDay))?.meetings || [] : [];
+
+  return (
+    <div className="p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-50">← Prev</button>
+        <p className="text-sm font-bold text-gray-900">{monthLabel}</p>
+        <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-50">Next →</button>
+      </div>
+      <div className="overflow-hidden rounded-xl border border-gray-200">
+        <div className="grid grid-cols-7 bg-gray-50">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label) => (
+            <div key={label} className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-gray-400">{label}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {cells.map((cell, index) => {
+            if (!cell) return <div key={`pad-${index}`} className="aspect-square border border-gray-100 bg-gray-50/60" />;
+            const isToday = sameDay(cell.date, todayDate);
+            return (
+              <button
+                key={cell.date.toISOString()}
+                onClick={() => setSelectedDay(cell.date)}
+                className={`aspect-square border border-gray-100 p-1.5 text-left transition-colors hover:bg-blue-50 ${isToday ? "bg-blue-50/60" : "bg-white"}`}
+              >
+                <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${isToday ? "bg-[#2563EB] text-white" : "text-gray-700"}`}>
+                  {cell.date.getDate()}
+                </span>
+                {cell.meetings.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-0.5">
+                    {cell.meetings.slice(0, 3).map((m) => <span key={m.id || m._id} className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" />)}
+                    {cell.meetings.length > 3 && <span className="text-[9px] font-bold text-[#2563EB]">+{cell.meetings.length - 3}</span>}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {selectedDay && (
+        <SidePanel
+          title={selectedDay.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+          subtitle={`${selectedMeetings.length} meeting${selectedMeetings.length === 1 ? "" : "s"} this day.`}
+          onClose={() => setSelectedDay(null)}
+        >
+          {selectedMeetings.length ? (
+            <div className="space-y-2">
+              {selectedMeetings.map((m) => (
+                <div key={m.id || m._id} className="rounded-xl border border-gray-200 bg-white p-3">
+                  <p className="text-sm font-semibold text-gray-900">{m.title}</p>
+                  <div className="mt-1.5"><TaskStatusPill status={m.status} /></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="py-8 text-center text-sm text-gray-400">No meetings on this day.</p>
+          )}
+        </SidePanel>
+      )}
+    </div>
+  );
+}
+
 export function TasksPage() {
+  const { showToast } = useToast();
   const [tab, setTab] = useState("Tasks");
   const [view, setView] = useState("list");
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
-  const { records: taskRecords } = useCrmRecords("tasks");
-  const { records: meetingRecords } = useCrmRecords("meetings");
+  const [updatingId, setUpdatingId] = useState(null);
+  const { records: taskRecords, save: saveTask, remove: removeTask } = useCrmRecords("tasks");
+  const { records: meetingRecords, save: saveMeeting, remove: removeMeeting } = useCrmRecords("meetings");
   const PAGE_SIZE = 10;
 
   const taskRows = useMemo(() => taskRecords.map((task) => ({
@@ -79,18 +171,61 @@ export function TasksPage() {
     id: meeting.id || meeting.meetingId || meeting._id,
     title: meeting.title || meeting.subject || "",
     type: meeting.type || meeting.channel || "",
-    scheduled: meeting.scheduled || meeting.scheduledAt || "",
+    scheduled: meeting.scheduled || meeting.scheduledAt || meeting.preferredDate || "",
     duration: meeting.duration || "",
-    priority: meeting.priority || meeting.status || "Scheduled",
-    contact: meeting.contact || meeting.contactName || "",
+    status: meeting.status || "requested",
+    contact: meeting.contact || meeting.contactName || meeting.participants?.[0]?.name || "",
     contactType: meeting.contactType || meeting.companyName || "",
   })), [meetingRecords]);
-  const filteredTasks = taskRows.filter((t) => `${t.title} ${t.relatedTo} ${t.status}`.toLowerCase().includes(query.toLowerCase()));
-  const filteredMeetings = meetingRows.filter((m) => `${m.title} ${m.contact}`.toLowerCase().includes(query.toLowerCase()));
+  const filteredTasks = taskRows
+    .filter((t) => `${t.title} ${t.relatedTo} ${t.status}`.toLowerCase().includes(query.toLowerCase()))
+    .filter((t) => statusFilter === "All" || t.status === statusFilter);
+  const filteredMeetings = meetingRows
+    .filter((m) => `${m.title} ${m.contact}`.toLowerCase().includes(query.toLowerCase()))
+    .filter((m) => statusFilter === "All" || m.status === statusFilter);
 
   const activeRows = tab === "Tasks" ? filteredTasks : filteredMeetings;
   const totalPages = Math.max(1, Math.ceil(activeRows.length / PAGE_SIZE));
   const paginated = activeRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const statusOptions = tab === "Tasks" ? TASK_STAGES : MEETING_STAGES;
+
+  function switchTab(t) {
+    setTab(t);
+    setPage(1);
+    setStatusFilter("All");
+    setView((v) => (v === "calendar" && t === "Tasks" ? "list" : v));
+  }
+
+  async function updateMeetingStatus(meeting, status) {
+    setUpdatingId(meeting.id);
+    try {
+      await saveMeeting({ ...meeting, status });
+      showToast({ title: "Meeting updated", message: `${meeting.title || "Meeting"} is now ${status}.` });
+    } catch (err) {
+      showToast({ type: "error", title: "Could not update meeting", message: err.message });
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function handleDeleteTask(task) {
+    if (!window.confirm(`Delete "${task.title || "this task"}"?`)) return;
+    await removeTask(task);
+    showToast({ title: "Task deleted" });
+  }
+
+  async function handleDeleteMeeting(meeting) {
+    if (!window.confirm(`Delete "${meeting.title || "this meeting"}"?`)) return;
+    await removeMeeting(meeting);
+    showToast({ title: "Meeting deleted" });
+  }
+
+  async function handleSaveSelected() {
+    if (!selected) return;
+    await saveTask(selected);
+    showToast({ title: selected._id ? "Task updated" : "Task created" });
+    setSelected(null);
+  }
 
   return (
     <div className="p-5 xl:p-6 bg-[#f9fafb] min-h-full">
@@ -100,10 +235,11 @@ export function TasksPage() {
           <p className="text-sm text-gray-500">Manage your Tasks &amp; reminders</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50"><MoreVertical size={14} /></button>
-          <button onClick={() => setSelected({ title: "", relatedTo: "", assigned: "", due: "", status: "Accepted", priority: "Medium" })} className="flex h-9 items-center gap-1.5 rounded-lg bg-[#2563EB] px-3 text-xs font-semibold text-white hover:bg-blue-600">
-            <Plus size={14} /> New Activity
-          </button>
+          {tab === "Tasks" && (
+            <button onClick={() => setSelected({ title: "", relatedTo: "", assigned: "", due: "", status: "Backlog", priority: "Medium" })} className="flex h-9 items-center gap-1.5 rounded-lg bg-[#2563EB] px-3 text-xs font-semibold text-white hover:bg-blue-600">
+              <Plus size={14} /> New Activity
+            </button>
+          )}
         </div>
       </div>
 
@@ -111,7 +247,7 @@ export function TasksPage() {
         <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-5 py-3">
           <div className="flex gap-1">
             {["Tasks", "Meetings"].map((t) => (
-              <button key={t} onClick={() => { setTab(t); setPage(1); }} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${tab === t ? "border-b-2 border-[#2563EB] text-[#2563EB] rounded-none pb-1" : "text-gray-500 hover:text-gray-700"}`}>{t}</button>
+              <button key={t} onClick={() => switchTab(t)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${tab === t ? "border-b-2 border-[#2563EB] text-[#2563EB] rounded-none pb-1" : "text-gray-500 hover:text-gray-700"}`}>{t}</button>
             ))}
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -119,18 +255,38 @@ export function TasksPage() {
               <Search size={12} />
               <input className="w-44 bg-transparent outline-none placeholder:text-gray-400 text-xs" placeholder={tab === "Tasks" ? "Search by task by title, description, or status..." : "Search by meeting by title, priority, or contact..."} value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
             </div>
-            <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:bg-gray-50"><SlidersHorizontal size={13} /></button>
+            <div className="relative">
+              <button onClick={() => setFiltersOpen((v) => !v)} className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${statusFilter !== "All" ? "border-[#2563EB] bg-blue-50 text-[#2563EB]" : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}>
+                <SlidersHorizontal size={13} />
+              </button>
+              {filtersOpen && (
+                <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
+                  <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">Filter by status</p>
+                  {["All", ...statusOptions].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => { setStatusFilter(status); setPage(1); setFiltersOpen(false); }}
+                      className={`flex w-full items-center rounded-lg px-2 py-1.5 text-left text-xs font-semibold capitalize ${statusFilter === status ? "bg-blue-50 text-[#2563EB]" : "text-gray-600 hover:bg-gray-50"}`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button onClick={() => setView("list")} className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${view === "list" ? "border-[#2563EB] bg-blue-50 text-[#2563EB]" : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}><List size={13} /></button>
             <button onClick={() => setView("kanban")} className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors ${view === "kanban" ? "border-[#2563EB] bg-blue-50 text-[#2563EB]" : "border-gray-200 text-gray-400 hover:bg-gray-50"}`}><LayoutGrid size={13} /></button>
             {tab === "Meetings" && (
-              <button className="flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">
+              <button onClick={() => setView("calendar")} className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors ${view === "calendar" ? "border-[#2563EB] bg-blue-50 text-[#2563EB]" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
                 <Calendar size={12} /> View in Calendar
               </button>
             )}
           </div>
         </div>
 
-        {view === "list" ? (
+        {view === "calendar" && tab === "Meetings" ? (
+          <MeetingCalendarView meetings={filteredMeetings} />
+        ) : view === "list" ? (
           <>
             <div className="overflow-x-auto">
               {tab === "Tasks" ? (
@@ -157,9 +313,8 @@ export function TasksPage() {
                         <td className="px-4 py-3 text-sm text-gray-600">{task.due}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <button onClick={() => setSelected(task)} className="text-gray-400 hover:text-blue-500"><Eye size={15} /></button>
-                            <button onClick={() => setSelected(task)} className="text-gray-400 hover:text-blue-500"><Edit3 size={14} /></button>
-                            <button className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
+                            <button onClick={() => setSelected(task)} className="text-gray-400 hover:text-blue-500" title="Edit"><Edit3 size={14} /></button>
+                            <button onClick={() => handleDeleteTask(task)} className="text-gray-400 hover:text-red-500" title="Delete"><Trash2 size={14} /></button>
                           </div>
                         </td>
                       </tr>
@@ -171,8 +326,7 @@ export function TasksPage() {
                 <table className="w-full min-w-[800px]">
                   <thead>
                     <tr className="bg-gray-50/70">
-                      <th className="w-10 px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></th>
-                      {["Meeting", "Scheduled", "Priority", "With", "Actions"].map((h) => (
+                      {["Meeting", "Scheduled", "Status", "With", "Actions"].map((h) => (
                         <th key={h} className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
                       ))}
                     </tr>
@@ -180,30 +334,40 @@ export function TasksPage() {
                   <tbody>
                     {paginated.map((mtg) => (
                       <tr key={mtg.id} className="border-t border-gray-100 hover:bg-gray-50/60">
-                        <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
                         <td className="px-4 py-3">
                           <p className="text-sm font-semibold text-gray-900">{mtg.title}</p>
                           <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500">{mtg.type}</span>
                         </td>
                         <td className="px-4 py-3">
-                          <p className="text-sm text-gray-700">{mtg.scheduled}</p>
-                          <p className="text-[11px] text-gray-400">{mtg.duration}</p>
+                          <p className="text-sm text-gray-700">{mtg.scheduled ? new Date(mtg.scheduled).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "No date"}</p>
+                          <p className="text-[11px] text-gray-400">{mtg.duration ? `${mtg.duration} mins` : ""}</p>
                         </td>
-                        <td className="px-4 py-3"><TaskStatusPill status={mtg.priority} /></td>
+                        <td className="px-4 py-3"><TaskStatusPill status={mtg.status} /></td>
                         <td className="px-4 py-3">
                           <p className="text-sm text-gray-700">{mtg.contact}</p>
                           <p className="text-[11px] text-gray-400">{mtg.contactType}</p>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <button className="text-gray-400 hover:text-blue-500"><Eye size={15} /></button>
-                            <button className="text-gray-400 hover:text-blue-500"><Edit3 size={14} /></button>
-                            <button className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
-                          </div>
+                          {updatingId === mtg.id ? (
+                            <span className="text-xs text-gray-400">Updating…</span>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              {mtg.status === "requested" && (
+                                <>
+                                  <button onClick={() => updateMeetingStatus(mtg, "confirmed")} className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-700">Accept</button>
+                                  <button onClick={() => updateMeetingStatus(mtg, "cancelled")} className="rounded-lg border border-red-200 px-2.5 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50">Reject</button>
+                                </>
+                              )}
+                              {mtg.status === "confirmed" && (
+                                <button onClick={() => updateMeetingStatus(mtg, "completed")} className="rounded-lg bg-[#2563EB] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-blue-600">Mark Done</button>
+                              )}
+                              <button onClick={() => handleDeleteMeeting(mtg)} className="text-gray-400 hover:text-red-500" title="Delete"><Trash2 size={14} /></button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
-                    {paginated.length === 0 && <tr><td colSpan={6} className="py-12 text-center text-sm text-gray-400">No meetings found</td></tr>}
+                    {paginated.length === 0 && <tr><td colSpan={5} className="py-12 text-center text-sm text-gray-400">No meetings found</td></tr>}
                   </tbody>
                 </table>
               )}
@@ -221,40 +385,70 @@ export function TasksPage() {
           </>
         ) : (
           <div className="p-5">
-            <div className="grid grid-cols-5 gap-4 min-w-[1000px]">
-              {TASK_STAGES.map((stage) => {
-                const stageItems = filteredTasks.filter((task) => task.status === stage);
-                return (
-                <div key={stage} className="rounded-xl border border-gray-200 bg-gray-50/60 p-3">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-gray-700">{stage} <span className="ml-1 text-gray-400">{stageItems.length}</span></span>
-                    <button className="text-gray-400"><MoreVertical size={14} /></button>
+            {tab === "Tasks" ? (
+              <div className="grid grid-cols-5 gap-4 min-w-[1000px]">
+                {TASK_STAGES.map((stage) => {
+                  const stageItems = filteredTasks.filter((task) => task.status === stage);
+                  return (
+                  <div key={stage} className="rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-gray-700">{stage} <span className="ml-1 text-gray-400">{stageItems.length}</span></span>
+                    </div>
+                    <div className="space-y-2">
+                      {stageItems.map((task) => (
+                        <button key={task.id} onClick={() => setSelected(task)} className="w-full rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm">
+                          <p className="text-xs font-bold text-gray-900">{task.title || "Untitled task"}</p>
+                          <p className="mt-1 text-[11px] text-gray-400">{task.relatedTo || "No project linked"}</p>
+                        </button>
+                      ))}
+                      {stageItems.length === 0 && <div className="py-6 text-center text-xs text-gray-300">No items</div>}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    {stageItems.map((task) => (
-                      <button key={task.id} onClick={() => setSelected(task)} className="w-full rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm">
-                        <p className="text-xs font-bold text-gray-900">{task.title || "Untitled task"}</p>
-                        <p className="mt-1 text-[11px] text-gray-400">{task.relatedTo || "No project linked"}</p>
-                      </button>
-                    ))}
-                    {stageItems.length === 0 && <div className="py-6 text-center text-xs text-gray-300">No items</div>}
+                );})}
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 gap-4 min-w-[800px]">
+                {MEETING_STAGES.map((stage) => {
+                  const stageItems = filteredMeetings.filter((m) => m.status === stage);
+                  return (
+                  <div key={stage} className="rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-gray-700">{MEETING_STAGE_LABEL[stage]} <span className="ml-1 text-gray-400">{stageItems.length}</span></span>
+                    </div>
+                    <div className="space-y-2">
+                      {stageItems.map((mtg) => (
+                        <div key={mtg.id} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                          <p className="text-xs font-bold text-gray-900">{mtg.title || "Untitled meeting"}</p>
+                          <p className="mt-1 text-[11px] text-gray-400">{mtg.contact || "No contact linked"}</p>
+                          {mtg.status === "requested" && (
+                            <div className="mt-2 flex gap-1.5">
+                              <button onClick={() => updateMeetingStatus(mtg, "confirmed")} className="rounded-lg bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-emerald-700">Accept</button>
+                              <button onClick={() => updateMeetingStatus(mtg, "cancelled")} className="rounded-lg border border-red-200 px-2 py-1 text-[10px] font-bold text-red-600 hover:bg-red-50">Reject</button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {stageItems.length === 0 && <div className="py-6 text-center text-xs text-gray-300">No items</div>}
+                    </div>
                   </div>
-                </div>
-              );})}
-            </div>
+                );})}
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {selected && (
         <SidePanel
-          title={selected.id ? "Edit task" : "New Task"}
+          title={selected._id ? "Edit task" : "New Task"}
           subtitle="Update task title, related entity, status, and due date."
           onClose={() => setSelected(null)}
           footer={
             <div className="flex justify-between">
-              <button className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"><Trash2 size={14} /> Delete</button>
-              <div className="flex gap-2"><Button variant="secondary" onClick={() => setSelected(null)}>Cancel</Button><Button onClick={() => setSelected(null)}><Save size={14} /> Save</Button></div>
+              {selected._id ? (
+                <button onClick={() => { handleDeleteTask(selected); setSelected(null); }} className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50"><Trash2 size={14} /> Delete</button>
+              ) : <span />}
+              <div className="flex gap-2"><Button variant="secondary" onClick={() => setSelected(null)}>Cancel</Button><Button onClick={handleSaveSelected}><Save size={14} /> Save</Button></div>
             </div>
           }
         >
@@ -269,67 +463,6 @@ export function TasksPage() {
         </SidePanel>
       )}
     </div>
-  );
-}
-
-export function ReportsPage() {
-  const { records: orders } = useCrmRecords("orders");
-  const { records: invoices } = useCrmRecords("invoices");
-  const { records: projects } = useCrmRecords("projects");
-  const { records: leads } = useCrmRecords("leads");
-  const { records: proposals } = useCrmRecords("proposals");
-  const paidOrders = orders.filter((order) => ["paid", "completed", "success"].includes(String(order.status || "").toLowerCase())).length;
-  const qualifiedLeads = leads.filter((lead) => ["qualified", "proposal sent", "negotiation", "won"].includes(String(lead.stage || lead.status || "").toLowerCase())).length;
-  const paidRate = Math.round((paidOrders / Math.max(orders.length, 1)) * 100);
-  const qualificationRate = Math.round((qualifiedLeads / Math.max(leads.length, 1)) * 100);
-  const proposalRate = Math.round((proposals.filter((proposal) => ["accepted", "sent", "viewed"].includes(String(proposal.status || "").toLowerCase())).length / Math.max(proposals.length, 1)) * 100);
-  const deliveryRate = Math.round((projects.filter((project) => ["completed", "delivered"].includes(String(project.status || project.clientStatus || "").toLowerCase())).length / Math.max(projects.length, 1)) * 100);
-  return (
-    <PageShell title="Reports" subtitle="Review revenue, conversion, delivery, and client onboarding metrics." action={<Button><FileText size={14} /> Export Report</Button>}>
-      <div className="grid gap-4 md:grid-cols-4">
-        {[
-          ["Paid orders", paidOrders, TrendingUp],
-          ["Invoices", invoices.length, FileText],
-          ["Active projects", projects.length, Workflow],
-          ["Proposals", proposals.length, Send],
-        ].map(([label, value, Icon]) => (
-          <Card key={label} className="p-4">
-            <Icon size={18} className="text-[#2563EB]" />
-            <p className="mt-4 text-2xl font-bold text-gray-950">{value}</p>
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{label}</p>
-          </Card>
-        ))}
-      </div>
-      <div className="mt-5 grid gap-5 xl:grid-cols-2">
-        <Card className="p-5">
-          <h3 className="text-sm font-bold text-gray-950">Conversion summary</h3>
-          <div className="mt-5 space-y-4">
-            {[
-              ["Lead to qualified", qualificationRate],
-              ["Proposal activity", proposalRate],
-              ["Payment completion", paidRate],
-              ["Project delivered", deliveryRate],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <div className="mb-1 flex justify-between text-xs font-bold"><span className="text-gray-600">{label}</span><span className="text-gray-400">{value}%</span></div>
-                <div className="h-2 rounded-full bg-gray-100"><div className="h-full rounded-full bg-[#2563EB]" style={{ width: `${value}%` }} /></div>
-              </div>
-            ))}
-          </div>
-        </Card>
-        <Card className="p-5">
-          <h3 className="text-sm font-bold text-gray-950">Next report actions</h3>
-          <div className="mt-4 space-y-3">
-            {["Send weekly sales digest", "Export GST invoice register", "Review overdue project risks", "Audit failed payment attempts"].map((item) => (
-              <button key={item} className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 p-3 text-left text-xs font-bold text-gray-600 hover:bg-white">
-                {item}
-                <MoreHorizontal size={14} className="text-gray-300" />
-              </button>
-            ))}
-          </div>
-        </Card>
-      </div>
-    </PageShell>
   );
 }
 

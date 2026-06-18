@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell, BarChart2, Building2, ChevronDown,
-  ChevronsLeft, ChevronsRight, ChevronRight, CreditCard, FileSearch, FileSignature,
+  ChevronsLeft, ChevronsRight, ChevronRight, CreditCard, FileSignature,
   FileText, FolderKanban, FolderOpen, LayoutDashboard, Layers, ClipboardList,
-  LogOut, Mail, MessageCircle, Plus, ReceiptText, Search, Settings, Share2,
-  ShoppingCart, Tag, UserRound, Wallet, BookOpen, Package,
+  LogOut, Mail, MessageCircle, Plus, ReceiptText, Search, Settings,
+  ShoppingCart, Tag, UserRound, Wallet, Package,
 } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import { storeGet } from "../lib/store";
@@ -22,6 +22,7 @@ const NAV_SECTIONS = [
     label: "CRM",
     items: [
       { icon: Building2, to: "/admin/companies", label: "Companies" },
+      { icon: BarChart2, to: "/admin/analytics", label: "Analytics" },
       { icon: UserRound, to: "/admin/contacts", label: "Contacts" },
       {
         icon: ClipboardList, label: "Activity",
@@ -65,8 +66,6 @@ const NAV_SECTIONS = [
         children: [
           { icon: Building2, to: "/admin/documents/company-folders", label: "Company Folders" },
           { icon: FolderOpen, to: "/admin/documents/project-folders", label: "Project Folders" },
-          { icon: FileText, to: "/admin/documents/internal", label: "Internal Documents" },
-          { icon: Share2, to: "/admin/documents/client-shared", label: "Client Shared Documents" },
         ],
       },
     ],
@@ -74,13 +73,6 @@ const NAV_SECTIONS = [
   {
     label: "System",
     items: [
-      {
-        icon: FileSearch, label: "Insights",
-        children: [
-          { icon: BarChart2, to: "/admin/analytics", label: "Analytics" },
-          { icon: BookOpen, to: "/admin/reports", label: "Reports" },
-        ],
-      },
       { icon: Settings, to: "/admin/settings", label: "Settings" },
     ],
   },
@@ -99,7 +91,6 @@ const pageNames = {
   "/admin/tasks": "Tasks",
   "/admin/invoices": "Invoices",
   "/admin/coupons": "Coupons",
-  "/admin/reports": "Reports",
   "/admin/services/coupon-generator": "Coupon Generator",
   "/admin/services/proposal-generator": "Proposal Generator",
   "/admin/services/communications": "Communication",
@@ -107,8 +98,6 @@ const pageNames = {
   "/admin/communication/whatsapp-templates": "WhatsApp Templates",
   "/admin/documents/company-folders": "Company Folders",
   "/admin/documents/project-folders": "Project Folders",
-  "/admin/documents/internal": "Internal Documents",
-  "/admin/documents/client-shared": "Client Shared Documents",
   "/admin/database": "Database",
   "/admin/settings": "Settings",
 };
@@ -130,11 +119,8 @@ const searchablePages = [
   { label: "Proposal Generator", to: "/admin/services/proposal-generator", keywords: "proposal pdf client" },
   { label: "Company Folders", to: "/admin/documents/company-folders", keywords: "documents company folders files" },
   { label: "Project Folders", to: "/admin/documents/project-folders", keywords: "documents project folders files" },
-  { label: "Internal Documents", to: "/admin/documents/internal", keywords: "internal documents files" },
-  { label: "Client Shared Documents", to: "/admin/documents/client-shared", keywords: "client shared documents files" },
   { label: "Email Templates", to: "/admin/communication/email-templates", keywords: "email templates communication" },
   { label: "WhatsApp Templates", to: "/admin/communication/whatsapp-templates", keywords: "whatsapp templates communication" },
-  { label: "Reports", to: "/admin/reports", keywords: "reports export insights" },
   { label: "Settings", to: "/admin/settings", keywords: "profile password admin settings" },
 ];
 
