@@ -16,30 +16,31 @@ export function companyCodeFromName(name) {
   return code.padEnd(4, "X");
 }
 
-// 1-based creation-order rank of a company among all companies (oldest = 1).
-export function companyNumberOf(company, companies = []) {
-  const id = String(company?._id || company?.id || "");
-  const ordered = [...companies].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
-  const index = ordered.findIndex((c) => String(c._id || c.id) === id);
-  return (index >= 0 ? index : ordered.length) + 1;
+// 1-based creation-order rank of a project among all OTHER projects for the same
+// company (oldest = 1), so each project a company has gets a distinct number.
+export function projectNumberOf(company, projects = []) {
+  const companyId = String(company?._id || company?.id || "");
+  const siblings = projects.filter((p) => String(p.companyId) === companyId);
+  const ordered = [...siblings].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+  return ordered.length + 1;
 }
 
-export function generateProjectCode(company, companies = [], date = new Date()) {
+export function generateProjectCode(company, projects = [], date = new Date()) {
   if (!company) return "";
   const d = date instanceof Date ? date : new Date(date);
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const yy = String(d.getFullYear()).slice(-2);
-  const num = String(companyNumberOf(company, companies)).padStart(2, "0");
+  const num = String(projectNumberOf(company, projects)).padStart(2, "0");
   return `CS-${companyCodeFromName(company.name)}-${num}-${mm}${yy}`;
 }
 
-// Default project name: <Company>-project <company #>-<MMYY>, e.g. "Datacentric-project 2-0626".
-export function generateDefaultProjectName(company, companies = [], date = new Date()) {
+// Default project name: <Company>-project <project # for that company>-<MMYY>, e.g. "Datacentric-project 2-0626".
+export function generateDefaultProjectName(company, projects = [], date = new Date()) {
   if (!company) return "";
   const d = date instanceof Date ? date : new Date(date);
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const yy = String(d.getFullYear()).slice(-2);
-  const num = companyNumberOf(company, companies);
+  const num = projectNumberOf(company, projects);
   return `${company.name}-project ${num}-${mm}${yy}`;
 }
 

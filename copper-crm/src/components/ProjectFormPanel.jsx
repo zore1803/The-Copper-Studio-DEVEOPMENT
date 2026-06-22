@@ -85,7 +85,7 @@ function Select({ label, value, onChange, options = [], span = false, error }) {
 }
 
 /** Rich project creation form, shared between the company workspace and the global Projects page. */
-export default function ProjectFormPanel({ company, companies = [], contacts = [], invoices = [], onClose, onSave }) {
+export default function ProjectFormPanel({ company, companies = [], contacts = [], invoices = [], projects = [], onClose, onSave }) {
   const [companyId, setCompanyId] = useState(() => String(company?.id || company?._id || ""));
   const [form, setForm] = useState({
     name: "",
@@ -119,13 +119,13 @@ export default function ProjectFormPanel({ company, companies = [], contacts = [
     [company, companies, companyId]
   );
   const projectCode = useMemo(
-    () => (resolvedCompany ? generateProjectCode(resolvedCompany, companies) : ""),
-    [resolvedCompany, companies]
+    () => (resolvedCompany ? generateProjectCode(resolvedCompany, projects) : ""),
+    [resolvedCompany, projects]
   );
   useEffect(() => {
     if (!resolvedCompany || nameTouched.current) return;
-    setForm((prev) => (prev.name ? prev : { ...prev, name: generateDefaultProjectName(resolvedCompany, companies) }));
-  }, [resolvedCompany, companies]);
+    setForm((prev) => (prev.name ? prev : { ...prev, name: generateDefaultProjectName(resolvedCompany, projects) }));
+  }, [resolvedCompany, projects]);
   const scopedContacts = useMemo(
     () => (company ? contacts : contacts.filter((c) => String(c.companyId) === companyId)),
     [company, contacts, companyId]

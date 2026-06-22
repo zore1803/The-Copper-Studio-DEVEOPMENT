@@ -1074,7 +1074,7 @@ export default function CompanyDetail() {
       </div>
 
       {editingCompany && <CompanyFormPanel company={company} onClose={() => setEditingCompany(false)} onSave={handleSaveCompanyEdit} />}
-      {creatingProject && <ProjectFormPanel company={company} companies={companies} contacts={linked.contacts} invoices={linked.invoices} onClose={() => setCreatingProject(false)} onSave={handleCreateProject} />}
+      {creatingProject && <ProjectFormPanel company={company} companies={companies} contacts={linked.contacts} invoices={linked.invoices} projects={linked.projects} onClose={() => setCreatingProject(false)} onSave={handleCreateProject} />}
       {editingContact && <ContactPanel company={company} contact={editingContact._id || editingContact.id ? editingContact : null} onClose={() => setEditingContact(null)} onSave={handleSaveContact} />}
       {editingNote && <NotePanel company={company} note={editingNote._id || editingNote.id ? editingNote : null} onClose={() => setEditingNote(null)} onSave={handleSaveNote} />}
       {selectedContact && <ContactDetailPanel contact={selectedContact} projects={linked.projects} meetings={linked.meetings} onClose={() => setSelectedContact(null)} onEdit={(contact) => { setSelectedContact(null); setEditingContact(contact); }} onDelete={handleDeleteContact} onPrimary={handleMakePrimary} />}

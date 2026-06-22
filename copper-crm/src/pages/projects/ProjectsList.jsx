@@ -291,6 +291,7 @@ export default function ProjectsList() {
           companies={companies}
           contacts={contacts}
           invoices={invoices}
+          projects={projects}
           onClose={() => setCreating(false)}
           onSave={handleCreate}
         />

@@ -3,6 +3,7 @@ import Invoice from "../models/Invoice.js";
 import Order from "../models/Order.js";
 import Payment from "../models/Payment.js";
 import User from "../models/User.js";
+import { nextInvoiceNumber } from "./invoiceNumber.js";
 
 const BACKFILL_INTERVAL_MS = 5 * 60 * 1000;
 let lastBackfillAt = 0;
@@ -14,8 +15,12 @@ function asDate(value) {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-function invoiceNumberFor(order) {
-  return order.payment?.invoiceId || `INV-${String(order._id).slice(-6).toUpperCase()}`;
+// Reuses the invoice number already assigned for this order (idempotent re-sync);
+// otherwise mints the next sequential CS/INV/<legal year>/<seq> number.
+async function invoiceNumberFor(order, paidAt) {
+  const existing = await Invoice.findOne({ sourceOrderId: order._id }).select("invoiceNumber").catch(() => null);
+  if (existing?.invoiceNumber) return existing.invoiceNumber;
+  return nextInvoiceNumber(paidAt);
 }
 
 function paymentIdFor(order) {
@@ -45,7 +50,7 @@ export async function syncFinanceForOrder(orderInput) {
     ? await User.findOne({ email: String(customer.customerEmail).toLowerCase() }).select("_id name email").catch(() => null)
     : null;
   const company = await findLinkedCompany(order, client?._id);
-  const invoiceNumber = invoiceNumberFor(order);
+  const invoiceNumber = await invoiceNumberFor(order, paidAt);
   const paymentId = paymentIdFor(order);
   const total = Number(pkg.total || pkg.price || 0);
   const taxableBase = total ? Math.round(total / 1.18) : 0;
@@ -104,6 +109,10 @@ export async function syncFinanceForOrder(orderInput) {
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
+
+  if (order.payment?.invoiceId !== invoiceNumber) {
+    await Order.findByIdAndUpdate(order._id, { "payment.invoiceId": invoiceNumber }).catch(() => {});
+  }
 
   return { payment, invoice };
 }

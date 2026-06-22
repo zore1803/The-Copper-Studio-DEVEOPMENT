@@ -4,6 +4,7 @@ import { Button } from "../../components/ui";
 import { useCrmRecords } from "../../hooks/useCrmRecords";
 import { useToast } from "../../components/useToast";
 import SidePanel from "../../components/SidePanel";
+import { generateInvoiceNumber } from "../../lib/invoiceDefaults";
 
 function parseMoney(value) {
   return Number(String(value || "").replace(/[^\d.-]/g, "")) || 0;
@@ -96,7 +97,7 @@ export default function Invoices() {
   }), [invoices]);
 
   async function handleCreate(form) {
-    const invoiceNumber = `INV-${Date.now().toString().slice(-8)}`;
+    const invoiceNumber = generateInvoiceNumber(invoices, form.issueDate || new Date());
     const created = await saveInvoice({ ...form, id: `invoice-${Date.now()}`, invoiceNumber, createdAt: new Date().toISOString() });
     setCreating(false);
     showToast({ title: "Invoice generated", message: `${created.invoiceNumber || invoiceNumber} saved.` });
