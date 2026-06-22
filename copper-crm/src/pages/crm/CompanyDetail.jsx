@@ -619,6 +619,14 @@ export default function CompanyDetail() {
   const totalSignals = linked.projects.length + linked.contacts.length + linked.invoices.length + activeTasks;
   const riskPenalty = overdueTasks * 12 + (outstanding > 0 ? 8 : 0);
   const companyHealthScore = Math.max(0, Math.min(100, 68 + Math.min(totalSignals * 3, 24) - riskPenalty));
+  const tabCounts = {
+    Projects: linked.projects.length,
+    Contacts: linked.contacts.length,
+    Invoices: linked.invoices.length,
+    Documents: linked.documents.length,
+    Tasks: activeTasks,
+    Meetings: linked.meetings.length,
+  };
   const projectPackages = ["All", ...Array.from(new Set(linked.projects.map((project) => project.packageName || project.package).filter(Boolean)))];
   const projectManagers = ["All", ...Array.from(new Set(linked.projects.map((project) => project.projectManager || project.manager).filter(Boolean)))];
   const visibleProjects = linked.projects.filter((project) => {
@@ -833,9 +841,18 @@ export default function CompanyDetail() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`whitespace-nowrap border-b-[3px] px-4 py-3 text-sm font-semibold transition-colors ${activeTab === tab ? "border-[#C57E5B] text-[#C57E5B]" : "border-transparent text-[#1D1E22] hover:text-[#884c2d]"}`}
+              className={`flex items-center gap-1.5 whitespace-nowrap border-b-[3px] px-4 py-3 text-sm font-semibold transition-colors ${activeTab === tab ? "border-[#C57E5B] text-[#C57E5B]" : "border-transparent text-[#1D1E22] hover:text-[#884c2d]"}`}
             >
               {tab}
+              {Boolean(tabCounts[tab]) && (
+                <span
+                  className={`grid h-5 min-w-[20px] place-items-center rounded-full px-1.5 text-[11px] font-bold ${
+                    activeTab === tab ? "bg-[#C57E5B] text-white" : "bg-[#e5e7eb] text-[#374151]"
+                  }`}
+                >
+                  {tabCounts[tab]}
+                </span>
+              )}
             </button>
           ))}
         </div>
