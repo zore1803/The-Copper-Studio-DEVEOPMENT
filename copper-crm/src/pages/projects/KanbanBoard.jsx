@@ -9,7 +9,7 @@ import { useCrmRecords } from "../../hooks/useCrmRecords";
 import { useToast } from "../../components/useToast";
 
 const colConfig = {
-  "Backlog": { dot: "bg-gray-400", ring: "ring-gray-200", header: "bg-gray-50" },
+  "Backlog": { dot: "bg-gray-400", ring: "ring-gray-200", header: "bg-[#F5F7FA]" },
   "To Do": { dot: "bg-sky-500", ring: "ring-sky-100", header: "bg-sky-50" },
   "In Progress": { dot: "bg-amber-500", ring: "ring-amber-100", header: "bg-amber-50" },
   "Requirement Gathering": { dot: "bg-blue-500", ring: "ring-blue-100", header: "bg-blue-50" },
@@ -26,7 +26,7 @@ const TASK_STATUSES = ["Backlog", "To Do", "In Progress", "Review", "Completed",
 const priorityConfig = {
   High: "bg-red-50 text-red-600 border-red-100",
   Medium: "bg-amber-50 text-amber-700 border-amber-100",
-  Low: "bg-gray-50 text-gray-500 border-gray-200",
+  Low: "bg-[#F5F7FA] text-[#6B7280] border-[#E1E4EA]",
 };
 
 const assigneeColor = ["bg-[#2563EB]", "bg-violet-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500"];
@@ -163,17 +163,17 @@ export default function KanbanBoard() {
   }
 
   return (
-    <div className="flex h-full flex-col p-5 xl:p-6">
+    <div className="flex h-full flex-col bg-[#F1F1F5] p-5 xl:p-6">
       <div className="mb-5 flex shrink-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">Delivery pipeline</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">Kanban Board</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">Delivery pipeline</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#1F2937]">Kanban Board</h1>
+          <p className="mt-1 text-sm text-[#6B7280]">
             {totals.done}/{totals.total} completed - {totals.high} high priority tasks need attention
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-600 hover:bg-gray-50">
+          <button className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E1E4EA] bg-[#ffffff] px-3 text-xs font-bold text-[#525866] hover:bg-[#f9fafb]">
             <ListFilter size={14} />
             Filter
           </button>
@@ -190,15 +190,15 @@ export default function KanbanBoard() {
           {Object.entries(columns).map(([col, tasks]) => {
             const cfg = colConfig[col] || colConfig.Backlog;
             return (
-              <section key={col} className="flex w-[270px] shrink-0 flex-col rounded-2xl border border-gray-200 bg-white shadow-sm shadow-gray-100/70">
-                <div className={`rounded-t-2xl border-b border-gray-100 px-3.5 py-3 ${cfg.header}`}>
+              <section key={col} className="flex w-[270px] shrink-0 flex-col rounded-2xl border border-[#E1E4EA] bg-[#ffffff] shadow-sm shadow-gray-100/70">
+                <div className={`rounded-t-2xl border-b border-[#EAECF0] px-3.5 py-3 ${cfg.header}`}>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
                       <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${cfg.dot}`} />
-                      <h2 className="truncate text-sm font-bold text-gray-900">{col}</h2>
-                      <span className="rounded-md bg-white/80 px-1.5 py-0.5 text-[11px] font-bold text-gray-500">{tasks.length}</span>
+                      <h2 className="truncate text-sm font-bold text-[#1F2937]">{col}</h2>
+                      <span className="rounded-md bg-[#ffffff]/80 px-1.5 py-0.5 text-[11px] font-bold text-[#6B7280]">{tasks.length}</span>
                     </div>
-                    <button onClick={() => openNewTask(col)} className="grid h-7 w-7 place-items-center rounded-lg text-gray-400 hover:bg-white hover:text-gray-700">
+                    <button onClick={() => openNewTask(col)} className="grid h-7 w-7 place-items-center rounded-lg text-[#9CA3AF] hover:bg-[#ffffff] hover:text-[#884c2d]">
                       <Plus size={14} />
                     </button>
                   </div>
@@ -212,7 +212,7 @@ export default function KanbanBoard() {
                       className={`flex-1 overflow-y-auto p-2.5 transition-all duration-200 ${
                         snapshot.isDraggingOver
                           ? `bg-blue-50/70 ring-2 ring-inset ring-blue-200`
-                          : "bg-white"
+                          : "bg-[#ffffff]"
                       }`}
                       style={{ minHeight: 180 }}
                     >
@@ -227,12 +227,12 @@ export default function KanbanBoard() {
                                   ref={prov.innerRef}
                                   {...prov.draggableProps}
                                   {...prov.dragHandleProps}
-                                  className={`group/card cursor-grab rounded-xl border bg-white shadow-sm transition-[box-shadow,transform,border-color] duration-200 active:cursor-grabbing ${
+                                  className={`group/card cursor-grab rounded-xl border bg-[#ffffff] shadow-sm transition-[box-shadow,transform,border-color] duration-200 active:cursor-grabbing ${
                                     snap.isDragging
                                       ? "border-blue-200 shadow-2xl shadow-blue-950/10"
                                       : activeTaskId
-                                        ? "border-gray-200"
-                                        : "border-gray-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
+                                        ? "border-[#E1E4EA]"
+                                        : "border-[#E1E4EA] hover:-translate-y-0.5 hover:border-[#E1E4EA] hover:shadow-md"
                                   } ${isDone ? "opacity-80" : ""}`}
                                   style={{
                                     ...prov.draggableProps.style,
@@ -245,14 +245,14 @@ export default function KanbanBoard() {
                                     <div className="mb-2.5 flex items-start gap-2">
                                       <button
                                         type="button"
-                                        className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md text-gray-300 group-hover/card:bg-gray-50 group-hover/card:text-gray-500"
+                                        className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md text-gray-300 group-hover/card:bg-[#F5F7FA] group-hover/card:text-[#6B7280]"
                                         aria-label={`Drag ${task.title}`}
                                       >
                                         <GripVertical size={12} />
                                       </button>
                                       <div className="min-w-0 flex-1">
-                                        <p className="truncate text-[10px] font-bold uppercase tracking-wide text-gray-400">{task.project || "No project linked"}</p>
-                                        <h3 className={`mt-0.5 text-[13px] font-bold leading-snug ${isDone ? "text-gray-400 line-through" : "text-gray-900"}`}>
+                                        <p className="truncate text-[10px] font-bold uppercase tracking-wide text-[#9CA3AF]">{task.project || "No project linked"}</p>
+                                        <h3 className={`mt-0.5 text-[13px] font-bold leading-snug ${isDone ? "text-[#9CA3AF] line-through" : "text-[#1F2937]"}`}>
                                           {task.title || task.taskName || "Untitled task"}
                                         </h3>
                                       </div>
@@ -262,25 +262,25 @@ export default function KanbanBoard() {
                                           event.stopPropagation();
                                           openEditTask(col, task);
                                         }}
-                                        className="grid h-5 w-5 shrink-0 place-items-center rounded-md text-gray-300 opacity-0 hover:bg-gray-50 hover:text-gray-500 group-hover/card:opacity-100"
+                                        className="grid h-5 w-5 shrink-0 place-items-center rounded-md text-gray-300 opacity-0 hover:bg-[#f9fafb] hover:text-[#6B7280] group-hover/card:opacity-100"
                                         title="Edit task"
                                       >
                                         <MoreHorizontal size={12} />
                                       </button>
                                     </div>
 
-                                    <p className="mb-2.5 line-clamp-2 text-[11px] leading-4 text-gray-500">{task.description || "No description added."}</p>
+                                    <p className="mb-2.5 line-clamp-2 text-[11px] leading-4 text-[#6B7280]">{task.description || "No description added."}</p>
 
                                     <div className="mb-2.5 flex items-center justify-between gap-2">
                                       <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${priority}`}>{task.priority}</span>
-                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-400">
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#9CA3AF]">
                                         <Calendar size={11} />
                                         {task.deadline || task.dueDate || "No due date"}
                                       </span>
                                     </div>
 
-                                    <div className="flex items-center justify-between border-t border-gray-100 pt-2.5">
-                                      <div className="flex items-center gap-2.5 text-[10px] font-bold text-gray-400">
+                                    <div className="flex items-center justify-between border-t border-[#EAECF0] pt-2.5">
+                                      <div className="flex items-center gap-2.5 text-[10px] font-bold text-[#9CA3AF]">
                                         <span className="inline-flex items-center gap-1">
                                           <CheckSquare size={11} />
                                           {task.subtasks || 0}
@@ -317,7 +317,7 @@ export default function KanbanBoard() {
                       </div>
 
                       {tasks.length === 0 && (
-                        <div className="grid h-28 place-items-center rounded-xl border border-dashed border-gray-200 bg-gray-50 text-xs font-bold text-gray-400">
+                        <div className="grid h-28 place-items-center rounded-xl border border-dashed border-[#E1E4EA] bg-[#F5F7FA] text-xs font-bold text-[#9CA3AF]">
                           Drop tasks here
                         </div>
                       )}
@@ -366,27 +366,27 @@ function TaskEditorModal({ columns, initialColumn, task, mode, onClose, onSave, 
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-gray-950/35 px-4">
-      <form onSubmit={submit} className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+      <form onSubmit={submit} className="w-full max-w-2xl rounded-2xl border border-[#E1E4EA] bg-[#ffffff] shadow-2xl">
+        <div className="flex items-center justify-between border-b border-[#EAECF0] px-5 py-4">
           <div>
-            <h2 className="text-sm font-bold text-gray-950">{mode === "create" ? "Create task" : "Edit task"}</h2>
-            <p className="text-xs text-gray-400">Update task details, owner, priority, and workflow stage.</p>
+            <h2 className="text-sm font-bold text-[#1F2937]">{mode === "create" ? "Create task" : "Edit task"}</h2>
+            <p className="text-xs text-[#9CA3AF]">Update task details, owner, priority, and workflow stage.</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-xs font-bold text-gray-500 hover:bg-gray-100">Close</button>
+          <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-xs font-bold text-[#6B7280] hover:bg-[#f3f4f6]">Close</button>
         </div>
 
         <div className="grid gap-4 p-5 sm:grid-cols-2">
           <TaskField label="Task title" value={form.title} onChange={set("title")} className="sm:col-span-2" />
           <TaskField label="Project" value={form.project} onChange={set("project")} />
           <label className="block">
-            <span className="text-xs font-bold text-gray-600">Stage</span>
-            <select value={column} onChange={(event) => setColumn(event.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-50">
+            <span className="text-xs font-bold text-[#525866]">Stage</span>
+            <select value={column} onChange={(event) => setColumn(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[#E1E4EA] px-3 py-2 text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-50">
               {columns.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
           <label className="block">
-            <span className="text-xs font-bold text-gray-600">Priority</span>
-            <select value={form.priority} onChange={(event) => set("priority")(event.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-50">
+            <span className="text-xs font-bold text-[#525866]">Priority</span>
+            <select value={form.priority} onChange={(event) => set("priority")(event.target.value)} className="mt-1.5 w-full rounded-xl border border-[#E1E4EA] px-3 py-2 text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-50">
               {["High", "Medium", "Low"].map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
@@ -395,12 +395,12 @@ function TaskEditorModal({ columns, initialColumn, task, mode, onClose, onSave, 
           <TaskField label="Subtasks" type="number" value={form.subtasks} onChange={set("subtasks")} />
           <TaskField label="Comments" type="number" value={form.comments} onChange={set("comments")} />
           <label className="block sm:col-span-2">
-            <span className="text-xs font-bold text-gray-600">Description</span>
-            <textarea value={form.description} onChange={(event) => set("description")(event.target.value)} className="mt-1.5 min-h-24 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-50" />
+            <span className="text-xs font-bold text-[#525866]">Description</span>
+            <textarea value={form.description} onChange={(event) => set("description")(event.target.value)} className="mt-1.5 min-h-24 w-full rounded-xl border border-[#E1E4EA] px-3 py-2 text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-50" />
           </label>
         </div>
 
-        <div className="flex items-center justify-between border-t border-gray-100 p-4">
+        <div className="flex items-center justify-between border-t border-[#EAECF0] p-4">
           {mode === "edit" ? (
             <button type="button" onClick={() => onDelete(task)} className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50">
               <Trash2 size={14} />
@@ -420,13 +420,13 @@ function TaskEditorModal({ columns, initialColumn, task, mode, onClose, onSave, 
 function TaskField({ label, value, onChange, placeholder = "", type = "text", className = "" }) {
   return (
     <label className={`block ${className}`}>
-      <span className="text-xs font-bold text-gray-600">{label}</span>
+      <span className="text-xs font-bold text-[#525866]">{label}</span>
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="mt-1.5 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-50"
+        className="mt-1.5 w-full rounded-xl border border-[#E1E4EA] px-3 py-2 text-sm outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-50"
       />
     </label>
   );

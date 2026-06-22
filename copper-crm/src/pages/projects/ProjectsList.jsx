@@ -29,7 +29,7 @@ function KpiChip({ label, value, icon: Icon, tone = "default" }) {
     danger: "bg-red-50 text-red-700",
   };
   return (
-    <div className="rounded-xl border border-[#ead9d0] bg-white px-5 py-4">
+    <div className="rounded-xl border border-[#ead9d0] bg-[#ffffff] px-5 py-4">
       <div className="flex items-center gap-3">
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${toneStyles[tone]}`}>
           <Icon size={16} />
@@ -45,7 +45,7 @@ function KpiChip({ label, value, icon: Icon, tone = "default" }) {
 
 function Section({ title, subtitle, action, children }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-[#ead9d0] bg-white shadow-sm">
+    <section className="overflow-hidden rounded-xl border border-[#ead9d0] bg-[#ffffff] shadow-sm">
       <div className="flex items-center justify-between border-b border-[#f3e9e4] bg-[#fbf3ee] px-5 py-3.5">
         <div>
           <h3 className="text-sm font-bold text-[#2b211c]">{title}</h3>
@@ -90,7 +90,7 @@ function DeadlineTimeline({ items }) {
   const todayVisible = rows.length && TODAY >= rows[0].start && TODAY <= new Date(minDate.getTime() + totalMs);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[#ead9d0] bg-white shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-[#ead9d0] bg-[#ffffff] shadow-sm">
       <div className="flex border-b border-[#f3e9e4] bg-[#fbf3ee] px-5 py-3">
         <h3 className="text-sm font-semibold text-[#2b211c]">Deadline Timeline</h3>
         <p className="ml-auto text-xs font-semibold text-[#6c6355]">{rows.filter((r) => r.overdue).length} overdue</p>
@@ -116,7 +116,7 @@ function DeadlineTimeline({ items }) {
 
         <div className="min-w-0 flex-1 overflow-x-auto">
           <div style={{ minWidth: `${timelineWidth}px` }}>
-            <div className="flex h-11 border-b border-[#f3e9e4] bg-white">
+            <div className="flex h-11 border-b border-[#f3e9e4] bg-[#ffffff]">
               {months.map((month, index) => (
                 <div
                   key={index}
@@ -225,7 +225,7 @@ export default function ProjectsList() {
           <p className="mt-1 text-sm text-[#6c6355]">{filtered.length} of {projects.length} projects across every company</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex h-10 w-full items-center gap-2 rounded-xl border border-[#ead9d0] bg-white px-3 sm:w-72">
+          <div className="flex h-10 w-full items-center gap-2 rounded-xl border border-[#ead9d0] bg-[#ffffff] px-3 sm:w-72">
             <Search size={14} className="text-[#9b8c83]" />
             <input
               value={search}

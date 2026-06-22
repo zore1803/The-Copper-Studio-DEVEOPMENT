@@ -118,7 +118,7 @@ function ProjectGanttChart({ project, tasks }) {
   const gridWidth = Math.max(months.length * MONTH_W, 560);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[#ead9d0] bg-white shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-[#ead9d0] bg-[#ffffff] shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f3e9e4] bg-[#fbf3ee] px-5 py-3.5">
         <div>
           <h3 className="font-display text-sm font-bold text-[#2b211c]">{project.name} — Timeline</h3>
@@ -160,7 +160,7 @@ function ProjectGanttChart({ project, tasks }) {
 
           {/* Right: dated bars */}
           <div className="relative min-w-0 flex-1" style={{ minWidth: `${gridWidth}px` }}>
-            <div className="flex h-9 bg-white">
+            <div className="flex h-9 bg-[#ffffff]">
               {months.map((m, idx) => (
                 <div key={idx} style={{ width: `${100 / months.length}%` }} className="flex items-center border-l border-[#f3e9e4] pl-2 text-[10px] font-bold uppercase tracking-wide text-[#9b8c83] first:border-l-0">
                   {m.label}
@@ -194,7 +194,7 @@ function ProjectGanttChart({ project, tasks }) {
                       title={`${r.name}\n${style.label}${r.priority ? ` · ${r.priority} priority` : ""}${r.assignee ? ` · ${r.assignee}` : ""}\n${fmt(r.start)} – ${fmt(r.end)} (${days}d)`}
                     >
                       <span className="truncate">{range}</span>
-                      <span className="ml-auto shrink-0 rounded bg-white/25 px-1">{days}d</span>
+                      <span className="ml-auto shrink-0 rounded bg-[#ffffff]/25 px-1">{days}d</span>
                     </div>
                   </div>
                 );
@@ -239,7 +239,7 @@ export default function TimelinePage() {
       {loading ? (
         <div className="flex justify-center py-20 text-sm text-[#6c6355]">Loading projects…</div>
       ) : !projects.length ? (
-        <div className="rounded-xl border border-dashed border-[#ead9d0] bg-white p-10 text-center">
+        <div className="rounded-xl border border-dashed border-[#ead9d0] bg-[#ffffff] p-10 text-center">
           <FolderKanban size={28} className="mx-auto mb-3 text-[#884c2d]" />
           <p className="text-sm font-semibold text-[#2b211c]">No projects yet.</p>
           <p className="mt-1 text-sm text-[#6c6355]">Create a project from a company workspace to see its timeline here.</p>
@@ -247,9 +247,9 @@ export default function TimelinePage() {
       ) : (
         <div className="grid grid-cols-12 gap-5">
           <div className="col-span-12 lg:col-span-4 xl:col-span-3">
-            <div className="overflow-hidden rounded-xl border border-[#ead9d0] bg-white">
+            <div className="overflow-hidden rounded-xl border border-[#ead9d0] bg-[#ffffff]">
               <div className="border-b border-[#f3e9e4] bg-[#fbf3ee] p-3">
-                <div className="flex h-9 items-center gap-2 rounded-lg border border-[#ead9d0] bg-white px-3">
+                <div className="flex h-9 items-center gap-2 rounded-lg border border-[#ead9d0] bg-[#ffffff] px-3">
                   <Search size={14} className="shrink-0 text-[#9b8c83]" />
                   <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search projects…" className="w-full bg-transparent text-sm text-[#2b211c] outline-none" />
                 </div>
@@ -288,7 +288,7 @@ export default function TimelinePage() {
                 </button>
               </div>
             ) : (
-              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-[#ead9d0] bg-white p-16 text-center text-sm text-[#6c6355]">
+              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-[#ead9d0] bg-[#ffffff] p-16 text-center text-sm text-[#6c6355]">
                 Select a project to view its timeline.
               </div>
             )}

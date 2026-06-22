@@ -14,17 +14,17 @@ import { useCrmRecords } from "../../hooks/useCrmRecords";
 import { isEmail, isPhone, isFutureDate, isGstin, required as isRequired, isPositiveNumber } from "../../lib/validators";
 
 function Card({ children, className = "" }) {
-  return <section className={`rounded-xl border border-gray-200 bg-white shadow-sm shadow-gray-100/60 ${className}`}>{children}</section>;
+  return <section className={`rounded-xl border border-[#E1E4EA] bg-[#ffffff] shadow-sm shadow-gray-100/60 ${className}`}>{children}</section>;
 }
 
 function PageShell({ title, subtitle, action, children }) {
   return (
-    <div className="p-5 xl:p-6">
+    <div className="min-h-full bg-[#F1F1F5] p-5 xl:p-6">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">Admin</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-950">{title}</h1>
-          <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">Admin</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#1F2937]">{title}</h1>
+          <p className="mt-1 text-sm text-[#6B7280]">{subtitle}</p>
         </div>
         {action}
       </div>
@@ -36,7 +36,7 @@ function PageShell({ title, subtitle, action, children }) {
 function Field({ label, value, onChange, placeholder = "", type = "text", error = "", required = false, hint = "", inputMode, maxLength }) {
   return (
     <label className="block">
-      <span className="text-xs font-bold text-gray-600">
+      <span className="text-xs font-bold text-[#525866]">
         {label}{required && <span className="text-red-500"> *</span>}
       </span>
       <input
@@ -50,13 +50,13 @@ function Field({ label, value, onChange, placeholder = "", type = "text", error 
         className={`mt-1.5 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-4 ${
           error
             ? "border-red-300 focus:border-red-400 focus:ring-red-50"
-            : "border-gray-200 focus:border-[#cda88f] focus:ring-[#fff1ec]"
+            : "border-[#E1E4EA] focus:border-[#cda88f] focus:ring-[#fff1ec]"
         }`}
       />
       {error
         ? <span className="mt-1 block text-[11px] font-semibold text-red-500">{error}</span>
         : hint
-          ? <span className="mt-1 block text-[11px] text-gray-400">{hint}</span>
+          ? <span className="mt-1 block text-[11px] text-[#9CA3AF]">{hint}</span>
           : null}
     </label>
   );
@@ -68,10 +68,10 @@ function DateTimeField({ label, value, onChange }) {
 
   return (
     <div className="block">
-      <span className="text-xs font-bold text-gray-600">{label}</span>
+      <span className="text-xs font-bold text-[#525866]">{label}</span>
       <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
-        <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-50">
-          <CalendarDays size={15} className="shrink-0 text-gray-400" />
+        <label className="flex items-center gap-2 rounded-xl border border-[#E1E4EA] px-3 py-2 text-sm outline-none focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-50">
+          <CalendarDays size={15} className="shrink-0 text-[#9CA3AF]" />
           <input
             type="date"
             value={date}
@@ -79,8 +79,8 @@ function DateTimeField({ label, value, onChange }) {
             className="w-full bg-transparent outline-none"
           />
         </label>
-        <label className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-50">
-          <Clock3 size={15} className="shrink-0 text-gray-400" />
+        <label className="flex items-center gap-2 rounded-xl border border-[#E1E4EA] px-3 py-2 text-sm outline-none focus-within:border-blue-300 focus-within:ring-4 focus-within:ring-blue-50">
+          <Clock3 size={15} className="shrink-0 text-[#9CA3AF]" />
           <input
             type="time"
             step="900"
@@ -132,10 +132,10 @@ function formatMoneyCompact(value) {
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs shadow-lg shadow-gray-200/60">
-      {label && <p className="mb-1 font-bold text-gray-500">{label}</p>}
+    <div className="rounded-lg border border-[#E1E4EA] bg-[#ffffff] px-3 py-2 text-xs shadow-lg shadow-gray-200/60">
+      {label && <p className="mb-1 font-bold text-[#6B7280]">{label}</p>}
       {payload.map((entry) => (
-        <p key={entry.dataKey} className="flex items-center gap-2 font-semibold text-gray-800">
+        <p key={entry.dataKey} className="flex items-center gap-2 font-semibold text-[#1F2937]">
           <span className="inline-block h-2 w-2 rounded-full" style={{ background: entry.color || entry.payload?.color }} />
           {entry.name}: {typeof entry.value === "number" ? formatMoney(entry.value) : entry.value}
         </p>
@@ -337,9 +337,9 @@ export function ProposalGeneratorPage() {
     >
       <div className="grid gap-5 xl:grid-cols-2">
         <Card>
-          <div className="border-b border-gray-100 px-5 py-4">
-            <h3 className="text-sm font-bold text-gray-950">Proposal details</h3>
-            <p className="text-xs text-gray-400">Fields marked * are required.</p>
+          <div className="border-b border-[#EAECF0] px-5 py-4">
+            <h3 className="text-sm font-bold text-[#1F2937]">Proposal details</h3>
+            <p className="text-xs text-[#9CA3AF]">Fields marked * are required.</p>
           </div>
           <div className="grid gap-4 p-5 sm:grid-cols-2">
             <Field label="Client" required value={proposal.client} onChange={setField("client")} error={errors.client} />
@@ -349,7 +349,7 @@ export function ProposalGeneratorPage() {
             <Field label="Value" required type="number" inputMode="decimal" value={proposal.value} onChange={setField("value")} error={errors.value} placeholder="50000" />
             <Field label="Timeline" required value={proposal.timeline} onChange={setField("timeline")} error={errors.timeline} />
           </div>
-          <div className="flex justify-end gap-2 border-t border-gray-100 px-5 py-4">
+          <div className="flex justify-end gap-2 border-t border-[#EAECF0] px-5 py-4">
             <Button variant="secondary" onClick={() => copyText(proposalText, "Proposal copied")}><Copy size={14} /> Copy text</Button>
             <Button onClick={createProposalPdf} disabled={busy}>
               <FileDown size={14} /> {busy ? "Generatingâ€¦" : "Save PDF"}
@@ -358,34 +358,34 @@ export function ProposalGeneratorPage() {
         </Card>
 
         <Card>
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+          <div className="flex items-center justify-between border-b border-[#EAECF0] px-5 py-4">
             <div>
-              <h3 className="text-sm font-bold text-gray-950">Live preview</h3>
-              <p className="text-xs text-gray-400">Updates as you type. Matches the exported PDF.</p>
+              <h3 className="text-sm font-bold text-[#1F2937]">Live preview</h3>
+              <p className="text-xs text-[#9CA3AF]">Updates as you type. Matches the exported PDF.</p>
             </div>
-            <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-1">
+            <div className="flex items-center gap-1 rounded-lg border border-[#E1E4EA] p-1">
               <button
                 type="button"
                 onClick={() => adjustZoom(-10)}
-                className="grid h-6 w-6 place-items-center rounded-md text-gray-500 hover:bg-gray-100"
+                className="grid h-6 w-6 place-items-center rounded-md text-[#6B7280] hover:bg-[#f3f4f6]"
                 aria-label="Zoom out"
               >
                 <Minus size={13} />
               </button>
-              <span className="w-10 text-center text-[11px] font-semibold text-gray-600">{zoom}%</span>
+              <span className="w-10 text-center text-[11px] font-semibold text-[#525866]">{zoom}%</span>
               <button
                 type="button"
                 onClick={() => adjustZoom(10)}
-                className="grid h-6 w-6 place-items-center rounded-md text-gray-500 hover:bg-gray-100"
+                className="grid h-6 w-6 place-items-center rounded-md text-[#6B7280] hover:bg-[#f3f4f6]"
                 aria-label="Zoom in"
               >
                 <Plus size={13} />
               </button>
             </div>
           </div>
-          <div className="max-h-[640px] overflow-auto bg-gray-100 p-6">
+          <div className="max-h-[640px] overflow-auto bg-[#F1F1F5] p-6">
             <div
-              className="mx-auto origin-top bg-white shadow-lg"
+              className="mx-auto origin-top bg-[#ffffff] shadow-lg"
               style={{ width: 480, transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}
             >
               <div className="bg-[#2563eb] px-7 py-6 text-white">
@@ -403,14 +403,14 @@ export function ProposalGeneratorPage() {
               </div>
 
               <div className="px-7 py-6">
-                <p className="text-base font-bold text-gray-900">Prepared for {proposal.client || "â€”"}</p>
+                <p className="text-base font-bold text-[#1F2937]">Prepared for {proposal.client || "â€”"}</p>
 
-                <div className="mt-4 rounded-xl border border-gray-200 p-4">
+                <div className="mt-4 rounded-xl border border-[#E1E4EA] p-4">
                   <dl className="space-y-2">
                     {proposalDetails.map(([label, detail]) => (
                       <div key={label} className="flex items-baseline justify-between gap-3 text-[11px]">
-                        <dt className="font-bold uppercase tracking-wide text-gray-500">{label}</dt>
-                        <dd className="truncate text-right font-medium text-gray-900">{detail}</dd>
+                        <dt className="font-bold uppercase tracking-wide text-[#6B7280]">{label}</dt>
+                        <dd className="truncate text-right font-medium text-[#1F2937]">{detail}</dd>
                       </div>
                     ))}
                   </dl>
@@ -418,16 +418,16 @@ export function ProposalGeneratorPage() {
 
                 <div className="mt-4 space-y-3">
                   {sections.map((section) => (
-                    <div key={section.title} className="rounded-lg bg-gray-50 p-4">
-                      <p className="text-[12px] font-bold text-gray-900">{section.title}</p>
-                      <p className="mt-1.5 text-[11px] leading-5 text-gray-600">{section.body}</p>
+                    <div key={section.title} className="rounded-lg bg-[#F5F7FA] p-4">
+                      <p className="text-[12px] font-bold text-[#1F2937]">{section.title}</p>
+                      <p className="mt-1.5 text-[11px] leading-5 text-[#525866]">{section.body}</p>
                     </div>
                   ))}
                 </div>
 
                 <div className="mt-5 border-t-2 border-[#2563eb] pt-3">
                   <p className="text-[11px] font-bold text-[#2563eb]">The Copper Studio</p>
-                  <p className="mt-0.5 text-[10px] text-gray-500">Contact us for package confirmation, onboarding, and next steps.</p>
+                  <p className="mt-0.5 text-[10px] text-[#6B7280]">Contact us for package confirmation, onboarding, and next steps.</p>
                 </div>
               </div>
             </div>
@@ -543,17 +543,17 @@ export function ServicesPage() {
     <PageShell title="Coupon Code Generator" subtitle="Generate package-specific, time-bound discount codes.">
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(300px,0.8fr)]">
         <Card>
-          <div className="border-b border-gray-100 px-5 py-4">
-            <h3 className="text-sm font-bold text-gray-950">Coupon details</h3>
-            <p className="text-xs text-gray-400">Fields marked * are required.</p>
+          <div className="border-b border-[#EAECF0] px-5 py-4">
+            <h3 className="text-sm font-bold text-[#1F2937]">Coupon details</h3>
+            <p className="text-xs text-[#9CA3AF]">Fields marked * are required.</p>
           </div>
           <div className="grid gap-4 p-5 sm:grid-cols-2">
             <Field label="Prefix" required value={coupon.prefix} onChange={setField("prefix")} error={errors.prefix} hint="Shown at the start of the code." maxLength={10} />
             <div className="grid grid-cols-[1fr_auto] gap-2">
               <Field label="Discount" required type="number" inputMode="decimal" value={coupon.discount} onChange={setField("discount")} error={errors.discount} placeholder={coupon.amountType === "percentage" ? "10" : "500"} />
               <label className="block">
-                <span className="text-xs font-bold text-gray-600">Type</span>
-                <select value={coupon.amountType} onChange={(event) => setField("amountType")(event.target.value)} className="mt-1.5 h-[38px] w-full rounded-xl border border-gray-200 px-2 text-sm outline-none focus:border-[#cda88f] focus:ring-4 focus:ring-[#fff1ec]">
+                <span className="text-xs font-bold text-[#525866]">Type</span>
+                <select value={coupon.amountType} onChange={(event) => setField("amountType")(event.target.value)} className="mt-1.5 h-[38px] w-full rounded-xl border border-[#E1E4EA] px-2 text-sm outline-none focus:border-[#cda88f] focus:ring-4 focus:ring-[#fff1ec]">
                   <option value="percentage">%</option>
                   <option value="fixed">Rs</option>
                 </select>
@@ -569,7 +569,7 @@ export function ServicesPage() {
             <Field label="Email ID" type="email" value={coupon.email} onChange={setField("email")} error={errors.email} placeholder="Optional" />
             <Field label="Phone no." type="tel" inputMode="numeric" value={coupon.phone} onChange={setField("phone")} error={errors.phone} placeholder="Optional" maxLength={10} />
           </div>
-          <div className="flex justify-end gap-2 border-t border-gray-100 px-5 py-4">
+          <div className="flex justify-end gap-2 border-t border-[#EAECF0] px-5 py-4">
             <Button variant="secondary" onClick={() => copyText(previewCode, "Prefix copied")}><Copy size={14} /> Copy prefix</Button>
             <Button onClick={createCoupon} disabled={creating}>
               <Plus size={14} /> {creating ? "Creatingâ€¦" : "Create Coupon"}
@@ -580,28 +580,28 @@ export function ServicesPage() {
         <div className="space-y-5">
           <div className="rounded-2xl border border-dashed border-[#e2c4b4] bg-[#fff1ec] p-5 text-center">
             <Tag size={22} className="mx-auto text-[#884c2d]" />
-            <p className="mt-3 font-mono text-xl font-bold text-gray-950">{previewCode}</p>
-            <p className="mt-1 text-xs font-semibold text-gray-500">{discountLabel} off on {coupon.packageName || "selected package"}</p>
+            <p className="mt-3 font-mono text-xl font-bold text-[#1F2937]">{previewCode}</p>
+            <p className="mt-1 text-xs font-semibold text-[#6B7280]">{discountLabel} off on {coupon.packageName || "selected package"}</p>
             <p className="mt-1 text-[11px] font-semibold text-[#884c2d]">Valid till {formatDateTime(coupon.validity)}</p>
-            <p className="mt-2 text-[10px] text-gray-400">A unique code is generated on create.</p>
+            <p className="mt-2 text-[10px] text-[#9CA3AF]">A unique code is generated on create.</p>
           </div>
 
           <Card>
-            <div className="border-b border-gray-100 px-4 py-3">
-              <h3 className="text-sm font-bold text-gray-950">Recent coupons</h3>
+            <div className="border-b border-[#EAECF0] px-4 py-3">
+              <h3 className="text-sm font-bold text-[#1F2937]">Recent coupons</h3>
             </div>
             <div className="max-h-72 space-y-2 overflow-y-auto p-3">
               {savedCoupons.length ? savedCoupons.slice(0, 8).map((item) => (
-                <div key={item._id || item.code} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+                <div key={item._id || item.code} className="rounded-xl border border-[#E1E4EA] bg-[#F5F7FA] px-3 py-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-gray-700">{item.code}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{item.status}</span>
+                    <span className="font-mono text-xs font-bold text-[#374151]">{item.code}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[#9CA3AF]">{item.status}</span>
                   </div>
-                  <p className="mt-1 text-[11px] text-gray-500">{item.generatedAt} Â· Valid till {item.validity || formatDateTime(item.validUntil)}</p>
-                  <p className="text-[11px] text-gray-500">{item.clientName || "No client"} / {item.companyName || "No company"}</p>
+                  <p className="mt-1 text-[11px] text-[#6B7280]">{item.generatedAt} Â· Valid till {item.validity || formatDateTime(item.validUntil)}</p>
+                  <p className="text-[11px] text-[#6B7280]">{item.clientName || "No client"} / {item.companyName || "No company"}</p>
                 </div>
               )) : (
-                <p className="px-2 py-6 text-center text-xs text-gray-400">No coupons created yet.</p>
+                <p className="px-2 py-6 text-center text-xs text-[#9CA3AF]">No coupons created yet.</p>
               )}
             </div>
           </Card>
@@ -626,27 +626,27 @@ function DataTablePreview({ type, title }) {
   const columns = tableColumns[type];
   return (
     <Card>
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-[#EAECF0] px-4 py-3">
         <div className="flex items-center gap-2">
           <Table2 size={16} className="text-[#2563EB]" />
-          <h3 className="text-sm font-bold text-gray-950">{title}</h3>
+          <h3 className="text-sm font-bold text-[#1F2937]">{title}</h3>
         </div>
-        <span className="rounded-full bg-gray-50 px-2 py-1 text-[11px] font-bold text-gray-500">{loading ? "Loading" : `${records.length} rows`}</span>
+        <span className="rounded-full bg-[#F5F7FA] px-2 py-1 text-[11px] font-bold text-[#6B7280]">{loading ? "Loading" : `${records.length} rows`}</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[620px]">
           <thead>
-            <tr className="bg-gray-50/80">
+            <tr className="bg-[#F5F7FA]/80">
               {columns.map((column) => (
-                <th key={column} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{column}</th>
+                <th key={column} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">{column}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {(records.length ? records : [{}]).slice(0, 6).map((row, index) => (
-              <tr key={row._id || index} className="border-t border-gray-100">
+              <tr key={row._id || index} className="border-t border-[#EAECF0]">
                 {columns.map((column) => (
-                  <td key={column} className="max-w-40 truncate px-4 py-3 text-xs font-semibold text-gray-600">{row[column] || "-"}</td>
+                  <td key={column} className="max-w-40 truncate px-4 py-3 text-xs font-semibold text-[#525866]">{row[column] || "-"}</td>
                 ))}
               </tr>
             ))}
@@ -665,8 +665,8 @@ export function DatabaseTablesPage() {
           {Object.keys(tableColumns).map((type) => (
             <Card key={type} className="p-4">
               <Table2 size={18} className="text-[#2563EB]" />
-              <p className="mt-3 text-lg font-bold capitalize text-gray-950">{type}</p>
-              <p className="text-xs font-semibold text-gray-500">Dedicated collection</p>
+              <p className="mt-3 text-lg font-bold capitalize text-[#1F2937]">{type}</p>
+              <p className="text-xs font-semibold text-[#6B7280]">Dedicated collection</p>
             </Card>
           ))}
         </div>

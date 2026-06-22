@@ -9,7 +9,7 @@ function money(value) {
 
 function Metric({ label, value, icon: Icon }) {
   return (
-    <div className="rounded-xl border border-[#e5e7eb] bg-white p-4">
+    <div className="rounded-xl border border-[#e5e7eb] bg-[#ffffff] p-4">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#fff1ec] text-[#884c2d]"><Icon size={17} /></div>
         <div>
@@ -67,7 +67,7 @@ export default function Coupons() {
         <Metric label="Conversion Rate" value="0%" icon={TrendingUp} />
       </div>
 
-      <section className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
+      <section className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-[#ffffff]">
         <div className="flex flex-col gap-3 border-b border-[#f3f4f6] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
             {["All", "Draft", "Active", "Redeemed", "Expired", "Cancelled", "Revoked"].map((item) => (
@@ -83,7 +83,7 @@ export default function Coupons() {
         {filtered.length ? (
           <div className="grid gap-4 p-4 xl:grid-cols-2">
             {filtered.map((coupon) => (
-              <div key={coupon._id || coupon.id || coupon.code} className="rounded-xl border border-[#e5e7eb] bg-white p-4">
+              <div key={coupon._id || coupon.id || coupon.code} className="rounded-xl border border-[#e5e7eb] bg-[#ffffff] p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">
