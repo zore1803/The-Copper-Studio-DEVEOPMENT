@@ -1699,14 +1699,41 @@ function TaskKanbanBoard({ tasks, onMoveTask }) {
 }
 
 function TasksWorkspace({ tasks, projects, view, onView, onCreate, onMoveTask }) {
+  const [ganttProjectFilter, setGanttProjectFilter] = useState("All");
+  const [ganttStatusFilter, setGanttStatusFilter] = useState("All");
+  const [ganttPriorityFilter, setGanttPriorityFilter] = useState("All");
+
   if (!tasks.length) {
     return <EmptyState icon={StickyNote} title="No tasks linked." action={<Button onClick={onCreate}><Plus size={14} /> New Task</Button>} />;
   }
+
+  const projectOptions = ["All", ...projects.map((project) => project.name).filter(Boolean)];
+  const ganttTasks = tasks.filter((task) => {
+    const projectName = projects.find((project) => String(project.id || project._id) === String(task.projectId || task.project))?.name || task.projectName;
+    const projectOk = ganttProjectFilter === "All" || projectName === ganttProjectFilter;
+    const statusOk = ganttStatusFilter === "All" || (task.status || "Backlog") === ganttStatusFilter;
+    const priorityOk = ganttPriorityFilter === "All" || (task.priority || "Medium") === ganttPriorityFilter;
+    return projectOk && statusOk && priorityOk;
+  });
+
   return (
     <Section
       title="Tasks"
       action={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {view === "Gantt" && (
+            <>
+              <select value={ganttProjectFilter} onChange={(e) => setGanttProjectFilter(e.target.value)} className="rounded-lg border border-[#e5e7eb] px-2.5 py-1.5 text-xs">
+                {projectOptions.map((item) => <option key={item}>{item}</option>)}
+              </select>
+              <select value={ganttStatusFilter} onChange={(e) => setGanttStatusFilter(e.target.value)} className="rounded-lg border border-[#e5e7eb] px-2.5 py-1.5 text-xs">
+                {["All", ...TASK_BOARD_STATUSES].map((item) => <option key={item}>{item}</option>)}
+              </select>
+              <select value={ganttPriorityFilter} onChange={(e) => setGanttPriorityFilter(e.target.value)} className="rounded-lg border border-[#e5e7eb] px-2.5 py-1.5 text-xs">
+                {["All", "Low", "Medium", "High", "Critical"].map((item) => <option key={item}>{item}</option>)}
+              </select>
+            </>
+          )}
           <Button size="sm" onClick={onCreate}><Plus size={14} /> Task</Button>
           <WorkspaceToggle options={TASK_VIEWS} value={view} onChange={onView} />
         </div>
@@ -1715,7 +1742,7 @@ function TasksWorkspace({ tasks, projects, view, onView, onCreate, onMoveTask })
       {view === "List" && <TasksTable tasks={tasks} projects={projects} />}
       {view === "Board" && <TaskKanbanBoard tasks={tasks} onMoveTask={onMoveTask} />}
       {view === "Calendar" && <CalendarTaskView tasks={tasks} onCreate={onCreate} />}
-      {view === "Gantt" && <TaskGantt tasks={tasks} projects={projects} />}
+      {view === "Gantt" && (ganttTasks.length ? <TaskGantt tasks={ganttTasks} projects={projects} /> : <EmptyState icon={Filter} title="No tasks match these filters." />)}
     </Section>
   );
 }
