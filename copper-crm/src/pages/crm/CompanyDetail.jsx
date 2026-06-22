@@ -17,7 +17,7 @@ import SidePanel from "../../components/SidePanel";
 import ProjectFormPanel from "../../components/ProjectFormPanel";
 import CompanyFormPanel from "../../components/CompanyFormPanel";
 
-const TABS = ["Projects", "Contacts", "Invoices", "Documents", "Tasks", "Activity", "Meetings"];
+const TABS = ["Projects", "Contacts", "Invoices", "Documents", "Tasks", "Meetings", "Activity"];
 const PROJECT_STATUS = ["Pending", "Confirmed", "Requirement Gathering", "Design", "Development", "Testing", "Review", "Deployment", "Completed", "Cancelled", "On Hold"];
 const TASK_VIEWS = ["List", "Board", "Calendar", "Gantt"];
 const PROJECT_VIEWS = ["Table", "Board", "Timeline", "Gantt"];
@@ -483,6 +483,12 @@ function formatDate(value) {
   return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function formatDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value || "No date";
+  return date.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 function buildActivity(linked, company) {
   const items = [
     ...linked.invoices.map((invoice) => ({
@@ -518,7 +524,7 @@ function buildActivity(linked, company) {
     ...(company.createdAt ? [{ type: "Company", title: "Company created", date: company.createdAt, icon: Building2 }] : []),
   ];
   return items
-    .map((item) => ({ ...item, sortDate: new Date(item.date || 0), dateLabel: formatDate(item.date) }))
+    .map((item) => ({ ...item, sortDate: new Date(item.date || 0), dateLabel: formatDateTime(item.date) }))
     .sort((a, b) => b.sortDate - a.sortDate);
 }
 
@@ -1000,8 +1006,8 @@ export default function CompanyDetail() {
             onMoveTask={(task, status) => saveTask({ ...task, status })}
           />
         )}
-        {activeTab === "Activity" && <ActivityTimeline items={activityItems} full />}
         {activeTab === "Meetings" && (linked.meetings.length ? <SimpleList items={linked.meetings} /> : <EmptyState icon={Calendar} title="No meetings linked." />)}
+        {activeTab === "Activity" && <ActivityTimeline items={activityItems} full />}
       </div>
 
       {editingCompany && <CompanyFormPanel company={company} onClose={() => setEditingCompany(false)} onSave={handleSaveCompanyEdit} />}
