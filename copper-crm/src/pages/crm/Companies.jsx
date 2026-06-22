@@ -73,20 +73,48 @@ function useClickOutside(refs, onOutside, active) {
   }, [active, onOutside, refs]);
 }
 
-function DocSignedBadge({ status }) {
-  const map = {
-    Accepted: "bg-emerald-50 text-emerald-700 border border-emerald-100",
-    Pending: "bg-amber-50 text-amber-700 border border-amber-100",
-    Rejected: "bg-red-50 text-red-600 border border-red-100",
-  };
+const DOC_STATUS_OPTIONS = ["Pending", "Accepted", "Rejected"];
+const DOC_STATUS_STYLE = {
+  Accepted: "bg-emerald-50 text-emerald-700 border-emerald-100",
+  Pending: "bg-amber-50 text-amber-700 border-amber-100",
+  Rejected: "bg-red-50 text-red-600 border-red-100",
+};
+
+// Derives the document-signature status: explicit `documentStatus` wins once
+// someone has verified it directly, otherwise it falls back to the legacy
+// behavior of inferring from the company's pipeline status.
+function docStatusOf(company) {
+  return company.documentStatus
+    || (company.status === "Active" ? "Accepted" : company.status === "Prospect" ? "Pending" : company.status)
+    || "Pending";
+}
+
+// When `onChange` is passed, renders as a dropdown so an admin can directly
+// verify/reject a signed document instead of only inferring it from the
+// company's unrelated pipeline status.
+function DocSignedBadge({ status, onChange }) {
+  const style = DOC_STATUS_STYLE[status] || "bg-[#f3f4f6] text-[#6b7280] border-[#e5e7eb]";
+  if (!onChange) {
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full border text-[11px] font-semibold ${style}`}>
+        {status || "—"}
+      </span>
+    );
+  }
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${map[status] || "bg-[#f3f4f6] text-[#6b7280] border border-[#e5e7eb]"}`}>
-      {status || "—"}
-    </span>
+    <select
+      value={DOC_STATUS_OPTIONS.includes(status) ? status : "Pending"}
+      onClick={(event) => event.stopPropagation()}
+      onChange={(event) => { event.stopPropagation(); onChange(event.target.value); }}
+      title="Verify this company's signed document"
+      className={`cursor-pointer rounded-full border px-2.5 py-0.5 text-[11px] font-semibold outline-none ${style}`}
+    >
+      {DOC_STATUS_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+    </select>
   );
 }
 
-function CompanyRow({ company, onEdit, onDelete, onClick, onOpen }) {
+function CompanyRow({ company, onEdit, onDelete, onClick, onOpen, onVerifyDocument }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState(null);
   const btnRef = useRef(null);
@@ -152,8 +180,8 @@ function CompanyRow({ company, onEdit, onDelete, onClick, onOpen }) {
         ) : "—"}
       </td>
       <td className="px-4 py-3.5 text-sm font-mono text-[#6b7280]">{company.gstin || "—"}</td>
-      <td className="px-4 py-3.5">
-        <DocSignedBadge status={company.status === "Active" ? "Accepted" : company.status === "Prospect" ? "Pending" : company.status} />
+      <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+        <DocSignedBadge status={docStatusOf(company)} onChange={(next) => onVerifyDocument(company, next)} />
       </td>
       <td className="px-4 py-3.5 text-sm text-[#374151]">{company.leadSource || "—"}</td>
       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
@@ -232,7 +260,7 @@ function FolderRow({ folder, count, onClick }) {
   );
 }
 
-function FolderDetail({ folder, companies, onBack, onAdd, onOpenCompany, onRemove }) {
+function FolderDetail({ folder, companies, onBack, onAdd, onOpenCompany, onRemove, onVerifyDocument }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -292,7 +320,7 @@ function FolderDetail({ folder, companies, onBack, onAdd, onOpenCompany, onRemov
                 </div>
               </div>
               <div className="flex items-center justify-between">
-                <DocSignedBadge status={c.status === "Active" ? "Accepted" : c.status === "Prospect" ? "Pending" : c.status} />
+                <DocSignedBadge status={docStatusOf(c)} onChange={(next) => onVerifyDocument(c, next)} />
                 <button
                   onClick={() => onOpenCompany(c)}
                   className="inline-flex items-center gap-1 text-xs font-medium text-[#884c2d] hover:underline"
@@ -458,7 +486,7 @@ export default function Companies() {
   const filtered = useMemo(() =>
     companies.filter((c) => {
       const matchesSearch = `${c.name} ${c.industry} ${c.contact} ${c.status} ${c.gstin} ${c.leadSource} ${c.city} ${c.state} ${c.pincode} ${c.owner}`.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === "All" || c.status === statusFilter || (statusFilter === "Accepted" && c.status === "Active") || (statusFilter === "Pending" && c.status === "Prospect");
+      const matchesStatus = statusFilter === "All" || c.status === statusFilter || docStatusOf(c) === statusFilter;
       const matchesIndustry = industryFilter === "All" || c.industry === industryFilter;
       const matchesCity = cityFilter === "All" || c.city === cityFilter;
       const matchesState = stateFilter === "All" || c.state === stateFilter;
@@ -563,6 +591,11 @@ export default function Companies() {
   async function deleteCompany(company) {
     await remove(company);
     showToast({ title: "Company deleted", message: `${company.name || "Company"} removed.` });
+  }
+
+  async function verifyDocument(company, status) {
+    await save({ ...company, documentStatus: status });
+    showToast({ title: "Document status updated", message: `${company.name || "Company"}'s signed document marked as ${status}.` });
   }
 
   function openCompany(company) {
@@ -794,6 +827,7 @@ export default function Companies() {
                       onDelete={deleteCompany}
                       onOpen={openCompany}
                       onClick={() => openCompany(company)}
+                      onVerifyDocument={verifyDocument}
                     />
                   ))}
                 </tbody>
@@ -873,6 +907,7 @@ export default function Companies() {
                 onAdd={() => setAssignOpen(true)}
                 onOpenCompany={openCompany}
                 onRemove={removeFromFolder}
+                onVerifyDocument={verifyDocument}
               />
             ) : (
               <>
