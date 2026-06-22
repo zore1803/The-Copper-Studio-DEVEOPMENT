@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
-const meetingSchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
     type: { type: String, default: "discovery_session" },
@@ -31,4 +32,21 @@ const meetingSchema = new mongoose.Schema(
   { timestamps: true, strict: false }
 );
 
-export default mongoose.model("Meeting", meetingSchema);
+export default defineModel({
+  name: "Meeting",
+  table: "meetings",
+  schema,
+  defaults: {
+    type: "discovery_session",
+    status: "requested",
+    clientId: null,
+    companyId: null,
+    preferredTime: "",
+    duration: 45,
+    meetingLink: "",
+    agenda: "",
+    notes: "",
+    calendlyEventUri: "",
+    participants: []
+  }
+});

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
 const activitySchema = new mongoose.Schema(
   {
@@ -10,7 +11,7 @@ const activitySchema = new mongoose.Schema(
   { _id: true }
 );
 
-const companySchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     id: { type: String, index: true },
     name: { type: String, required: true, trim: true, index: true },
@@ -28,4 +29,20 @@ const companySchema = new mongoose.Schema(
   { timestamps: true, strict: false }
 );
 
-export default mongoose.model("Company", companySchema);
+export default defineModel({
+  name: "Company",
+  table: "companies",
+  schema,
+  defaults: {
+    gstin: "",
+    industry: "",
+    contact: "",
+    projects: 0,
+    status: "Prospect",
+    address: "",
+    website: "",
+    notes: "",
+    userId: null,
+    activity: []
+  }
+});

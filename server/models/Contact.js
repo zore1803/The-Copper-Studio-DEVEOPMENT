@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
-const contactSchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     id: { type: String, index: true },
     name: { type: String, required: true, trim: true, index: true },
@@ -14,4 +15,16 @@ const contactSchema = new mongoose.Schema(
   { timestamps: true, strict: false }
 );
 
-export default mongoose.model("Contact", contactSchema);
+export default defineModel({
+  name: "Contact",
+  table: "contacts",
+  schema,
+  defaults: {
+    company: "",
+    email: "",
+    phone: "",
+    designation: "",
+    department: "",
+    notes: ""
+  }
+});

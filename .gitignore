@@ -1,7 +1,11 @@
 node_modules/
 .env
+*.env
+!.env.example
 .DS_Store
 npm-debug.log*
 api.log
 api.err.log
 copper-crm/dist/
+dist/
+.local/

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Building2, ChevronLeft, ChevronRight, Download, Eye, Filter, FolderPlus,
+  Building2, ChevronLeft, ChevronRight, Download, Eye, Filter, FolderOpen, FolderPlus,
   Folder as FolderIcon, Globe, Grid2x2, List, MoreVertical, Plus, Save, Search,
   SlidersHorizontal, X
 } from "lucide-react";
@@ -12,7 +12,30 @@ import SidePanel from "../../components/SidePanel";
 import { isGstin } from "../../lib/validators";
 
 const PAGE_SIZE = 10;
+const FOLDER_PAGE_SIZE = 8;
 const DEFAULT_FOLDERS = ["Key Accounts", "New Prospects", "Renewals Due", "High Value"];
+const FOLDERS_STORAGE_KEY = "cs-hotlist-folders";
+
+// The custom folder list is kept in localStorage so user-created folders (and
+// empty ones) survive a page reload. Folder *membership* lives on each company
+// record (company.folder) and persists through the API.
+function loadStoredFolders() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FOLDERS_STORAGE_KEY));
+    if (Array.isArray(raw) && raw.length) return raw;
+  } catch {
+    /* ignore malformed cache */
+  }
+  return DEFAULT_FOLDERS;
+}
+
+function persistFolders(list) {
+  try {
+    localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    /* ignore quota / availability errors */
+  }
+}
 
 function Field({ label, value, onChange, placeholder = "", type = "text", error = "" }) {
   return (
@@ -149,6 +172,201 @@ function FolderCard({ folder, count, active, onClick }) {
   );
 }
 
+function FolderRow({ folder, count, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center justify-between rounded-xl border border-[#E1E4EA] bg-white px-4 py-3 text-left transition-colors hover:bg-[#fafafa]"
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E1E4EA] text-[#525866]">
+          <FolderIcon size={16} />
+        </div>
+        <p className="text-sm font-semibold text-[#0E121B]">{folder}</p>
+      </div>
+      <span className="text-xs text-[#525866]">{count} companies</span>
+    </button>
+  );
+}
+
+function FolderDetail({ folder, companies, onBack, onAdd, onOpenCompany, onRemove }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E1E4EA] text-[#525866] transition-colors hover:bg-[#f9fafb]"
+            title="Back to all folders"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <div className="flex items-center gap-2">
+            <FolderOpen size={18} className="text-[#C57E5B]" />
+            <div>
+              <p className="text-base font-medium text-[#0E121B]">{folder}</p>
+              <p className="text-xs text-[#525866]">{companies.length} {companies.length === 1 ? "company" : "companies"}</p>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={onAdd}
+          className="flex h-[42px] items-center gap-1.5 self-start rounded-full bg-[#C57E5B] px-3.5 text-xs font-medium text-white transition-colors hover:bg-[#b06a48] sm:self-auto"
+        >
+          <Plus size={15} />
+          Add companies
+        </button>
+      </div>
+
+      {companies.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[#E1E4EA] bg-white py-12 text-center">
+          <p className="text-sm text-[#6b7280]">No companies in this folder yet.</p>
+          <button
+            onClick={onAdd}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#C57E5B] px-3.5 py-2 text-xs font-medium text-[#C57E5B] transition-colors hover:bg-[#fff8f6]"
+          >
+            <Plus size={14} /> Add companies
+          </button>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {companies.map((c) => (
+            <div key={c._id || c.id} className="group relative flex flex-col gap-2 rounded-xl border border-[#E1E4EA] bg-white p-4">
+              <button
+                onClick={() => onRemove(c)}
+                className="absolute right-2 top-2 hidden h-7 w-7 items-center justify-center rounded-lg text-[#9ca3af] transition-colors hover:bg-red-50 hover:text-red-600 group-hover:flex"
+                title="Remove from folder"
+              >
+                <X size={14} />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e5e7eb] bg-[#f3f4f6]">
+                  <Building2 size={15} className="text-[#9ca3af]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-[#111827]">{c.name}</p>
+                  <p className="truncate text-xs text-[#525866]">{c.industry || "—"}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <DocSignedBadge status={c.status === "Active" ? "Accepted" : c.status === "Prospect" ? "Pending" : c.status} />
+                <button
+                  onClick={() => onOpenCompany(c)}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[#884c2d] hover:underline"
+                >
+                  <Eye size={13} /> Open
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FolderModal({ onClose, onCreate }) {
+  const [name, setName] = useState("");
+  return (
+    <SidePanel
+      title="New Folder"
+      subtitle="Create a custom hotlist folder to group companies."
+      onClose={onClose}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => onCreate(name)}><Save size={14} /> Create Folder</Button>
+        </div>
+      }
+    >
+      <label className="block">
+        <span className="text-xs font-semibold text-[#374151]">Folder name</span>
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") onCreate(name); }}
+          placeholder="e.g. Q3 Targets"
+          className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none transition-all focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20"
+        />
+      </label>
+    </SidePanel>
+  );
+}
+
+function AssignCompaniesModal({ folder, companies, onClose, onSave }) {
+  const idOf = (c) => c._id || c.id;
+  const [selected, setSelected] = useState(
+    () => new Set(companies.filter((c) => (c.folder || "") === folder).map(idOf))
+  );
+  const [query, setQuery] = useState("");
+
+  const toggle = (id) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const list = companies.filter((c) =>
+    `${c.name} ${c.industry}`.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <SidePanel
+      title={`Add companies to ${folder}`}
+      subtitle="Select the companies that belong in this hotlist folder."
+      onClose={onClose}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => onSave([...selected])}><Save size={14} /> Save ({selected.size})</Button>
+        </div>
+      }
+    >
+      <div className="mb-3 flex h-11 items-center gap-2 rounded-full border border-[#1F2937]/10 px-3.5">
+        <Search size={15} className="text-[#1F2937]/50 shrink-0" />
+        <input
+          className="w-full bg-transparent text-sm outline-none placeholder:text-[#1F2937]/50"
+          placeholder="Search companies…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {list.map((c) => {
+          const id = idOf(c);
+          const checked = selected.has(id);
+          return (
+            <label
+              key={id}
+              className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
+                checked ? "border-[#C57E5B] bg-[#fff8f6]" : "border-[#e5e7eb] hover:bg-[#f9fafb]"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggle(id)}
+                className="rounded border-[#d1d5db] accent-[#884c2d]"
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#111827]">{c.name}</p>
+                <p className="truncate text-xs text-[#525866]">
+                  {c.industry || "—"}
+                  {c.folder && c.folder !== folder ? ` · in ${c.folder}` : ""}
+                </p>
+              </div>
+            </label>
+          );
+        })}
+        {list.length === 0 && <p className="py-8 text-center text-sm text-[#6b7280]">No companies found.</p>}
+      </div>
+    </SidePanel>
+  );
+}
+
 export default function Companies() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -162,9 +380,13 @@ export default function Companies() {
   const [industryFilter, setIndustryFilter] = useState("All");
   const [page, setPage] = useState(1);
   const [view, setView] = useState("table");
-  const [folders, setFolders] = useState(DEFAULT_FOLDERS);
+  const [folders, setFolders] = useState(loadStoredFolders);
   const [folderSearch, setFolderSearch] = useState("");
-  const [activeFolder, setActiveFolder] = useState(null);
+  const [openedFolder, setOpenedFolder] = useState(null);
+  const [folderView, setFolderView] = useState("grid");
+  const [folderPage, setFolderPage] = useState(1);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const { records: companies, save, remove, loading } = useCrmRecords("companies");
   const { showToast } = useToast();
 
@@ -187,19 +409,69 @@ export default function Companies() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  // Folders shown = the managed list plus any folder a company is already
+  // assigned to, so membership is never orphaned if the list is edited.
+  const allFolders = useMemo(() => {
+    const fromCompanies = companies.map((c) => c.folder).filter(Boolean);
+    return Array.from(new Set([...folders, ...fromCompanies]));
+  }, [folders, companies]);
+
   const visibleFolders = useMemo(
-    () => folders.filter((f) => f.toLowerCase().includes(folderSearch.toLowerCase())),
-    [folders, folderSearch]
+    () => allFolders.filter((f) => f.toLowerCase().includes(folderSearch.toLowerCase())),
+    [allFolders, folderSearch]
   );
 
-  function folderCount(index) {
-    if (companies.length === 0 || folders.length === 0) return 0;
-    return companies.filter((_, i) => i % folders.length === index).length;
+  const folderTotalPages = Math.max(1, Math.ceil(visibleFolders.length / FOLDER_PAGE_SIZE));
+  const pagedFolders = visibleFolders.slice((folderPage - 1) * FOLDER_PAGE_SIZE, folderPage * FOLDER_PAGE_SIZE);
+
+  useEffect(() => {
+    if (folderPage > folderTotalPages) setFolderPage(1);
+  }, [folderPage, folderTotalPages]);
+
+  const openedCompanies = useMemo(
+    () => (openedFolder ? companies.filter((c) => (c.folder || "") === openedFolder) : []),
+    [companies, openedFolder]
+  );
+
+  function folderCount(folder) {
+    return companies.filter((c) => (c.folder || "") === folder).length;
   }
 
-  function addFolder() {
-    const name = window.prompt("New folder name");
-    if (name && name.trim()) setFolders((prev) => [...prev, name.trim()]);
+  function createFolder(name) {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) {
+      showToast({ type: "error", title: "Folder name required", message: "Enter a name for the folder." });
+      return;
+    }
+    if (allFolders.some((f) => f.toLowerCase() === trimmed.toLowerCase())) {
+      showToast({ type: "error", title: "Folder already exists", message: `"${trimmed}" is already a folder.` });
+      return;
+    }
+    const next = [...folders, trimmed];
+    setFolders(next);
+    persistFolders(next);
+    setCreatingFolder(false);
+    showToast({ title: "Folder created", message: `"${trimmed}" added to your hotlists.` });
+  }
+
+  async function assignCompaniesToFolder(selectedIds) {
+    const idOf = (c) => c._id || c.id;
+    const selected = new Set(selectedIds);
+    // Only persist the companies whose membership for this folder actually changed.
+    const changed = companies.filter((c) => ((c.folder || "") === openedFolder) !== selected.has(idOf(c)));
+    await Promise.all(
+      changed.map((c) => save({ ...c, folder: selected.has(idOf(c)) ? openedFolder : "" }))
+    );
+    setAssignOpen(false);
+    showToast({
+      title: "Folder updated",
+      message: `"${openedFolder}" now has ${selected.size} ${selected.size === 1 ? "company" : "companies"}.`
+    });
+  }
+
+  async function removeFromFolder(company) {
+    await save({ ...company, folder: "" });
+    showToast({ title: "Removed from folder", message: `${company.name || "Company"} removed from "${openedFolder}".` });
   }
 
   async function saveCompany(company) {
@@ -441,13 +713,13 @@ export default function Companies() {
                   <Search size={15} className="text-[#1F2937]/50 shrink-0" />
                   <input
                     className="w-full bg-transparent text-xs outline-none placeholder:text-[#1F2937]/50"
-                    placeholder="Search by companies by name, industry, or location…"
+                    placeholder="Search folders…"
                     value={folderSearch}
-                    onChange={(e) => setFolderSearch(e.target.value)}
+                    onChange={(e) => { setFolderSearch(e.target.value); setFolderPage(1); }}
                   />
                 </div>
                 <button
-                  onClick={addFolder}
+                  onClick={() => setCreatingFolder(true)}
                   className="flex h-[42px] items-center gap-1.5 whitespace-nowrap rounded-full bg-[#C57E5B] px-3.5 text-xs font-medium text-white hover:bg-[#b06a48] transition-colors"
                 >
                   <FolderPlus size={15} />
@@ -456,45 +728,98 @@ export default function Companies() {
               </div>
             </div>
 
-            {/* Density / count row */}
-            <div className="flex items-center justify-between px-1">
-              <p className="text-sm text-[#525866]">{visibleFolders.length} folders</p>
-              <div className="flex items-center gap-1.5">
-                <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#EAECF0] text-[#525866] hover:bg-[#f9fafb] transition-colors">
-                  <List size={16} className="opacity-50" />
-                </button>
-                <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C57E5B] text-white">
-                  1
-                </button>
-                <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#EAECF0] text-[#525866] hover:bg-[#f9fafb] transition-colors">
-                  2
-                </button>
-                <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#EAECF0] text-[#525866] hover:bg-[#f9fafb] transition-colors">
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            </div>
+            {openedFolder ? (
+              <FolderDetail
+                folder={openedFolder}
+                companies={openedCompanies}
+                onBack={() => setOpenedFolder(null)}
+                onAdd={() => setAssignOpen(true)}
+                onOpenCompany={openCompany}
+                onRemove={removeFromFolder}
+              />
+            ) : (
+              <>
+                {/* View toggle + folder pagination */}
+                <div className="flex items-center justify-between px-1">
+                  <p className="text-sm text-[#525866]">{visibleFolders.length} folders</p>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setFolderView((v) => (v === "grid" ? "list" : "grid"))}
+                      title={folderView === "grid" ? "Switch to list view" : "Switch to grid view"}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#EAECF0] text-[#525866] hover:bg-[#f9fafb] transition-colors"
+                    >
+                      {folderView === "grid" ? <List size={16} /> : <Grid2x2 size={16} />}
+                    </button>
+                    <button
+                      onClick={() => setFolderPage((p) => Math.max(1, p - 1))}
+                      disabled={folderPage === 1}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#EAECF0] text-[#525866] hover:bg-[#f9fafb] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    {Array.from({ length: folderTotalPages }, (_, i) => i + 1).slice(0, 5).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setFolderPage(p)}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+                          p === folderPage ? "bg-[#C57E5B] text-white" : "border border-[#EAECF0] text-[#525866] hover:bg-[#f9fafb]"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setFolderPage((p) => Math.min(folderTotalPages, p + 1))}
+                      disabled={folderPage === folderTotalPages}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#EAECF0] text-[#525866] hover:bg-[#f9fafb] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
 
-            {/* Folder grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {visibleFolders.map((folder) => (
-                <FolderCard
-                  key={folder}
-                  folder={folder}
-                  count={folderCount(folders.indexOf(folder))}
-                  active={activeFolder === folder}
-                  onClick={() => setActiveFolder((f) => (f === folder ? null : folder))}
-                />
-              ))}
-              {visibleFolders.length === 0 && (
-                <p className="col-span-full text-center text-sm text-[#6b7280] py-12">No folders found.</p>
-              )}
-            </div>
+                {/* Folder grid / list */}
+                {visibleFolders.length === 0 ? (
+                  <p className="text-center text-sm text-[#6b7280] py-12">No folders found.</p>
+                ) : folderView === "grid" ? (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {pagedFolders.map((folder) => (
+                      <FolderCard
+                        key={folder}
+                        folder={folder}
+                        count={folderCount(folder)}
+                        onClick={() => setOpenedFolder(folder)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {pagedFolders.map((folder) => (
+                      <FolderRow
+                        key={folder}
+                        folder={folder}
+                        count={folderCount(folder)}
+                        onClick={() => setOpenedFolder(folder)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
 
       {editing && <CompanyModal company={editing} onClose={() => setEditing(null)} onSave={saveCompany} />}
+      {creatingFolder && <FolderModal onClose={() => setCreatingFolder(false)} onCreate={createFolder} />}
+      {assignOpen && openedFolder && (
+        <AssignCompaniesModal
+          folder={openedFolder}
+          companies={companies}
+          onClose={() => setAssignOpen(false)}
+          onSave={assignCompaniesToFolder}
+        />
+      )}
     </div>
   );
 }

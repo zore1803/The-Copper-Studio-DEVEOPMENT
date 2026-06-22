@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
-const couponSchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     code: { type: String, required: true, trim: true, uppercase: true, unique: true, index: true },
     generatedAt: { type: String, default: "" },
@@ -25,4 +26,21 @@ const couponSchema = new mongoose.Schema(
   { timestamps: true, strict: false }
 );
 
-export default mongoose.model("Coupon", couponSchema);
+export default defineModel({
+  name: "Coupon",
+  table: "coupons",
+  schema,
+  defaults: {
+    generatedAt: "",
+    validity: "",
+    validUntil: null,
+    amountType: "percentage",
+    amount: "",
+    status: "Not used",
+    clientName: "",
+    companyName: "",
+    email: "",
+    phone: "",
+    packageName: ""
+  }
+});

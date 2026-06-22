@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
-const leadSchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, required: true, trim: true },
@@ -27,4 +28,22 @@ const leadSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("Lead", leadSchema);
+export default defineModel({
+  name: "Lead",
+  table: "leads",
+  schema,
+  defaults: {
+    linkedinUrl: "",
+    customerCountryCode: "+91",
+    customerCompany: "",
+    companyWebsite: "",
+    companyGstin: "",
+    billingAddressLine1: "",
+    billingAddressLine2: "",
+    city: "",
+    state: "",
+    pincode: "",
+    selectedPackageId: "",
+    verification: { phoneVerified: false, emailVerified: false }
+  }
+});

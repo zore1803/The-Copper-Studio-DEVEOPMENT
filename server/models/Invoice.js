@@ -1,11 +1,12 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
-const invoiceSchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     id: { type: String, index: true },
     invoiceNumber: { type: String, required: true, index: true },
     invoiceId: { type: String, index: true, default: "" },
-    sourceOrderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order", index: true },
+    sourceOrderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
     paymentId: { type: String, default: "", index: true },
     companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company", default: null, index: true },
     clientId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null, index: true },
@@ -32,6 +33,31 @@ const invoiceSchema = new mongoose.Schema(
   { timestamps: true, strict: false }
 );
 
-invoiceSchema.index({ sourceOrderId: 1 }, { unique: true, sparse: true });
+schema.index({ sourceOrderId: 1 }, { unique: true, sparse: true });
 
-export default mongoose.model("Invoice", invoiceSchema);
+export default defineModel({
+  name: "Invoice",
+  table: "invoices",
+  schema,
+  defaults: {
+    invoiceId: "",
+    paymentId: "",
+    companyId: null,
+    clientId: null,
+    company: "",
+    client: "",
+    customerEmail: "",
+    project: "",
+    package: "",
+    total: 0,
+    amount: 0,
+    tax: 0,
+    gst: 0,
+    currency: "INR",
+    status: "Paid",
+    paymentStatus: "Paid",
+    provider: "Razorpay",
+    razorpayOrderId: "",
+    razorpayPaymentId: ""
+  }
+});

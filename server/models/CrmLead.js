@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
-const crmLeadSchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     id: { type: String, index: true },
     name: { type: String, required: true, trim: true, index: true },
@@ -17,4 +18,19 @@ const crmLeadSchema = new mongoose.Schema(
   { timestamps: true, strict: false }
 );
 
-export default mongoose.model("CrmLead", crmLeadSchema);
+export default defineModel({
+  name: "CrmLead",
+  table: "crm_leads",
+  schema,
+  defaults: {
+    company: "",
+    email: "",
+    phone: "",
+    value: "",
+    service: "",
+    source: "",
+    stage: "New Lead",
+    lastActivity: "Created now",
+    notes: ""
+  }
+});

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
 const stageSchema = new mongoose.Schema(
   {
@@ -12,7 +13,7 @@ const stageSchema = new mongoose.Schema(
   { _id: true, strict: false }
 );
 
-const projectSchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     description: { type: String, default: "" },
@@ -36,4 +37,23 @@ const projectSchema = new mongoose.Schema(
   { timestamps: true, strict: false }
 );
 
-export default mongoose.model("Project", projectSchema);
+export default defineModel({
+  name: "Project",
+  table: "projects",
+  schema,
+  defaults: {
+    description: "",
+    clientId: null,
+    companyId: null,
+    packageName: "",
+    status: "not_started",
+    clientStatus: "",
+    progress: 0,
+    currentPhase: "",
+    stages: [],
+    adminNotes: "",
+    deliverables: [],
+    meetingLink: "",
+    activity: []
+  }
+});

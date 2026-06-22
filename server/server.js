@@ -7,6 +7,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import mongoose from "mongoose";
 import Razorpay from "razorpay";
+import { supabase } from "./db/supabase.js";
+import { dbDriver } from "./db/defineModel.js";
 import Order from "./models/Order.js";
 import Lead from "./models/Lead.js";
 import User from "./models/User.js";
@@ -509,11 +511,23 @@ app.use((error, _req, res, _next) => {
 });
 
 async function start() {
-  if (!process.env.MONGO_URI) {
-    throw new Error("MONGO_URI is missing. Add it to .env.");
+  // Connect to whichever backend DB_DRIVER selects (defaults to Supabase).
+  if (dbDriver === "mongo") {
+    if (!process.env.MONGO_URI) {
+      throw new Error("DB_DRIVER=mongo but MONGO_URI is missing. Add it to .env.");
+    }
+    await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 20000 });
+  } else {
+    // Smoke-test Supabase up front so a misconfigured key/schema fails loudly at
+    // boot instead of on the first request.
+    const { error: pingError } = await supabase.from("users").select("id").limit(1);
+    if (pingError) {
+      throw new Error(
+        `Supabase connection failed: ${pingError.message}. ` +
+          "Check SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY and that the schema has been created."
+      );
+    }
   }
-
-  await mongoose.connect(process.env.MONGO_URI);
 
   if (process.env.SUPERADMIN_EMAIL && process.env.SUPERADMIN_PASSWORD) {
     const bcrypt = await import("bcryptjs");
@@ -532,7 +546,7 @@ async function start() {
   }
 
   app.listen(port, () => {
-    console.log(`API running at http://localhost:${port}`);
+    console.log(`API running at http://localhost:${port} (DB: ${dbDriver})`);
   });
 }
 

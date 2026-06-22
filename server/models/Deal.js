@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
-const dealSchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     id: { type: String, index: true },
     name: { type: String, required: true, trim: true, index: true },
@@ -16,4 +17,18 @@ const dealSchema = new mongoose.Schema(
   { timestamps: true, strict: false }
 );
 
-export default mongoose.model("Deal", dealSchema);
+export default defineModel({
+  name: "Deal",
+  table: "deals",
+  schema,
+  defaults: {
+    account: "",
+    owner: "",
+    value: "",
+    stage: "Qualified",
+    probability: 0,
+    close: "",
+    source: "",
+    notes: ""
+  }
+});

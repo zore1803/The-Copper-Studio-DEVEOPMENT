@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
-const documentSchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     fileType: { type: String, default: "pdf" },
@@ -34,4 +35,20 @@ const documentSchema = new mongoose.Schema(
   { timestamps: true, strict: false }
 );
 
-export default mongoose.model("Document", documentSchema);
+export default defineModel({
+  name: "Document",
+  table: "documents",
+  schema,
+  defaults: {
+    fileType: "pdf",
+    fileSize: "",
+    fileUrl: "",
+    status: "pending_review",
+    scope: "client_shared",
+    companyId: null,
+    clientId: null,
+    uploadedByName: "The Copper Studio",
+    version: "1.0",
+    feedback: []
+  }
+});

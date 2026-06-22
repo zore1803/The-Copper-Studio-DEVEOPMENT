@@ -11,7 +11,8 @@ channel = "stable-25_05"
 [userenv.shared]
 PORT = "3000"
 NODE_ENV = "development"
-MONGO_URI = "mongodb+srv://rohitzore_db_user:MAwPvTrAY0WLgRCO@thecopperstudio.xj0szqj.mongodb.net/?appName=TheCopperStudio"
+SUPABASE_URL = "https://egweajdqlbdzfwefqdeh.supabase.co"
+# Set SUPABASE_SERVICE_ROLE_KEY in the Replit "Secrets" tab (keep it out of this committed file).
 SUPERADMIN_EMAIL = "rohit.zore@datacircles.in"
 SUPERADMIN_NAME = "Super Admin"
 SUPERADMIN_PASSWORD = "RohitZore@18"
@@ -66,5 +67,5 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "vm"
-run = ["bash", "-c", "mkdir -p /home/runner/workspace/.mongodb/data && mongod --dbpath /home/runner/workspace/.mongodb/data --logpath /home/runner/workspace/.mongodb/mongod.log --fork --bind_ip 127.0.0.1 2>/dev/null || true && sleep 1 && node server/server.js"]
+run = ["bash", "-c", "node server/server.js"]
 build = ["bash", "-c", "cd copper-crm && npm install && npm run build"]

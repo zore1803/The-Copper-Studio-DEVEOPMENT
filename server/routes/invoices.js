@@ -1,5 +1,4 @@
 import express from "express";
-import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import Invoice from "../models/Invoice.js";
 import { buildInvoiceModel, renderInvoiceHtml } from "../services/invoiceTemplate.js";
@@ -7,8 +6,15 @@ import { htmlToPdfBuffer } from "../services/pdf.js";
 
 const router = express.Router();
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const OBJECT_ID_RE = /^[0-9a-f]{24}$/i;
+
+// Record ids are Postgres UUIDs for new rows, or the original MongoDB ObjectId
+// hex for migrated rows. A non-id path segment (e.g. an invoice number like
+// "INV-123456") is looked up by its business key instead.
 function isObjectId(value) {
-  return mongoose.Types.ObjectId.isValid(value);
+  const str = String(value || "");
+  return UUID_RE.test(str) || OBJECT_ID_RE.test(str);
 }
 
 function safeFileName(invoiceNumber) {

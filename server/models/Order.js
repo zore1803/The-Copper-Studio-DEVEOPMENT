@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
 const customerSchema = new mongoose.Schema(
   {
@@ -35,7 +36,7 @@ const packageSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const orderSchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     package: { type: packageSchema, required: true },
     customer: { type: customerSchema, required: true },
@@ -64,4 +65,21 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model("Order", orderSchema);
+export default defineModel({
+  name: "Order",
+  table: "orders",
+  schema,
+  defaults: {
+    verification: { phoneVerified: false, emailVerified: false },
+    payment: {
+      status: "pending",
+      provider: "razorpay",
+      invoiceId: "",
+      razorpayOrderId: "",
+      razorpayPaymentId: "",
+      paidAt: null
+    },
+    email: { credentialsQueued: true, invoiceQueued: true, welcomeQueued: true },
+    workspace: { status: "pending", createdAt: null }
+  }
+});

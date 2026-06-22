@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { defineModel } from "../db/defineModel.js";
 
-const taskSchema = new mongoose.Schema(
+const schema = new mongoose.Schema(
   {
     id: { type: String, index: true },
     title: { type: String, required: true, trim: true, index: true },
@@ -16,4 +17,18 @@ const taskSchema = new mongoose.Schema(
   { timestamps: true, strict: false }
 );
 
-export default mongoose.model("Task", taskSchema);
+export default defineModel({
+  name: "Task",
+  table: "tasks",
+  schema,
+  defaults: {
+    project: "",
+    status: "Backlog",
+    priority: "Medium",
+    assignee: "A",
+    deadline: "",
+    description: "",
+    subtasks: 0,
+    comments: 0
+  }
+});
