@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell, BarChart2, Building2, ChevronDown,
@@ -168,10 +169,26 @@ function NavGroup({ item, collapsed, active, onNavigate, location }) {
   const [userOpen, setUserOpen] = useState(null);
   const open = userOpen === null ? active : userOpen;
   const [flyoutOpen, setFlyoutOpen] = useState(false);
+  const [flyoutPos, setFlyoutPos] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef(null);
+  const closeTimer = useRef(null);
+
+  function openFlyout() {
+    clearTimeout(closeTimer.current);
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) setFlyoutPos({ top: rect.top, left: rect.right + 8 });
+    setFlyoutOpen(true);
+  }
+
+  function scheduleCloseFlyout() {
+    closeTimer.current = setTimeout(() => setFlyoutOpen(false), 150);
+  }
+
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
 
   if (collapsed) {
     return (
-      <div className="relative" onMouseEnter={() => setFlyoutOpen(true)} onMouseLeave={() => setFlyoutOpen(false)}>
+      <div ref={triggerRef} className="relative" onMouseEnter={openFlyout} onMouseLeave={scheduleCloseFlyout}>
         <button
           title={item.label}
           className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
@@ -180,20 +197,26 @@ function NavGroup({ item, collapsed, active, onNavigate, location }) {
         >
           <item.icon size={20} strokeWidth={1.8} />
         </button>
-        {flyoutOpen && (
-          <div className="absolute left-full top-0 ml-2 w-56 rounded-xl border border-[#E5E5E5] bg-white shadow-lg py-1.5 z-50">
+        {flyoutOpen && createPortal(
+          <div
+            style={{ position: "fixed", top: flyoutPos.top, left: flyoutPos.left }}
+            className="w-56 rounded-xl border border-[#E5E5E5] bg-white shadow-lg py-1.5 z-[100]"
+            onMouseEnter={openFlyout}
+            onMouseLeave={scheduleCloseFlyout}
+          >
             <p className="px-3 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-wide text-[#9ca3af]">{item.label}</p>
             {item.children.map((child) => (
               <button
                 key={child.to}
-                onClick={() => onNavigate(child.to)}
+                onClick={() => { setFlyoutOpen(false); onNavigate(child.to); }}
                 className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm hover:bg-[#f9fafb] ${isLeafActive(child, location) ? "text-[#C57E5B] font-semibold" : "text-[#374151]"}`}
               >
                 <child.icon size={15} className="shrink-0" />
                 <span className="truncate">{child.label}</span>
               </button>
             ))}
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     );
