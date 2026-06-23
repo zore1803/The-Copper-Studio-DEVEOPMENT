@@ -40,8 +40,8 @@ function fileType(name = "") {
 
 function EmptyState({ title, text }) {
   return (
-    <div className="rounded-xl border border-dashed border-[#d8c2b9] bg-white p-10 text-center">
-      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-[#fff1ec] text-[#884c2d]">
+    <div className="rounded-xl border border-dashed border-[#E1E4EA] bg-white p-10 text-center">
+      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg border border-[#E1E4EA] text-[#525866]">
         <Folder size={20} />
       </div>
       <p className="text-sm font-semibold text-[#111827]">{title}</p>
@@ -55,9 +55,9 @@ function FolderCard({ icon: Icon, title, meta, onClick, active }) {
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl border bg-white p-4 text-left transition hover:border-[#c6aa9b] hover:shadow-sm ${active ? "border-[#884c2d] ring-2 ring-[#884c2d]/15" : "border-[#e5e7eb]"}`}
+      className={`rounded-xl border bg-white p-4 text-left transition hover:bg-[#fafafa] ${active ? "border-[#C57E5B] bg-[#fff8f6]" : "border-[#E1E4EA]"}`}
     >
-      <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-lg ${active ? "bg-[#884c2d] text-white" : "bg-[#fff1ec] text-[#884c2d]"}`}>
+      <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-lg border ${active ? "border-[#C57E5B] text-[#C57E5B]" : "border-[#E1E4EA] text-[#525866]"}`}>
         <Icon size={20} />
       </div>
       <p className="truncate text-sm font-bold text-[#111827]">{title}</p>
@@ -232,7 +232,7 @@ export default function DocumentCenter({ mode = "company" }) {
   }
 
   return (
-    <div className="flex min-h-full bg-[#f5f6fa]">
+    <div className="flex min-h-full bg-[#F1F1F5]">
       <section className="min-w-0 flex-1 p-6">
         <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>

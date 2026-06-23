@@ -71,9 +71,9 @@ const VARIABLES = [
 
 function KpiCard({ label, value, icon: Icon }) {
   return (
-    <div className="rounded-xl border border-[#e5e7eb] bg-white p-4">
+    <div className="rounded-xl border border-[#E1E4EA] bg-white p-4">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#fff1ec] text-[#884c2d]">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E1E4EA] text-[#525866]">
           <Icon size={16} />
         </div>
         <div>
@@ -87,8 +87,8 @@ function KpiCard({ label, value, icon: Icon }) {
 
 function EmptyState({ title, text, action }) {
   return (
-    <div className="rounded-xl border border-dashed border-[#d8c2b9] bg-white p-10 text-center">
-      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-[#fff1ec] text-[#884c2d]">
+    <div className="rounded-xl border border-dashed border-[#E1E4EA] bg-white p-10 text-center">
+      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg border border-[#E1E4EA] text-[#525866]">
         <MessageCircle size={20} />
       </div>
       <p className="text-sm font-semibold text-[#111827]">{title}</p>
@@ -298,7 +298,7 @@ export default function CommunicationCenter({ mode = "email" }) {
   }
 
   return (
-    <div className="min-h-full bg-[#f5f6fa] p-6">
+    <div className="min-h-full bg-[#F1F1F5] p-6">
       <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#9ca3af]">Client Communication Center</p>

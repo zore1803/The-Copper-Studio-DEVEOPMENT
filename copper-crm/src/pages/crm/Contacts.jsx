@@ -11,8 +11,8 @@ const PAGE_SIZE = 12;
 
 function EmptyState({ onCreate }) {
   return (
-    <div className="rounded-xl border border-dashed border-[#d8c2b9] bg-white p-10 text-center">
-      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-[#fff1ec] text-[#884c2d]">
+    <div className="rounded-xl border border-dashed border-[#E1E4EA] bg-white p-10 text-center">
+      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg border border-[#E1E4EA] text-[#525866]">
         <Phone size={20} />
       </div>
       <p className="text-sm font-semibold text-[#111827]">No contacts yet.</p>
@@ -88,8 +88,8 @@ export default function Contacts() {
   }
 
   return (
-    <div className="flex min-h-full flex-col bg-[#f5f6fa]">
-      <header className="border-b border-[#e5e7eb] bg-white px-6 py-5">
+    <div className="flex min-h-full flex-col bg-[#F1F1F5]">
+      <header className="border-b border-[#E1E4EA] bg-white px-6 py-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#9ca3af]">CRM</p>
@@ -109,7 +109,7 @@ export default function Contacts() {
       </header>
 
       <main className="flex-1 p-6">
-        <div className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
+        <div className="overflow-hidden rounded-xl border border-[#E1E4EA] bg-white">
           <div className="grid grid-cols-[minmax(220px,1.2fr)_minmax(160px,1fr)_180px_180px_120px_80px] gap-4 border-b border-[#f3f4f6] bg-[#fafafa] px-4 py-3 text-xs font-bold uppercase tracking-wide text-[#9ca3af]">
             <span>Contact</span><span>Associated Company</span><span>Email</span><span>WhatsApp</span><span>Status</span><span />
           </div>
