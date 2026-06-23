@@ -5,7 +5,7 @@ import {
   AlertTriangle, Building2, Calendar, CheckCircle2, Clock3, CreditCard, Download,
   Edit2, Eye, FileText, Filter, FolderKanban, FolderOpen, FolderPlus, Globe,
   Layers, LayoutGrid, Link as LinkIcon, List as ListIcon, Mail, MessageSquare, Phone, Plus, ReceiptText,
-  Save, Search, Send, StickyNote, Target, Trash2, Unlink, Users, AtSign
+  Save, Search, Send, StickyNote, Target, Trash2, Unlink, Users
 } from "lucide-react";
 import { Avatar, Button, StatusBadge } from "../../components/ui";
 import { useCrmRecords } from "../../hooks/useCrmRecords";
@@ -22,9 +22,41 @@ const PROJECT_STATUS = ["Pending", "Confirmed", "Requirement Gathering", "Design
 const TASK_VIEWS = ["List", "Board", "Calendar", "Gantt"];
 const PROJECT_VIEWS = ["Table", "Board", "Timeline", "Gantt"];
 
-// A clickable social/website chip; renders nothing when the value is empty and
-// prefixes a protocol so bare domains still open correctly.
-function SocialLink({ href, icon: Icon, label }) {
+function LinkedInGlyph(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM7.119 7.433a2.062 2.062 0 1 1 0-4.124 2.062 2.062 0 0 1 0 4.124zM5.337 20.452h3.564V9H5.337v11.452z" />
+    </svg>
+  );
+}
+
+function InstagramGlyph(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 1.366.062 2.633.347 3.608 1.322.975.975 1.26 2.242 1.322 3.608.058 1.266.069 1.646.069 4.85s-.012 3.584-.07 4.85c-.062 1.366-.347 2.633-1.322 3.608-.975.975-2.242 1.26-3.608 1.322-1.266.058-1.646.069-4.85.069s-3.584-.012-4.85-.07c-1.366-.062-2.633-.347-3.608-1.322-.975-.975-1.26-2.242-1.322-3.608C2.175 15.584 2.163 15.204 2.163 12s.012-3.584.07-4.85c.062-1.366.347-2.633 1.322-3.608.975-.975 2.242-1.26 3.608-1.322C8.416 2.175 8.796 2.163 12 2.163zm0 1.802c-3.157 0-3.51.012-4.74.068-1.012.046-1.562.215-1.927.358-.485.188-.83.412-1.194.776-.364.364-.588.709-.776 1.194-.143.365-.312.915-.358 1.927-.056 1.23-.068 1.583-.068 4.74s.012 3.51.068 4.74c.046 1.012.215 1.562.358 1.927.188.485.412.83.776 1.194.364.364.709.588 1.194.776.365.143.915.312 1.927.358 1.23.056 1.583.068 4.74.068s3.51-.012 4.74-.068c1.012-.046 1.562-.215 1.927-.358.485-.188.83-.412 1.194-.776.364-.364.588-.709.776-1.194.143-.365.312-.915.358-1.927.056-1.23.068-1.583.068-4.74s-.012-3.51-.068-4.74c-.046-1.012-.215-1.562-.358-1.927a3.121 3.121 0 0 0-.776-1.194 3.121 3.121 0 0 0-1.194-.776c-.365-.143-.915-.312-1.927-.358-1.23-.056-1.583-.068-4.74-.068zm0 4.595a5.44 5.44 0 1 1 0 10.88 5.44 5.44 0 0 1 0-10.88zm0 1.802a3.638 3.638 0 1 0 0 7.276 3.638 3.638 0 0 0 0-7.276zm6.926-2.585a1.27 1.27 0 1 1-2.54 0 1.27 1.27 0 0 1 2.54 0z" />
+    </svg>
+  );
+}
+
+function FacebookGlyph(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M22 12.06C22 6.505 17.523 2 12 2S2 6.505 2 12.06c0 5.022 3.657 9.184 8.438 9.94v-7.03H7.898v-2.91h2.54V9.797c0-2.508 1.493-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562v1.876h2.773l-.443 2.91h-2.33V22c4.78-.756 8.437-4.918 8.437-9.94z" />
+    </svg>
+  );
+}
+
+function XGlyph(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
+// Icon-only social button for the header row — shows just the platform's
+// logo, and renders nothing when the company has no value for that field.
+function SocialIconLink({ href, icon: Icon, label }) {
   if (!href) return null;
   const url = /^https?:\/\//i.test(href) ? href : `https://${href}`;
   return (
@@ -32,9 +64,10 @@ function SocialLink({ href, icon: Icon, label }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e7eb] bg-white px-3 py-1.5 text-xs font-semibold text-[#374151] transition-colors hover:border-[#C57E5B] hover:text-[#C57E5B]"
+      title={label}
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#6b7280] transition-colors hover:border-[#C57E5B] hover:text-[#C57E5B]"
     >
-      <Icon size={13} /> {label}
+      <Icon size={15} />
     </a>
   );
 }
@@ -911,11 +944,20 @@ export default function CompanyDetail() {
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#6b7280]">
                   {company.industry && <span>{company.industry}</span>}
                   {company.phone && <span className="inline-flex items-center gap-1"><Phone size={12} /> {company.phone}</span>}
-                  {company.website && <a className="inline-flex items-center gap-1 text-[#884c2d] hover:underline" href={company.website.startsWith("http") ? company.website : `https://${company.website}`} target="_blank" rel="noreferrer"><Globe size={12} /> Website</a>}
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {(company.website || company.linkedin || company.instagram || company.facebook || company.twitter || company.personalWebsite) && (
+                <div className="flex items-center gap-1.5 pr-2">
+                  <SocialIconLink href={company.website} icon={Globe} label="Website" />
+                  <SocialIconLink href={company.linkedin} icon={LinkedInGlyph} label="LinkedIn" />
+                  <SocialIconLink href={company.instagram} icon={InstagramGlyph} label="Instagram" />
+                  <SocialIconLink href={company.facebook} icon={FacebookGlyph} label="Facebook" />
+                  <SocialIconLink href={company.twitter} icon={XGlyph} label="X" />
+                  <SocialIconLink href={company.personalWebsite} icon={Globe} label="Personal site" />
+                </div>
+              )}
               <Button
                 variant={company.userId ? "secondary" : "primary"}
                 onClick={openLinkClient}
@@ -964,17 +1006,6 @@ export default function CompanyDetail() {
             <InfoLine label="Lead Source" value={company.leadSource} />
             <InfoLine label="Owner" value={company.owner || company.companyOwner} />
           </div>
-
-          {(company.website || company.linkedin || company.instagram || company.facebook || company.twitter || company.personalWebsite) && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <SocialLink href={company.website} icon={Globe} label="Website" />
-              <SocialLink href={company.linkedin} icon={AtSign} label="LinkedIn" />
-              <SocialLink href={company.instagram} icon={AtSign} label="Instagram" />
-              <SocialLink href={company.facebook} icon={AtSign} label="Facebook" />
-              <SocialLink href={company.twitter} icon={AtSign} label="X" />
-              <SocialLink href={company.personalWebsite} icon={Globe} label="Personal site" />
-            </div>
-          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3 px-6 pb-5 sm:grid-cols-3 lg:grid-cols-5">
