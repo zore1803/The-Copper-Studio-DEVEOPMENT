@@ -54,20 +54,32 @@ function XGlyph(props) {
   );
 }
 
+const SOCIAL_BRAND_STYLES = {
+  Website: { color: "#0EA5E9", bg: "#E0F2FE" },
+  LinkedIn: { color: "#0A66C2", bg: "#E1ECF8" },
+  Instagram: { color: "#D6249F", bg: "#FCE4F1" },
+  Facebook: { color: "#1877F2", bg: "#E5EFFF" },
+  X: { color: "#111827", bg: "#F1F1F5" },
+  "Personal site": { color: "#7C3AED", bg: "#EFE6FD" },
+};
+
 // Icon-only social button for the header row — shows just the platform's
-// logo, and renders nothing when the company has no value for that field.
+// logo in its brand colour, and renders nothing when the company has no
+// value for that field.
 function SocialIconLink({ href, icon: Icon, label }) {
   if (!href) return null;
   const url = /^https?:\/\//i.test(href) ? href : `https://${href}`;
+  const brand = SOCIAL_BRAND_STYLES[label] || { color: "#6b7280", bg: "#f3f4f6" };
   return (
     <a
       href={url}
       target="_blank"
       rel="noopener noreferrer"
       title={label}
-      className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#6b7280] transition-colors hover:border-[#C57E5B] hover:text-[#C57E5B]"
+      style={{ color: brand.color, backgroundColor: brand.bg }}
+      className="flex h-7 w-7 items-center justify-center rounded-full border border-transparent transition-transform hover:scale-110"
     >
-      <Icon size={12} />
+      <Icon size={13} />
     </a>
   );
 }
