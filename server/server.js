@@ -19,6 +19,7 @@ import authRoutes from "./routes/auth.js";
 import crmRoutes from "./routes/crm.js";
 import clientRoutes from "./routes/client.js";
 import adminRoutes from "./routes/admin.js";
+import settingsRoutes from "./routes/settings.js";
 import calendlyRoutes from "./routes/calendly.js";
 import invoiceRoutes from "./routes/invoices.js";
 import { packages } from "./data/packages.js";
@@ -48,6 +49,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/crm", crmRoutes);
 app.use("/api/client", clientRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin/settings", settingsRoutes);
 app.use("/api/calendly", calendlyRoutes);
 app.use("/api/invoices", invoiceRoutes);
 

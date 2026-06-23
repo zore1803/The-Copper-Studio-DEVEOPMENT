@@ -1,14 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  BellRing, Building2, Calendar, CreditCard, Edit3,
+  BellRing, Building2, Calendar, CreditCard, Edit3, Eye, EyeOff,
   Globe2, LayoutGrid, List, LockKeyhole, Mail,
   Plus, Save, Search,
-  Settings as SettingsIcon, SlidersHorizontal,
+  Settings as SettingsIcon, ShieldCheck, SlidersHorizontal,
   Trash2, UploadCloud, UserPlus
 } from "lucide-react";
 import { Button } from "../../components/ui";
 import { useCrmRecords } from "../../hooks/useCrmRecords";
 import { useToast } from "../../components/useToast";
+import { useAuth } from "../../auth/useAuth";
+import { apiGet, apiPost, apiPut } from "../../lib/api";
 import SidePanel from "../../components/SidePanel";
 import { isEmail, isGstin } from "../../lib/validators";
 
@@ -469,7 +471,7 @@ export function TasksPage() {
   );
 }
 
-function SettingsField({ label, value, onChange, type = "text", placeholder, error = "" }) {
+function SettingsField({ label, value, onChange, type = "text", placeholder, error = "", disabled = false, hint }) {
   return (
     <label className="block">
       <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#7b6f63]">{label}</span>
@@ -478,11 +480,13 @@ function SettingsField({ label, value, onChange, type = "text", placeholder, err
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
+        disabled={disabled}
         aria-invalid={Boolean(error)}
-        className={`mt-2 w-full rounded-2xl border bg-[#fffdfc] px-4 py-3 text-sm text-[#211a17] outline-none transition-all focus:ring-4 ${
+        className={`mt-2 w-full rounded-2xl border bg-[#fffdfc] px-4 py-3 text-sm text-[#211a17] outline-none transition-all focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60 ${
           error ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-[#d8c2b9] focus:border-[#884c2d] focus:ring-[#f3dfd7]"
         }`}
       />
+      {hint && !error && <span className="mt-1.5 block text-[11px] text-[#9c8c80]">{hint}</span>}
       {error && <span className="mt-1.5 block text-[11px] font-semibold text-red-500">{error}</span>}
     </label>
   );
@@ -525,75 +529,191 @@ function SettingsToggle({ title, description, checked, onChange }) {
   );
 }
 
+// Masked-by-default field for values that are credential-shaped (SMTP host,
+// gateway API base, etc.) — reveal them deliberately instead of leaving them
+// in plain text on screen.
+function SettingsSecretField({ label, value, onChange, placeholder, error = "", hint }) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <label className="block">
+      <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#7b6f63]">{label}</span>
+      <div className="relative mt-2">
+        <input
+          type={revealed ? "text" : "password"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          aria-invalid={Boolean(error)}
+          className={`w-full rounded-2xl border bg-[#fffdfc] px-4 py-3 pr-11 text-sm text-[#211a17] outline-none transition-all focus:ring-4 ${
+            error ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-[#d8c2b9] focus:border-[#884c2d] focus:ring-[#f3dfd7]"
+          }`}
+        />
+        <button
+          type="button"
+          onClick={() => setRevealed((current) => !current)}
+          title={revealed ? "Hide value" : "Reveal value"}
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9c8c80] transition-colors hover:text-[#884c2d]"
+        >
+          {revealed ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+      {hint && !error && <span className="mt-1.5 block text-[11px] text-[#9c8c80]">{hint}</span>}
+      {error && <span className="mt-1.5 block text-[11px] font-semibold text-red-500">{error}</span>}
+    </label>
+  );
+}
+
+// Re-confirms the signed-in admin's password before unlocking the
+// credential-bearing tab — doesn't change anything, just gates access.
+function SecurityGate({ onUnlock }) {
+  const { token } = useAuth();
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [verifying, setVerifying] = useState(false);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (!password) {
+      setError("Enter your password to continue.");
+      return;
+    }
+    setVerifying(true);
+    setError("");
+    try {
+      await apiPost("/api/admin/settings/verify-password", { password }, token);
+      onUnlock();
+    } catch (err) {
+      setError(err.message || "Incorrect password.");
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center px-6 py-14 text-center">
+      <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d]"><LockKeyhole size={22} /></div>
+      <h3 className="mt-4 text-lg font-semibold text-[#211a17]">Confirm it's you</h3>
+      <p className="mt-1.5 max-w-sm text-sm leading-6 text-[#6c6355]">
+        This area holds account credentials — your password, SMTP access, and the payment gateway endpoint. Re-enter your password to unlock it.
+      </p>
+      <form onSubmit={handleSubmit} className="mt-6 w-full max-w-xs space-y-3 text-left">
+        <input
+          type="password"
+          autoFocus
+          value={password}
+          onChange={(event) => { setPassword(event.target.value); setError(""); }}
+          placeholder="Current password"
+          aria-invalid={Boolean(error)}
+          className={`w-full rounded-2xl border bg-[#fffdfc] px-4 py-3 text-sm text-[#211a17] outline-none transition-all focus:ring-4 ${
+            error ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-[#d8c2b9] focus:border-[#884c2d] focus:ring-[#f3dfd7]"
+          }`}
+        />
+        {error && <p className="text-[11px] font-semibold text-red-500">{error}</p>}
+        <Button type="submit" className="w-full justify-center" disabled={verifying}>
+          <ShieldCheck size={14} /> {verifying ? "Verifying…" : "Unlock"}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+const GENERAL_SECTIONS = [
+  { key: "profile", title: "Profile", description: "Agency admin details and primary identity.", icon: UserPlus },
+  { key: "company", title: "Company Information", description: "Legal business details for billing and display.", icon: Building2 },
+  { key: "notifications", title: "Notification Settings", description: "Workspace alerts, reminders, and operational notices.", icon: BellRing },
+];
+
+const SECURE_SECTIONS = [
+  { key: "password", title: "Password & Access", description: "Change your password and invite/OTP windows.", icon: LockKeyhole },
+  { key: "email", title: "Email Settings", description: "Sender identity, SMTP values, and onboarding mail flow.", icon: Mail },
+  { key: "billing", title: "Billing & Gateway", description: "Gateway, invoice defaults, and invite triggers.", icon: CreditCard },
+];
+
+const ALL_SECTIONS = [...GENERAL_SECTIONS, ...SECURE_SECTIONS];
+
+function SettingsSidebarGroup({ label, icon: GroupIcon, sections, activeSection, locked, onSelect }) {
+  return (
+    <div>
+      <p className="flex items-center gap-1.5 px-3 pb-2 pt-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#9c8c80]">
+        {GroupIcon && <GroupIcon size={11} />} {label}
+      </p>
+      {sections.map((section) => (
+        <button
+          key={section.key}
+          type="button"
+          onClick={() => onSelect(section.key)}
+          className={`flex w-full items-start gap-3 rounded-2xl p-4 text-left transition-colors ${
+            activeSection === section.key ? "bg-[#fff1ec]" : "hover:bg-[#fff8f6]"
+          }`}
+        >
+          <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${
+            activeSection === section.key ? "bg-[#f3dfd7] text-[#884c2d]" : "bg-[#f5e6e1] text-[#6c6355]"
+          }`}>
+            <section.icon size={17} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="flex items-center gap-1.5 text-sm font-bold text-[#211a17]">
+              {section.title}
+              {locked && <LockKeyhole size={11} className="text-[#9c8c80]" />}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-[#6c6355]">{section.description}</p>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SettingsPage() {
   const { showToast } = useToast();
-  const sections = [
-    { key: "profile", title: "Profile", description: "Agency admin details and primary identity.", icon: UserPlus },
-    { key: "password", title: "Password", description: "Reset rules, OTP window, and secure access.", icon: LockKeyhole },
-    { key: "company", title: "Company Information", description: "Legal business details for billing and display.", icon: Building2 },
-    { key: "billing", title: "Billing Settings", description: "Gateway, invoice defaults, and invite triggers.", icon: CreditCard },
-    { key: "email", title: "Email Settings", description: "Sender identity, SMTP values, and onboarding mail flow.", icon: Mail },
-    { key: "notifications", title: "Notification Settings", description: "Workspace alerts, reminders, and operational notices.", icon: BellRing },
-  ];
+  const { token } = useAuth();
 
   const [activeSection, setActiveSection] = useState("profile");
-  const [profile, setProfile] = useState({
-    fullName: "",
-    email: "",
-    title: "",
-    timezone: "Asia/Kolkata",
-    publicUrl: "",
-  });
-  const [password, setPassword] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-    inviteExpiry: "48 hours",
-    otpExpiry: "10 minutes",
-  });
-  const [company, setCompany] = useState({
-    studioName: "The Copper Studio",
-    legalName: "",
-    gstin: "",
-    billingEmail: "",
-    website: "",
-    billingAddress: "",
-  });
-  const [billing, setBilling] = useState({
-    gateway: "Razorpay",
-    apiBase: "",
-    invoicePrefix: "INV",
-    defaultRole: "user",
-    autoInviteAfterPayment: true,
-    allowCouponAtCheckout: true,
-  });
-  const [email, setEmail] = useState({
-    senderName: "The Copper Studio",
-    senderEmail: "",
-    smtpHost: "",
-    smtpPort: "587",
-    onboardingPath: "/client-secure-onboarding/access-setup",
-  });
-  const [notifications, setNotifications] = useState({
-    paymentSuccess: true,
-    failedPayments: true,
-    portalInviteSent: true,
-    overdueInvoices: true,
-  });
+  const [unlocked, setUnlocked] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [profile, setProfile] = useState({ fullName: "", email: "", title: "", timezone: "Asia/Kolkata", publicUrl: "" });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [company, setCompany] = useState({ studioName: "The Copper Studio", legalName: "", gstin: "", billingEmail: "", website: "", billingAddress: "" });
+  const [billing, setBilling] = useState({ gateway: "Razorpay", apiBase: "", invoicePrefix: "INV", defaultRole: "user", autoInviteAfterPayment: true, allowCouponAtCheckout: true });
+  const [email, setEmail] = useState({ senderName: "The Copper Studio", senderEmail: "", smtpHost: "", smtpPort: "587", onboardingPath: "/client-secure-onboarding/access-setup" });
+  const [notifications, setNotifications] = useState({ paymentSuccess: true, failedPayments: true, portalInviteSent: true, overdueInvoices: true });
+  const [security, setSecurity] = useState({ inviteExpiry: "48 hours", otpExpiry: "10 minutes" });
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await apiGet("/api/admin/settings", token);
+        if (!alive) return;
+        setProfile((prev) => ({ ...prev, ...data.profile }));
+        setCompany((prev) => ({ ...prev, ...data.company }));
+        setBilling((prev) => ({ ...prev, ...data.billing }));
+        setEmail((prev) => ({ ...prev, ...data.email }));
+        setNotifications((prev) => ({ ...prev, ...data.notifications }));
+        setSecurity((prev) => ({ ...prev, ...data.security }));
+      } catch (err) {
+        if (alive) showToast({ type: "error", title: "Settings unavailable", message: err.message || "Could not load workspace settings." });
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [token, showToast]);
 
   function validateSection(key) {
     const e = {};
     if (key === "profile") {
-      if (profile.email && !isEmail(profile.email)) e.email = "Enter a valid email address.";
       if (profile.publicUrl && !URL_RE.test(profile.publicUrl.trim())) e.publicUrl = "Enter a valid URL.";
     }
     if (key === "password") {
-      const touched = password.currentPassword || password.newPassword || password.confirmPassword;
+      const touched = passwordForm.currentPassword || passwordForm.newPassword || passwordForm.confirmPassword;
       if (touched) {
-        if (!password.currentPassword) e.currentPassword = "Enter your current password.";
-        if (password.newPassword.length < 8) e.newPassword = "Use at least 8 characters.";
-        if (password.newPassword !== password.confirmPassword) e.confirmPassword = "Passwords do not match.";
+        if (!passwordForm.currentPassword) e.currentPassword = "Enter your current password.";
+        if (passwordForm.newPassword.length < 8) e.newPassword = "Use at least 8 characters.";
+        if (passwordForm.newPassword !== passwordForm.confirmPassword) e.confirmPassword = "Passwords do not match.";
       }
     }
     if (key === "company") {
@@ -609,20 +729,53 @@ export function SettingsPage() {
     return e;
   }
 
-  function saveSection(key, label) {
+  async function saveSection(key, label) {
     const nextErrors = validateSection(key);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       showToast({ type: "error", title: "Check the form", message: "Please fix the highlighted fields." });
       return;
     }
-    showToast({ title: `${label} updated`, message: "Your settings have been saved successfully." });
+
+    setSaving(true);
+    try {
+      if (key === "profile") {
+        await Promise.all([
+          apiPut("/api/client/profile", { name: profile.fullName, jobTitle: profile.title, preferences: { timezone: profile.timezone } }, token),
+          apiPut("/api/admin/settings/workspace", { publicUrl: profile.publicUrl }, token),
+        ]);
+      } else if (key === "password") {
+        const touched = passwordForm.currentPassword || passwordForm.newPassword || passwordForm.confirmPassword;
+        if (touched) {
+          await apiPut("/api/client/change-password", { currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword }, token);
+          setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        }
+        await apiPut("/api/admin/settings/security", security, token);
+      } else if (key === "company") {
+        await apiPut("/api/admin/settings/company", company, token);
+      } else if (key === "billing") {
+        await apiPut("/api/admin/settings/billing", billing, token);
+      } else if (key === "email") {
+        await apiPut("/api/admin/settings/email", email, token);
+      } else if (key === "notifications") {
+        await apiPut("/api/admin/settings/notifications", notifications, token);
+      }
+      showToast({ title: `${label} updated`, message: "Your settings have been saved successfully." });
+    } catch (err) {
+      showToast({ type: "error", title: "Couldn't save", message: err.message || "Something went wrong." });
+    } finally {
+      setSaving(false);
+    }
   }
 
   function selectSection(key) {
     setActiveSection(key);
     setErrors({});
   }
+
+  const activeMeta = ALL_SECTIONS.find((s) => s.key === activeSection);
+  const isSecureSection = SECURE_SECTIONS.some((s) => s.key === activeSection);
+  const showGate = isSecureSection && !unlocked;
 
   return (
     <div className="space-y-6">
@@ -631,7 +784,8 @@ export function SettingsPage() {
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#7b6f63]">Workspace administration</p>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[#211a17]">Account Settings</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6c6355]">
-            Manage admin identity, secure password flows, company billing details, mail delivery, and the post-payment onboarding pipeline.
+            Manage admin identity, company billing details, mail delivery, and the post-payment onboarding pipeline.
+            Credentials live behind a separate, password-gated tab.
           </p>
         </div>
 
@@ -640,208 +794,201 @@ export function SettingsPage() {
             <Globe2 size={15} />
             Live workspace
           </Button>
-          <Button size="lg" onClick={() => saveSection(activeSection, sections.find((s) => s.key === activeSection)?.title || "Settings")}>
-            <Save size={15} />
-            Save Changes
-          </Button>
+          {!showGate && !loading && (
+            <Button size="lg" disabled={saving} onClick={() => saveSection(activeSection, activeMeta?.title || "Settings")}>
+              <Save size={15} />
+              {saving ? "Saving…" : "Save Changes"}
+            </Button>
+          )}
         </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[290px_minmax(0,1fr)]">
         <Card className="p-3 shadow-[0_18px_40px_rgba(79,39,16,0.06)]">
-          {sections.map((section) => (
-            <button
-              key={section.key}
-              type="button"
-              onClick={() => selectSection(section.key)}
-              className={`flex w-full items-start gap-3 rounded-2xl p-4 text-left transition-colors ${
-                activeSection === section.key ? "bg-[#fff1ec]" : "hover:bg-[#fff8f6]"
-              }`}
-            >
-              <div className={`grid h-10 w-10 place-items-center rounded-2xl ${
-                activeSection === section.key ? "bg-[#f3dfd7] text-[#884c2d]" : "bg-[#f5e6e1] text-[#6c6355]"
-              }`}>
-                <section.icon size={17} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-[#211a17]">{section.title}</p>
-                <p className="mt-1 text-xs leading-5 text-[#6c6355]">{section.description}</p>
-              </div>
-            </button>
-          ))}
+          <SettingsSidebarGroup label="General" sections={GENERAL_SECTIONS} activeSection={activeSection} locked={false} onSelect={selectSection} />
+          <div className="mt-2 border-t border-[#f1e7e2]" />
+          <SettingsSidebarGroup label="Security & Integrations" icon={LockKeyhole} sections={SECURE_SECTIONS} activeSection={activeSection} locked={!unlocked} onSelect={selectSection} />
         </Card>
 
         <Card className="p-6 shadow-[0_18px_40px_rgba(79,39,16,0.06)]">
-          {activeSection === "profile" && (
-            <div>
-              <div className="mb-6 flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#211a17] text-white"><SettingsIcon size={18} /></div>
+          {loading ? (
+            <div className="py-16 text-center text-sm text-[#6c6355]">Loading settings…</div>
+          ) : showGate ? (
+            <SecurityGate onUnlock={() => setUnlocked(true)} />
+          ) : (
+            <>
+              {activeSection === "profile" && (
                 <div>
-                  <h3 className="text-lg font-semibold text-[#211a17]">Personal Profile</h3>
-                  <p className="text-sm text-[#6c6355]">Update the primary super admin identity shown across the CRM.</p>
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <SettingsField label="Full Name" value={profile.fullName} onChange={(value) => setProfile((prev) => ({ ...prev, fullName: value }))} />
-                <SettingsField label="Email Address" type="email" value={profile.email} error={errors.email} onChange={(value) => setProfile((prev) => ({ ...prev, email: value }))} />
-                <SettingsField label="Job Title" value={profile.title} onChange={(value) => setProfile((prev) => ({ ...prev, title: value }))} />
-                <SettingsSelect label="Timezone" value={profile.timezone} onChange={(value) => setProfile((prev) => ({ ...prev, timezone: value }))} options={["Asia/Kolkata", "Europe/London", "America/New_York"]} />
-                <div className="sm:col-span-2">
-                  <SettingsField label="CRM Public URL" value={profile.publicUrl} error={errors.publicUrl} onChange={(value) => setProfile((prev) => ({ ...prev, publicUrl: value }))} />
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end">
-                <Button onClick={() => saveSection("profile", "Profile")}><Save size={14} /> Save Profile</Button>
-              </div>
-            </div>
-          )}
-
-          {activeSection === "password" && (
-            <div>
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-[#211a17]">Password & Access</h3>
-                <p className="mt-1 text-sm text-[#6c6355]">Control reset behavior, onboarding link life, and OTP validity.</p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <SettingsField label="Current Password" type="password" value={password.currentPassword} error={errors.currentPassword} onChange={(value) => setPassword((prev) => ({ ...prev, currentPassword: value }))} />
-                <SettingsField label="New Password" type="password" value={password.newPassword} error={errors.newPassword} onChange={(value) => setPassword((prev) => ({ ...prev, newPassword: value }))} />
-                <SettingsField label="Confirm Password" type="password" value={password.confirmPassword} error={errors.confirmPassword} onChange={(value) => setPassword((prev) => ({ ...prev, confirmPassword: value }))} />
-                <SettingsSelect label="Invite Link Expiry" value={password.inviteExpiry} onChange={(value) => setPassword((prev) => ({ ...prev, inviteExpiry: value }))} options={["24 hours", "48 hours", "72 hours"]} />
-                <SettingsSelect label="OTP Expiry" value={password.otpExpiry} onChange={(value) => setPassword((prev) => ({ ...prev, otpExpiry: value }))} options={["5 minutes", "10 minutes", "15 minutes"]} />
-              </div>
-              <div className="mt-6 flex justify-end">
-                <Button onClick={() => saveSection("password", "Password settings")}><Save size={14} /> Update Security</Button>
-              </div>
-            </div>
-          )}
-
-          {activeSection === "company" && (
-            <div>
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-[#211a17]">Company Information</h3>
-                <p className="mt-1 text-sm text-[#6c6355]">Use these values for invoices, proposals, and client-facing mail content.</p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <SettingsField label="Studio Name" value={company.studioName} onChange={(value) => setCompany((prev) => ({ ...prev, studioName: value }))} />
-                <SettingsField label="Legal Name" value={company.legalName} onChange={(value) => setCompany((prev) => ({ ...prev, legalName: value }))} />
-                <SettingsField label="GSTIN" value={company.gstin} error={errors.gstin} onChange={(value) => setCompany((prev) => ({ ...prev, gstin: value }))} />
-                <SettingsField label="Billing Email" type="email" value={company.billingEmail} error={errors.billingEmail} onChange={(value) => setCompany((prev) => ({ ...prev, billingEmail: value }))} />
-                <SettingsField label="Website" value={company.website} error={errors.website} onChange={(value) => setCompany((prev) => ({ ...prev, website: value }))} />
-                <div className="sm:col-span-2">
-                  <SettingsField label="Billing Address" value={company.billingAddress} onChange={(value) => setCompany((prev) => ({ ...prev, billingAddress: value }))} />
-                </div>
-              </div>
-              <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-dashed border-[#d8c2b9] bg-[#fffdfc] px-4 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d]"><UploadCloud size={18} /></div>
-                  <div>
-                    <p className="text-sm font-semibold text-[#211a17]">Logo Upload</p>
-                    <p className="text-xs text-[#6c6355]">Update the brand logo used in the client portal and proposal PDF exports.</p>
+                  <div className="mb-6 flex items-center gap-3">
+                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#211a17] text-white"><SettingsIcon size={18} /></div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-[#211a17]">Personal Profile</h3>
+                      <p className="text-sm text-[#6c6355]">Update the primary super admin identity shown across the CRM.</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <SettingsField label="Full Name" value={profile.fullName} onChange={(value) => setProfile((prev) => ({ ...prev, fullName: value }))} />
+                    <SettingsField label="Email Address" type="email" value={profile.email} disabled hint="Contact support to change your login email." />
+                    <SettingsField label="Job Title" value={profile.title} onChange={(value) => setProfile((prev) => ({ ...prev, title: value }))} />
+                    <SettingsSelect label="Timezone" value={profile.timezone} onChange={(value) => setProfile((prev) => ({ ...prev, timezone: value }))} options={["Asia/Kolkata", "Europe/London", "America/New_York"]} />
+                    <div className="sm:col-span-2">
+                      <SettingsField label="CRM Public URL" value={profile.publicUrl} error={errors.publicUrl} onChange={(value) => setProfile((prev) => ({ ...prev, publicUrl: value }))} />
+                    </div>
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <Button onClick={() => saveSection("profile", "Profile")}><Save size={14} /> Save Profile</Button>
                   </div>
                 </div>
-                <Button variant="secondary">Upload</Button>
-              </div>
-              <div className="mt-6 flex justify-end">
-                <Button onClick={() => saveSection("company", "Company information")}><Save size={14} /> Save Company</Button>
-              </div>
-            </div>
-          )}
+              )}
 
-          {activeSection === "billing" && (
-            <div>
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-[#211a17]">Billing & Gateway Settings</h3>
-                <p className="mt-1 text-sm text-[#6c6355]">Configure checkout behavior, invoice defaults, and automatic portal access after payment.</p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <SettingsSelect label="Payment Gateway" value={billing.gateway} onChange={(value) => setBilling((prev) => ({ ...prev, gateway: value }))} options={["Razorpay", "Stripe", "Manual"]} />
-                <SettingsField label="API Base URL" value={billing.apiBase} onChange={(value) => setBilling((prev) => ({ ...prev, apiBase: value }))} />
-                <SettingsField label="Invoice Prefix" value={billing.invoicePrefix} onChange={(value) => setBilling((prev) => ({ ...prev, invoicePrefix: value }))} />
-                <SettingsSelect label="Default Role After Payment" value={billing.defaultRole} onChange={(value) => setBilling((prev) => ({ ...prev, defaultRole: value }))} options={["user", "superadmin"]} />
-              </div>
-              <div className="mt-6 space-y-3">
-                <SettingsToggle
-                  title="Auto-send portal invite after payment"
-                  description="Once checkout is successful, send the secure password setup link to the client automatically."
-                  checked={billing.autoInviteAfterPayment}
-                  onChange={(value) => setBilling((prev) => ({ ...prev, autoInviteAfterPayment: value }))}
-                />
-                <SettingsToggle
-                  title="Allow coupon codes during package checkout"
-                  description="Keep coupon application visible as an optional field inside the pricing and checkout flow."
-                  checked={billing.allowCouponAtCheckout}
-                  onChange={(value) => setBilling((prev) => ({ ...prev, allowCouponAtCheckout: value }))}
-                />
-              </div>
-              <div className="mt-6 flex justify-end">
-                <Button onClick={() => saveSection("billing", "Billing settings")}><Save size={14} /> Save Billing</Button>
-              </div>
-            </div>
-          )}
-
-          {activeSection === "email" && (
-            <div>
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-[#211a17]">Email Delivery Settings</h3>
-                <p className="mt-1 text-sm text-[#6c6355]">Set the mail sender identity and the secure onboarding route used in invite messages.</p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <SettingsField label="Sender Name" value={email.senderName} onChange={(value) => setEmail((prev) => ({ ...prev, senderName: value }))} />
-                <SettingsField label="Sender Email" type="email" value={email.senderEmail} error={errors.senderEmail} onChange={(value) => setEmail((prev) => ({ ...prev, senderEmail: value }))} />
-                <SettingsField label="SMTP Host" value={email.smtpHost} onChange={(value) => setEmail((prev) => ({ ...prev, smtpHost: value }))} />
-                <SettingsField label="SMTP Port" value={email.smtpPort} error={errors.smtpPort} onChange={(value) => setEmail((prev) => ({ ...prev, smtpPort: value }))} />
-                <div className="sm:col-span-2">
-                  <SettingsField label="Secure Onboarding Path" value={email.onboardingPath} onChange={(value) => setEmail((prev) => ({ ...prev, onboardingPath: value }))} />
+              {activeSection === "password" && (
+                <div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-[#211a17]">Password & Access</h3>
+                    <p className="mt-1 text-sm text-[#6c6355]">Change your password, and set onboarding link life and OTP validity.</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <SettingsField label="Current Password" type="password" value={passwordForm.currentPassword} error={errors.currentPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, currentPassword: value }))} />
+                    <SettingsField label="New Password" type="password" value={passwordForm.newPassword} error={errors.newPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, newPassword: value }))} />
+                    <SettingsField label="Confirm Password" type="password" value={passwordForm.confirmPassword} error={errors.confirmPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, confirmPassword: value }))} />
+                    <SettingsSelect label="Invite Link Expiry" value={security.inviteExpiry} onChange={(value) => setSecurity((prev) => ({ ...prev, inviteExpiry: value }))} options={["24 hours", "48 hours", "72 hours"]} />
+                    <SettingsSelect label="OTP Expiry" value={security.otpExpiry} onChange={(value) => setSecurity((prev) => ({ ...prev, otpExpiry: value }))} options={["5 minutes", "10 minutes", "15 minutes"]} />
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <Button onClick={() => saveSection("password", "Password settings")}><Save size={14} /> Update Security</Button>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-6 rounded-2xl border border-[#ead8d1] bg-[#fffdfc] px-4 py-4">
-                <p className="text-sm font-semibold text-[#211a17]">Current flow</p>
-                <p className="mt-2 text-xs leading-6 text-[#6c6355]">
-                  Paid checkout, then success confirmation, then secure invite mail, then unique password setup, then redirect to the shared login page.
-                </p>
-              </div>
-              <div className="mt-6 flex justify-end">
-                <Button onClick={() => saveSection("email", "Email settings")}><Save size={14} /> Save Email</Button>
-              </div>
-            </div>
-          )}
+              )}
 
-          {activeSection === "notifications" && (
-            <div>
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-[#211a17]">Notification Settings</h3>
-                <p className="mt-1 text-sm text-[#6c6355]">Choose which operational events should surface inside the admin workspace.</p>
-              </div>
-              <div className="space-y-3">
-                <SettingsToggle
-                  title="Payment success alerts"
-                  description="Show a confirmation toast and admin alert when a package payment is completed."
-                  checked={notifications.paymentSuccess}
-                  onChange={(value) => setNotifications((prev) => ({ ...prev, paymentSuccess: value }))}
-                />
-                <SettingsToggle
-                  title="Failed payment alerts"
-                  description="Flag payment failures so the team can follow up quickly."
-                  checked={notifications.failedPayments}
-                  onChange={(value) => setNotifications((prev) => ({ ...prev, failedPayments: value }))}
-                />
-                <SettingsToggle
-                  title="Portal invite sent alerts"
-                  description="Notify admins when the onboarding email has been dispatched successfully."
-                  checked={notifications.portalInviteSent}
-                  onChange={(value) => setNotifications((prev) => ({ ...prev, portalInviteSent: value }))}
-                />
-                <SettingsToggle
-                  title="Overdue invoice alerts"
-                  description="Surface aged or unpaid invoices in the finance workflow."
-                  checked={notifications.overdueInvoices}
-                  onChange={(value) => setNotifications((prev) => ({ ...prev, overdueInvoices: value }))}
-                />
-              </div>
-              <div className="mt-6 flex justify-end">
-                <Button onClick={() => saveSection("notifications", "Notification settings")}><Save size={14} /> Save Notifications</Button>
-              </div>
-            </div>
+              {activeSection === "company" && (
+                <div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-[#211a17]">Company Information</h3>
+                    <p className="mt-1 text-sm text-[#6c6355]">Use these values for invoices, proposals, and client-facing mail content.</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <SettingsField label="Studio Name" value={company.studioName} onChange={(value) => setCompany((prev) => ({ ...prev, studioName: value }))} />
+                    <SettingsField label="Legal Name" value={company.legalName} onChange={(value) => setCompany((prev) => ({ ...prev, legalName: value }))} />
+                    <SettingsField label="GSTIN" value={company.gstin} error={errors.gstin} onChange={(value) => setCompany((prev) => ({ ...prev, gstin: value }))} />
+                    <SettingsField label="Billing Email" type="email" value={company.billingEmail} error={errors.billingEmail} onChange={(value) => setCompany((prev) => ({ ...prev, billingEmail: value }))} />
+                    <SettingsField label="Website" value={company.website} error={errors.website} onChange={(value) => setCompany((prev) => ({ ...prev, website: value }))} />
+                    <div className="sm:col-span-2">
+                      <SettingsField label="Billing Address" value={company.billingAddress} onChange={(value) => setCompany((prev) => ({ ...prev, billingAddress: value }))} />
+                    </div>
+                  </div>
+                  <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-dashed border-[#d8c2b9] bg-[#fffdfc] px-4 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d]"><UploadCloud size={18} /></div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#211a17]">Logo Upload</p>
+                        <p className="text-xs text-[#6c6355]">Update the brand logo used in the client portal and proposal PDF exports.</p>
+                      </div>
+                    </div>
+                    <Button variant="secondary">Upload</Button>
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <Button onClick={() => saveSection("company", "Company information")}><Save size={14} /> Save Company</Button>
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "billing" && (
+                <div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-[#211a17]">Billing & Gateway Settings</h3>
+                    <p className="mt-1 text-sm text-[#6c6355]">Configure checkout behavior, invoice defaults, and automatic portal access after payment.</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <SettingsSelect label="Payment Gateway" value={billing.gateway} onChange={(value) => setBilling((prev) => ({ ...prev, gateway: value }))} options={["Razorpay", "Stripe", "Manual"]} />
+                    <SettingsSecretField label="API Base URL" value={billing.apiBase} onChange={(value) => setBilling((prev) => ({ ...prev, apiBase: value }))} hint="Hidden by default — click the eye icon to reveal." />
+                    <SettingsField label="Invoice Prefix" value={billing.invoicePrefix} onChange={(value) => setBilling((prev) => ({ ...prev, invoicePrefix: value }))} />
+                    <SettingsSelect label="Default Role After Payment" value={billing.defaultRole} onChange={(value) => setBilling((prev) => ({ ...prev, defaultRole: value }))} options={["user", "superadmin"]} />
+                  </div>
+                  <div className="mt-6 space-y-3">
+                    <SettingsToggle
+                      title="Auto-send portal invite after payment"
+                      description="Once checkout is successful, send the secure password setup link to the client automatically."
+                      checked={billing.autoInviteAfterPayment}
+                      onChange={(value) => setBilling((prev) => ({ ...prev, autoInviteAfterPayment: value }))}
+                    />
+                    <SettingsToggle
+                      title="Allow coupon codes during package checkout"
+                      description="Keep coupon application visible as an optional field inside the pricing and checkout flow."
+                      checked={billing.allowCouponAtCheckout}
+                      onChange={(value) => setBilling((prev) => ({ ...prev, allowCouponAtCheckout: value }))}
+                    />
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <Button onClick={() => saveSection("billing", "Billing settings")}><Save size={14} /> Save Billing</Button>
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "email" && (
+                <div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-[#211a17]">Email Delivery Settings</h3>
+                    <p className="mt-1 text-sm text-[#6c6355]">Set the mail sender identity and the secure onboarding route used in invite messages.</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <SettingsField label="Sender Name" value={email.senderName} onChange={(value) => setEmail((prev) => ({ ...prev, senderName: value }))} />
+                    <SettingsField label="Sender Email" type="email" value={email.senderEmail} error={errors.senderEmail} onChange={(value) => setEmail((prev) => ({ ...prev, senderEmail: value }))} />
+                    <SettingsSecretField label="SMTP Host" value={email.smtpHost} onChange={(value) => setEmail((prev) => ({ ...prev, smtpHost: value }))} hint="Hidden by default — click the eye icon to reveal." />
+                    <SettingsSecretField label="SMTP Port" value={email.smtpPort} error={errors.smtpPort} onChange={(value) => setEmail((prev) => ({ ...prev, smtpPort: value }))} />
+                    <div className="sm:col-span-2">
+                      <SettingsField label="Secure Onboarding Path" value={email.onboardingPath} onChange={(value) => setEmail((prev) => ({ ...prev, onboardingPath: value }))} />
+                    </div>
+                  </div>
+                  <div className="mt-6 rounded-2xl border border-[#ead8d1] bg-[#fffdfc] px-4 py-4">
+                    <p className="text-sm font-semibold text-[#211a17]">Current flow</p>
+                    <p className="mt-2 text-xs leading-6 text-[#6c6355]">
+                      Paid checkout, then success confirmation, then secure invite mail, then unique password setup, then redirect to the shared login page.
+                    </p>
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <Button onClick={() => saveSection("email", "Email settings")}><Save size={14} /> Save Email</Button>
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "notifications" && (
+                <div>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-[#211a17]">Notification Settings</h3>
+                    <p className="mt-1 text-sm text-[#6c6355]">Choose which operational events should surface inside the admin workspace.</p>
+                  </div>
+                  <div className="space-y-3">
+                    <SettingsToggle
+                      title="Payment success alerts"
+                      description="Show a confirmation toast and admin alert when a package payment is completed."
+                      checked={notifications.paymentSuccess}
+                      onChange={(value) => setNotifications((prev) => ({ ...prev, paymentSuccess: value }))}
+                    />
+                    <SettingsToggle
+                      title="Failed payment alerts"
+                      description="Flag payment failures so the team can follow up quickly."
+                      checked={notifications.failedPayments}
+                      onChange={(value) => setNotifications((prev) => ({ ...prev, failedPayments: value }))}
+                    />
+                    <SettingsToggle
+                      title="Portal invite sent alerts"
+                      description="Notify admins when the onboarding email has been dispatched successfully."
+                      checked={notifications.portalInviteSent}
+                      onChange={(value) => setNotifications((prev) => ({ ...prev, portalInviteSent: value }))}
+                    />
+                    <SettingsToggle
+                      title="Overdue invoice alerts"
+                      description="Surface aged or unpaid invoices in the finance workflow."
+                      checked={notifications.overdueInvoices}
+                      onChange={(value) => setNotifications((prev) => ({ ...prev, overdueInvoices: value }))}
+                    />
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <Button onClick={() => saveSection("notifications", "Notification settings")}><Save size={14} /> Save Notifications</Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </Card>
       </section>
