@@ -107,16 +107,26 @@ export default function KanbanBoard() {
     
     const movedTask = columns[source.droppableId][source.index];
     
-    // Optimistic update
-    setColumns((prev) => {
-      const next = move(prev[source.droppableId], prev[destination.droppableId], source, destination);
-      return { ...prev, ...next };
-    });
-
     if (movedTask.isProject) {
-      const newStatus = COLUMN_TO_STAGE_STATUS[destination.droppableId] || "not_started";
-
       const proj = projects.find(p => String(p.id || p._id) === movedTask.projectId);
+      
+      // Strict Validation: Prevent dragging incomplete projects to "Done"
+      if (destination.droppableId === "Done" && proj && (proj.progress || 0) < 100) {
+        showToast({ 
+          type: "error", 
+          title: "Cannot mark as Done", 
+          message: "Not all project stages are completed." 
+        });
+        return; // Reject drop, UI bounces back
+      }
+
+      // Optimistic update
+      setColumns((prev) => {
+        const next = move(prev[source.droppableId], prev[destination.droppableId], source, destination);
+        return { ...prev, ...next };
+      });
+
+      const newStatus = COLUMN_TO_STAGE_STATUS[destination.droppableId] || "not_started";
       if (proj) {
         const updatedProj = { ...proj, status: newStatus };
         try {
@@ -127,6 +137,12 @@ export default function KanbanBoard() {
           showToast({ type: "error", title: "Error", message: "Failed to update project status" });
         }
       }
+    } else {
+      // Optimistic update for non-projects
+      setColumns((prev) => {
+        const next = move(prev[source.droppableId], prev[destination.droppableId], source, destination);
+        return { ...prev, ...next };
+      });
     }
   }
 
