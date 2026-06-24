@@ -51,7 +51,6 @@ const NAV_SECTIONS = [
           { icon: FolderKanban, to: "/admin/projects", label: "Projects" },
           { icon: LayoutDashboard, to: "/admin/kanban", label: "Kanban Board" },
           { icon: BarChart2, to: "/admin/timeline", label: "Timeline" },
-          { icon: FileText, to: "/admin/tasks", label: "Tasks" },
         ],
       },
       {
