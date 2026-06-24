@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
-  AlertTriangle, Building2, Calendar, CheckCircle2, Clock3, CreditCard, Download,
+  AlertTriangle, ArrowUpDown, Building2, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, CreditCard, Download,
   Edit2, Eye, FileText, Filter, FolderKanban, FolderOpen, FolderPlus, Globe, GripVertical,
   Layers, LayoutGrid, Link as LinkIcon, List as ListIcon, Mail, MessageSquare, Phone, Plus, ReceiptText,
   Save, Search, Send, StickyNote, Target, Trash2, Unlink, Users, X
@@ -18,7 +18,7 @@ import SidePanel from "../../components/SidePanel";
 import ProjectFormPanel from "../../components/ProjectFormPanel";
 import CompanyFormPanel from "../../components/CompanyFormPanel";
 import ContactFormPanel from "../../components/ContactFormPanel";
-import RichTextEditor, { isRichTextEmpty } from "../../components/RichTextEditor";
+import RichTextEditor, { isRichTextEmpty, stripHtml } from "../../components/RichTextEditor";
 
 const TABS = ["Projects", "Contacts", "Invoices", "Documents", "Tasks", "Notes", "Meetings", "Activity"];
 const PROJECT_STATUS = ["Pending", "Confirmed", "Requirement Gathering", "Design", "Development", "Testing", "Review", "Deployment", "Completed", "Cancelled", "On Hold"];
@@ -492,9 +492,7 @@ function ContactDetailPanel({ contact, projects, meetings, onClose, onEdit, onDe
         <DetailRow label="Communication History" value="Emails, WhatsApp, calls, and notes will be logged here." />
         <DetailRow label="Projects Involved" value={projects.map((project) => project.name).join(", ") || "No projects linked"} />
         <DetailRow label="Meetings" value={`${meetings.length} meetings linked`} />
-        <DetailRow label="Preferences" value={contact.preferences || "No preferences added"} />
         <DetailRow label="Notes" value={contact.notes || "No notes added"} />
-        <DetailRow label="Meeting Notes" value={contact.meetingNotes || "No meeting notes added"} />
       </div>
     </SidePanel>
   );
@@ -2213,80 +2211,173 @@ function CalendarTaskView({ tasks, onCreate }) {
   );
 }
 
+const NOTES_PAGE_SIZE = 6;
+
 // @hello-pangea/dnd (and react-beautiful-dnd before it) only understands a
 // single row/column of droppable items — handed a wrapping 2-column grid, it
 // miscalculates positions and the whole layout jumps on drag. Plain HTML5
 // drag-and-drop has no such assumption, so it's used here instead.
 function NotesTab({ notes, onCreate, onEdit, onDelete, onReorder }) {
+  const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [sortDir, setSortDir] = useState(null); // null = manual order, "asc" | "desc" = by created date
+  const [page, setPage] = useState(1);
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
-  const visibleNotes = dateFilter ? notes.filter((n) => isSameLocalDay(n.createdAt, dateFilter)) : notes;
-  const canDrag = !dateFilter;
 
-  function handleDrop(index) {
-    if (dragIndex !== null && dragIndex !== index) onReorder(dragIndex, index);
+  const needle = search.trim().toLowerCase();
+  let visibleNotes = notes
+    .filter((n) => isSameLocalDay(n.createdAt, dateFilter))
+    .filter((n) => !needle || `${n.title || ""} ${stripHtml(n.body)}`.toLowerCase().includes(needle));
+  if (sortDir) {
+    visibleNotes = [...visibleNotes].sort((a, b) => {
+      const diff = new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      return sortDir === "asc" ? diff : -diff;
+    });
+  }
+  const canDrag = !dateFilter && !sortDir && !needle;
+  const totalPages = Math.max(1, Math.ceil(visibleNotes.length / NOTES_PAGE_SIZE));
+  const pageStart = (Math.min(page, totalPages) - 1) * NOTES_PAGE_SIZE;
+  const pagedNotes = visibleNotes.slice(pageStart, pageStart + NOTES_PAGE_SIZE);
+
+  function resetToFirstPage(setter) {
+    return (value) => { setter(value); setPage(1); };
+  }
+
+  function cycleSort() {
+    setSortDir((prev) => (prev === null ? "desc" : prev === "desc" ? "asc" : null));
+    setPage(1);
+  }
+
+  function handleDrop(localIndex) {
+    if (dragIndex !== null && dragIndex !== localIndex) onReorder(pageStart + dragIndex, pageStart + localIndex);
     setDragIndex(null);
     setOverIndex(null);
   }
 
+  const hasFilters = Boolean(dateFilter || needle || sortDir);
+
   return (
     <Section title="Notes" action={<Button size="sm" onClick={onCreate}><Plus size={14} /> Note</Button>}>
-      <div className="mb-3 flex items-center gap-2">
-        <span className="text-xs font-semibold text-[#6b7280]">Filter by date</span>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex h-9 items-center gap-1.5 rounded-lg border border-[#e5e7eb] bg-white px-2.5">
+          <Search size={13} className="text-[#9ca3af]" />
+          <input
+            value={search}
+            onChange={(event) => resetToFirstPage(setSearch)(event.target.value)}
+            placeholder="Search notes…"
+            className="w-40 bg-transparent text-xs outline-none placeholder:text-[#9ca3af]"
+          />
+        </div>
         <input
           type="date"
           value={dateFilter}
-          onChange={(event) => setDateFilter(event.target.value)}
-          className="rounded-lg border border-[#e5e7eb] px-2.5 py-1.5 text-xs outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20"
+          onChange={(event) => resetToFirstPage(setDateFilter)(event.target.value)}
+          className="h-9 rounded-lg border border-[#e5e7eb] px-2.5 text-xs outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20"
         />
-        {dateFilter && (
-          <button type="button" onClick={() => setDateFilter("")} className="rounded-lg px-2 py-1 text-xs font-semibold text-[#884c2d] hover:bg-[#fff1ec]">
+        <button
+          type="button"
+          onClick={cycleSort}
+          className={`flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors ${
+            sortDir ? "border-[#884c2d] bg-[#fff8f6] text-[#884c2d]" : "border-[#e5e7eb] text-[#6b7280] hover:bg-[#f9fafb]"
+          }`}
+          title="Sort by created date"
+        >
+          <ArrowUpDown size={13} />
+          {sortDir === "asc" ? "Oldest first" : sortDir === "desc" ? "Newest first" : "Manual order"}
+        </button>
+        {hasFilters && (
+          <button
+            type="button"
+            onClick={() => { setSearch(""); setDateFilter(""); setSortDir(null); setPage(1); }}
+            className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#884c2d] hover:bg-[#fff1ec]"
+          >
             Clear
           </button>
         )}
       </div>
-      {visibleNotes.length ? (
+      {pagedNotes.length ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          {visibleNotes.map((note, index) => (
+          {pagedNotes.map((note, localIndex) => (
             <div
               key={note.id || note._id}
               draggable={canDrag}
-              onDragStart={() => setDragIndex(index)}
-              onDragOver={(event) => { event.preventDefault(); if (canDrag) setOverIndex(index); }}
-              onDragLeave={() => setOverIndex((prev) => (prev === index ? null : prev))}
-              onDrop={(event) => { event.preventDefault(); handleDrop(index); }}
+              onDragStart={() => setDragIndex(localIndex)}
+              onDragOver={(event) => { event.preventDefault(); if (canDrag) setOverIndex(localIndex); }}
+              onDragLeave={() => setOverIndex((prev) => (prev === localIndex ? null : prev))}
+              onDrop={(event) => { event.preventDefault(); handleDrop(localIndex); }}
               onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
-              className={`rounded-xl border bg-white p-4 transition-shadow ${
-                dragIndex === index ? "opacity-50" : overIndex === index ? "border-[#884c2d]/50 shadow-md" : "border-[#e5e7eb]"
+              className={`group relative rounded-xl border bg-white p-4 transition-shadow ${
+                dragIndex === localIndex ? "opacity-50" : overIndex === localIndex ? "border-[#884c2d]/50 shadow-md" : "border-[#e5e7eb]"
               }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <span className={`mt-0.5 ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-not-allowed"} text-[#d1d5db] hover:text-[#9ca3af]`} title="Drag to reorder">
                   <GripVertical size={14} />
                 </span>
-                <button type="button" onClick={() => onEdit(note)} className="min-w-0 flex-1 text-left">
+                <div className="min-w-0 flex-1">
                   <p className="truncate font-bold text-[#111827]">{note.title || "Untitled note"}</p>
                   <div
                     className="mt-1 line-clamp-3 text-sm text-[#6b7280] [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
                     dangerouslySetInnerHTML={{ __html: note.body || "No content." }}
                   />
-                </button>
-                <button type="button" onClick={() => onDelete(note)} className="shrink-0 rounded-lg p-1.5 text-[#9ca3af] hover:bg-red-50 hover:text-red-600" title="Delete note">
-                  <Trash2 size={14} />
-                </button>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button type="button" onClick={() => onEdit(note)} className="rounded-lg p-1.5 text-[#9ca3af] hover:bg-[#fff1ec] hover:text-[#884c2d]" title="Edit note">
+                    <Edit2 size={14} />
+                  </button>
+                  <button type="button" onClick={() => onDelete(note)} className="rounded-lg p-1.5 text-[#9ca3af] hover:bg-red-50 hover:text-red-600" title="Delete note">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
               <p className="mt-3 text-[10px] font-bold uppercase tracking-wide text-[#9ca3af]">
                 Created {formatDate(note.createdAt)}
                 {note.updatedAt && note.updatedAt !== note.createdAt ? ` · Updated ${formatDate(note.updatedAt)}` : ""}
               </p>
+
+              {/* Hover preview — full content, since the card body itself is no longer click-to-edit */}
+              <div className="invisible absolute left-0 top-full z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white p-4 opacity-0 shadow-xl transition-opacity duration-150 group-hover:visible group-hover:opacity-100">
+                <p className="font-bold text-[#111827]">{note.title || "Untitled note"}</p>
+                <div
+                  className="mt-1.5 text-sm text-[#374151] [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+                  dangerouslySetInnerHTML={{ __html: note.body || "No content." }}
+                />
+              </div>
             </div>
           ))}
         </div>
-      ) : dateFilter ? (
-        <EmptyState icon={StickyNote} title="No notes on this date." action={<Button variant="secondary" onClick={() => setDateFilter("")}>Clear filter</Button>} />
       ) : (
-        <EmptyState icon={StickyNote} title="No notes yet." action={<Button onClick={onCreate}><Plus size={14} /> Add Note</Button>} />
+        <EmptyState
+          icon={StickyNote}
+          title={hasFilters ? "No notes match these filters." : "No notes yet."}
+          action={hasFilters
+            ? <Button variant="secondary" onClick={() => { setSearch(""); setDateFilter(""); setSortDir(null); setPage(1); }}>Clear filters</Button>
+            : <Button onClick={onCreate}><Plus size={14} /> Add Note</Button>}
+        />
+      )}
+      {totalPages > 1 && (
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-xs text-[#9ca3af]">Page {Math.min(page, totalPages)} / {totalPages}</p>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e5e7eb] text-[#6b7280] hover:bg-[#f9fafb] disabled:opacity-40"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              type="button"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e5e7eb] text-[#6b7280] hover:bg-[#f9fafb] disabled:opacity-40"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
       )}
     </Section>
   );

@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
-  Building2, Calendar, CheckCircle2, ChevronLeft, Clock3, FileText, FolderKanban,
-  Globe, GripVertical, Link as LinkIcon, Mail, MessageCircle, Pencil, Phone, Plus, Save, StickyNote, Trash2, Users
+  ArrowUpDown, Building2, Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock3, FileText, FolderKanban,
+  Globe, GripVertical, Link as LinkIcon, Mail, MessageCircle, Pencil, Phone, Plus, Save, Search, StickyNote, Trash2, Users
 } from "lucide-react";
 import { Avatar, Button } from "../../components/ui";
 import { useCrmRecords } from "../../hooks/useCrmRecords";
@@ -11,7 +11,7 @@ import { useToast } from "../../components/useToast";
 import SidePanel from "../../components/SidePanel";
 import ContactFormPanel from "../../components/ContactFormPanel";
 import ContactExportMenu from "../../components/ContactExportMenu";
-import RichTextEditor, { isRichTextEmpty } from "../../components/RichTextEditor";
+import RichTextEditor, { isRichTextEmpty, stripHtml } from "../../components/RichTextEditor";
 import { isSameLocalDay } from "../../lib/dates";
 import { contactFullName } from "../../lib/contacts";
 
@@ -259,6 +259,10 @@ export default function ContactDetail() {
   const [editing, setEditing] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [noteDateFilter, setNoteDateFilter] = useState("");
+  const [noteSearch, setNoteSearch] = useState("");
+  const [noteSortDir, setNoteSortDir] = useState(null); // null = manual order, "asc" | "desc" = by created date
+  const [notePage, setNotePage] = useState(1);
+  const NOTES_PAGE_SIZE = 5;
   const [managingAccess, setManagingAccess] = useState(false);
 
   const companyMap = useMemo(() => new Map(companies.map((c) => [String(c.id || c._id), c])), [companies]);
@@ -587,16 +591,39 @@ export default function ContactDetail() {
               <Button size="sm" onClick={() => setEditingNote({})}><Plus size={14} /> Add Note</Button>
             </div>
             {linkedNotes.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-[#6b7280]">Filter by date</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex h-9 items-center gap-1.5 rounded-lg border border-[#e5e7eb] bg-white px-2.5">
+                  <Search size={13} className="text-[#9ca3af]" />
+                  <input
+                    value={noteSearch}
+                    onChange={(event) => { setNoteSearch(event.target.value); setNotePage(1); }}
+                    placeholder="Search notes…"
+                    className="w-40 bg-transparent text-xs outline-none placeholder:text-[#9ca3af]"
+                  />
+                </div>
                 <input
                   type="date"
                   value={noteDateFilter}
-                  onChange={(event) => setNoteDateFilter(event.target.value)}
-                  className="rounded-lg border border-[#e5e7eb] px-2.5 py-1.5 text-xs outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20"
+                  onChange={(event) => { setNoteDateFilter(event.target.value); setNotePage(1); }}
+                  className="h-9 rounded-lg border border-[#e5e7eb] px-2.5 text-xs outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20"
                 />
-                {noteDateFilter && (
-                  <button type="button" onClick={() => setNoteDateFilter("")} className="rounded-lg px-2 py-1 text-xs font-semibold text-[#884c2d] hover:bg-[#fff1ec]">
+                <button
+                  type="button"
+                  onClick={() => { setNoteSortDir((prev) => (prev === null ? "desc" : prev === "desc" ? "asc" : null)); setNotePage(1); }}
+                  className={`flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors ${
+                    noteSortDir ? "border-[#884c2d] bg-[#fff8f6] text-[#884c2d]" : "border-[#e5e7eb] text-[#6b7280] hover:bg-[#f9fafb]"
+                  }`}
+                  title="Sort by created date"
+                >
+                  <ArrowUpDown size={13} />
+                  {noteSortDir === "asc" ? "Oldest first" : noteSortDir === "desc" ? "Newest first" : "Manual order"}
+                </button>
+                {(noteSearch || noteDateFilter || noteSortDir) && (
+                  <button
+                    type="button"
+                    onClick={() => { setNoteSearch(""); setNoteDateFilter(""); setNoteSortDir(null); setNotePage(1); }}
+                    className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#884c2d] hover:bg-[#fff1ec]"
+                  >
                     Clear
                   </button>
                 )}
@@ -609,72 +636,118 @@ export default function ContactDetail() {
                 </div>
                 <div className="p-5">
                 <p className="text-sm text-gray-600">{contact.notes || "No notes added."}</p>
-                {contact.meetingNotes && (
-                  <div className="mt-4 border-t border-[#f1f1f5] pt-3">
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#9ca3af]">Meeting Notes</p>
-                    <p className="text-sm text-gray-600">{contact.meetingNotes}</p>
-                  </div>
-                )}
                 </div>
               </div>
             )}
             {linkedNotes.length > 0 && (() => {
-              const visibleNotes = noteDateFilter ? linkedNotes.filter((n) => isSameLocalDay(n.createdAt, noteDateFilter)) : linkedNotes;
-              if (!visibleNotes.length) {
+              const needle = noteSearch.trim().toLowerCase();
+              let visibleNotes = linkedNotes
+                .filter((n) => isSameLocalDay(n.createdAt, noteDateFilter))
+                .filter((n) => !needle || `${n.title || ""} ${stripHtml(n.body || n.text)}`.toLowerCase().includes(needle));
+              if (noteSortDir) {
+                visibleNotes = [...visibleNotes].sort((a, b) => {
+                  const diff = new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+                  return noteSortDir === "asc" ? diff : -diff;
+                });
+              }
+              const canDrag = !noteDateFilter && !noteSortDir && !needle;
+              const hasFilters = Boolean(noteDateFilter || needle || noteSortDir);
+              const totalPages = Math.max(1, Math.ceil(visibleNotes.length / NOTES_PAGE_SIZE));
+              const pageStart = (Math.min(notePage, totalPages) - 1) * NOTES_PAGE_SIZE;
+              const pagedNotes = visibleNotes.slice(pageStart, pageStart + NOTES_PAGE_SIZE);
+
+              if (!pagedNotes.length) {
                 return (
                   <div className="rounded-xl border border-dashed border-[#e5e7eb] bg-white p-6 text-center">
-                    <p className="text-sm text-gray-500">No notes on this date.</p>
-                    <Button variant="secondary" className="mt-3" onClick={() => setNoteDateFilter("")}>Clear filter</Button>
+                    <p className="text-sm text-gray-500">No notes match these filters.</p>
+                    <Button variant="secondary" className="mt-3" onClick={() => { setNoteSearch(""); setNoteDateFilter(""); setNoteSortDir(null); setNotePage(1); }}>Clear filters</Button>
                   </div>
                 );
               }
               return (
-              <DragDropContext onDragEnd={(result) => {
-                if (!result.destination || result.destination.index === result.source.index) return;
-                handleReorderNotes(result.source.index, result.destination.index);
-              }}>
-                <Droppable droppableId="contact-notes">
-                  {(provided) => (
-                    <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-4">
-                      {visibleNotes.map((n, index) => (
-                        <Draggable key={n._id || n.id} draggableId={String(n._id || n.id)} index={index} isDragDisabled={Boolean(noteDateFilter)}>
-                          {(prov, snap) => (
-                            <div
-                              ref={prov.innerRef}
-                              {...prov.draggableProps}
-                              className={`overflow-hidden rounded-xl border bg-white transition-shadow ${snap.isDragging ? "border-[#884c2d]/40 shadow-lg" : "border-[#e5e7eb]"}`}
-                              style={prov.draggableProps.style}
-                            >
-                              <div className="flex items-center justify-between border-b border-[#e5e7eb] px-5 py-3">
-                                <span {...prov.dragHandleProps} className="mr-2 cursor-grab text-[#d1d5db] hover:text-[#9ca3af] active:cursor-grabbing" title="Drag to reorder">
-                                  <GripVertical size={14} />
-                                </span>
-                                <button type="button" onClick={() => setEditingNote(n)} className="min-w-0 flex-1 text-left">
-                                  <p className="text-sm font-bold text-gray-700">{n.title || "Note"}</p>
-                                </button>
-                                <button type="button" onClick={() => handleDeleteNote(n)} className="shrink-0 rounded-lg p-1.5 text-[#9ca3af] hover:bg-red-50 hover:text-red-600" title="Delete note">
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                              <div className="p-5">
+                <>
+                  <DragDropContext onDragEnd={(result) => {
+                    if (!result.destination || result.destination.index === result.source.index) return;
+                    handleReorderNotes(pageStart + result.source.index, pageStart + result.destination.index);
+                  }}>
+                    <Droppable droppableId="contact-notes">
+                      {(provided) => (
+                        <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-4">
+                          {pagedNotes.map((n, index) => (
+                            <Draggable key={n._id || n.id} draggableId={String(n._id || n.id)} index={index} isDragDisabled={!canDrag}>
+                              {(prov, snap) => (
                                 <div
-                                  className="text-sm text-gray-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
-                                  dangerouslySetInnerHTML={{ __html: n.body || n.text || "" }}
-                                />
-                                <p className="mt-2 text-xs text-gray-400">
-                                  Created {formatDate(n.createdAt)}
-                                  {n.updatedAt && n.updatedAt !== n.createdAt ? ` · Updated ${formatDate(n.updatedAt)}` : ""}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
+                                  ref={prov.innerRef}
+                                  {...prov.draggableProps}
+                                  className={`group relative overflow-hidden rounded-xl border bg-white transition-shadow ${snap.isDragging ? "border-[#884c2d]/40 shadow-lg" : "border-[#e5e7eb]"}`}
+                                  style={prov.draggableProps.style}
+                                >
+                                  <div className="flex items-center justify-between border-b border-[#e5e7eb] px-5 py-3">
+                                    <span {...prov.dragHandleProps} className={`mr-2 ${canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-not-allowed"} text-[#d1d5db] hover:text-[#9ca3af]`} title="Drag to reorder">
+                                      <GripVertical size={14} />
+                                    </span>
+                                    <p className="min-w-0 flex-1 text-sm font-bold text-gray-700">{n.title || "Note"}</p>
+                                    <div className="flex shrink-0 items-center gap-1">
+                                      <button type="button" onClick={() => setEditingNote(n)} className="rounded-lg p-1.5 text-[#9ca3af] hover:bg-[#fff1ec] hover:text-[#884c2d]" title="Edit note">
+                                        <Pencil size={14} />
+                                      </button>
+                                      <button type="button" onClick={() => handleDeleteNote(n)} className="rounded-lg p-1.5 text-[#9ca3af] hover:bg-red-50 hover:text-red-600" title="Delete note">
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="p-5">
+                                    <div
+                                      className="line-clamp-2 text-sm text-gray-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                                      dangerouslySetInnerHTML={{ __html: n.body || n.text || "" }}
+                                    />
+                                    <p className="mt-2 text-xs text-gray-400">
+                                      Created {formatDate(n.createdAt)}
+                                      {n.updatedAt && n.updatedAt !== n.createdAt ? ` · Updated ${formatDate(n.updatedAt)}` : ""}
+                                    </p>
+                                  </div>
+
+                                  {/* Hover preview — full content, since clicking the note no longer opens the editor */}
+                                  <div className="invisible absolute left-0 top-full z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white p-4 opacity-0 shadow-xl transition-opacity duration-150 group-hover:visible group-hover:opacity-100">
+                                    <p className="font-bold text-gray-700">{n.title || "Note"}</p>
+                                    <div
+                                      className="mt-1.5 text-sm text-gray-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                                      dangerouslySetInnerHTML={{ __html: n.body || n.text || "No content." }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                  {totalPages > 1 && (
+                    <div className="mt-3 flex items-center justify-between">
+                      <p className="text-xs text-[#9ca3af]">Page {Math.min(notePage, totalPages)} / {totalPages}</p>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          disabled={notePage <= 1}
+                          onClick={() => setNotePage((p) => Math.max(1, p - 1))}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e5e7eb] text-[#6b7280] hover:bg-[#f9fafb] disabled:opacity-40"
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={notePage >= totalPages}
+                          onClick={() => setNotePage((p) => Math.min(totalPages, p + 1))}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e5e7eb] text-[#6b7280] hover:bg-[#f9fafb] disabled:opacity-40"
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
                     </div>
                   )}
-                </Droppable>
-              </DragDropContext>
+                </>
               );
             })()}
           </div>

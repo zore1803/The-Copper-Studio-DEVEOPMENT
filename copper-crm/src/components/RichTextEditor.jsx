@@ -3,10 +3,15 @@ import { Bold, Italic, Underline, List, ListOrdered } from "lucide-react";
 
 const COLORS = ["#111827", "#dc2626", "#16a34a", "#2563eb", "#884c2d"];
 
-// Strips tags to check if a contentEditable body is actually empty —
-// execCommand often leaves a stray "<br>" behind even with no real text.
+// Plain-text rendering of a contentEditable body — used both to check for
+// emptiness (execCommand often leaves a stray "<br>" behind with no real
+// text) and to search note content without matching on markup.
+export function stripHtml(html) {
+  return String(html || "").replace(/<[^>]*>/g, "").trim();
+}
+
 export function isRichTextEmpty(html) {
-  return !String(html || "").replace(/<[^>]*>/g, "").trim();
+  return !stripHtml(html);
 }
 
 function ToolbarButton({ onClick, title, children, active = false }) {

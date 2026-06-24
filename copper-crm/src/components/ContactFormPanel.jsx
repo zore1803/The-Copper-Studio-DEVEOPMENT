@@ -34,9 +34,7 @@ const BLANK_CONTACT = {
   instagram: "",
   facebook: "",
   twitter: "",
-  preferences: "",
   notes: "",
-  meetingNotes: "",
   // Transient: a contact is a client — opt in to email them a portal
   // set-password link on save. Never persisted on the contact record.
   sendPortalInvite: false,
@@ -282,9 +280,7 @@ export default function ContactFormPanel({ contact, company = null, companies = 
         </FormSection>
 
         <FormSection title="Notes">
-          <Textarea span label="Preferences" value={form.preferences} onChange={set("preferences")} />
-          <Textarea span label="Important notes" value={form.notes} onChange={set("notes")} />
-          <Textarea span label="Meeting notes" value={form.meetingNotes} onChange={set("meetingNotes")} />
+          <Textarea span label="Notes" value={form.notes} onChange={set("notes")} />
         </FormSection>
       </div>
     </SidePanel>
