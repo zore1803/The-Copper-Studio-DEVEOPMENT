@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
@@ -263,6 +264,34 @@ export default function ContactDetail() {
   const [noteSortDir, setNoteSortDir] = useState(null); // null = manual order, "asc" | "desc" = by created date
   const [notePage, setNotePage] = useState(1);
   const NOTES_PAGE_SIZE = 5;
+  const [notePreview, setNotePreview] = useState(null); // { note, top|bottom, left, width }
+  const noteHideTimer = useRef(null);
+  useEffect(() => () => clearTimeout(noteHideTimer.current), []);
+
+  // Portal the preview to <body> at a viewport-fixed position computed from the
+  // hovered row's own rect — anchoring the popover inside the row instead let
+  // it clip off-screen for rows near the bottom of the page.
+  function showNotePreview(event, note) {
+    if (noteHideTimer.current) { clearTimeout(noteHideTimer.current); noteHideTimer.current = null; }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const estimatedHeight = 220;
+    const openUp = rect.bottom + estimatedHeight > window.innerHeight && rect.top > estimatedHeight;
+    setNotePreview({
+      note,
+      left: rect.left,
+      width: rect.width,
+      top: openUp ? undefined : rect.bottom + 6,
+      bottom: openUp ? window.innerHeight - rect.top + 6 : undefined,
+    });
+  }
+
+  function scheduleHideNotePreview() {
+    noteHideTimer.current = setTimeout(() => setNotePreview(null), 150);
+  }
+
+  function cancelHideNotePreview() {
+    if (noteHideTimer.current) { clearTimeout(noteHideTimer.current); noteHideTimer.current = null; }
+  }
   const [managingAccess, setManagingAccess] = useState(false);
 
   const companyMap = useMemo(() => new Map(companies.map((c) => [String(c.id || c._id), c])), [companies]);
@@ -679,7 +708,9 @@ export default function ContactDetail() {
                                 <div
                                   ref={prov.innerRef}
                                   {...prov.draggableProps}
-                                  className={`group relative overflow-hidden rounded-xl border bg-white transition-shadow ${snap.isDragging ? "border-[#884c2d]/40 shadow-lg" : "border-[#e5e7eb]"}`}
+                                  onMouseEnter={(event) => showNotePreview(event, n)}
+                                  onMouseLeave={scheduleHideNotePreview}
+                                  className={`relative overflow-hidden rounded-xl border bg-white transition-shadow ${snap.isDragging ? "border-[#884c2d]/40 shadow-lg" : "border-[#e5e7eb]"}`}
                                   style={prov.draggableProps.style}
                                 >
                                   <div className="flex items-center justify-between border-b border-[#e5e7eb] px-5 py-3">
@@ -705,23 +736,6 @@ export default function ContactDetail() {
                                       Created {formatDate(n.createdAt)}
                                       {n.updatedAt && n.updatedAt !== n.createdAt ? ` · Updated ${formatDate(n.updatedAt)}` : ""}
                                     </p>
-                                  </div>
-
-                                  {/* Hover preview — full content, since clicking the note no longer opens the editor.
-                                      No margin gap (hover drops while the cursor crosses it), and drag is
-                                      explicitly disabled here so scrolling/selecting text doesn't get
-                                      hijacked by the row's drag-to-reorder handlers. */}
-                                  <div
-                                    draggable={false}
-                                    onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}
-                                    onMouseDown={(event) => event.stopPropagation()}
-                                    className="invisible absolute left-0 top-full z-30 max-h-72 w-full cursor-auto overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white p-4 opacity-0 shadow-xl transition-opacity duration-150 group-hover:visible group-hover:opacity-100"
-                                  >
-                                    <p className="font-bold text-gray-700">{n.title || "Note"}</p>
-                                    <div
-                                      className="mt-1.5 text-sm text-gray-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
-                                      dangerouslySetInnerHTML={{ __html: n.body || n.text || "No content." }}
-                                    />
                                   </div>
                                 </div>
                               )}
@@ -758,6 +772,21 @@ export default function ContactDetail() {
                 </>
               );
             })()}
+            {notePreview && createPortal(
+              <div
+                onMouseEnter={cancelHideNotePreview}
+                onMouseLeave={scheduleHideNotePreview}
+                style={{ position: "fixed", left: notePreview.left, width: notePreview.width, top: notePreview.top, bottom: notePreview.bottom }}
+                className="z-50 max-h-72 overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white p-4 shadow-xl"
+              >
+                <p className="font-bold text-gray-700">{notePreview.note.title || "Note"}</p>
+                <div
+                  className="mt-1.5 text-sm text-gray-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                  dangerouslySetInnerHTML={{ __html: notePreview.note.body || notePreview.note.text || "No content." }}
+                />
+              </div>,
+              document.body
+            )}
           </div>
         )}
 

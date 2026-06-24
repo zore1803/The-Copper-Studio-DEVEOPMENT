@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
@@ -2224,6 +2225,35 @@ function NotesTab({ notes, onCreate, onEdit, onDelete, onReorder }) {
   const [page, setPage] = useState(1);
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
+  const [preview, setPreview] = useState(null); // { note, top|bottom, left, width }
+  const hideTimer = useRef(null);
+  useEffect(() => () => clearTimeout(hideTimer.current), []);
+
+  // Portal the preview to <body> at a viewport-fixed position computed from the
+  // hovered card's own rect, instead of a CSS-only popover anchored inside the
+  // card — that approach clipped/overflowed off-screen for cards in the last
+  // row, since it could only ever open downward relative to its own box.
+  function showPreview(event, note) {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const estimatedHeight = 220;
+    const openUp = rect.bottom + estimatedHeight > window.innerHeight && rect.top > estimatedHeight;
+    setPreview({
+      note,
+      left: rect.left,
+      width: rect.width,
+      top: openUp ? undefined : rect.bottom + 6,
+      bottom: openUp ? window.innerHeight - rect.top + 6 : undefined,
+    });
+  }
+
+  function scheduleHidePreview() {
+    hideTimer.current = setTimeout(() => setPreview(null), 150);
+  }
+
+  function cancelHidePreview() {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
+  }
 
   const needle = search.trim().toLowerCase();
   let visibleNotes = notes
@@ -2307,7 +2337,9 @@ function NotesTab({ notes, onCreate, onEdit, onDelete, onReorder }) {
               onDragLeave={() => setOverIndex((prev) => (prev === localIndex ? null : prev))}
               onDrop={(event) => { event.preventDefault(); handleDrop(localIndex); }}
               onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
-              className={`group relative rounded-xl border bg-white p-4 transition-shadow ${
+              onMouseEnter={(event) => showPreview(event, note)}
+              onMouseLeave={scheduleHidePreview}
+              className={`relative rounded-xl border bg-white p-4 transition-shadow ${
                 dragIndex === localIndex ? "opacity-50" : overIndex === localIndex ? "border-[#884c2d]/50 shadow-md" : "border-[#e5e7eb]"
               }`}
             >
@@ -2335,23 +2367,6 @@ function NotesTab({ notes, onCreate, onEdit, onDelete, onReorder }) {
                 Created {formatDate(note.createdAt)}
                 {note.updatedAt && note.updatedAt !== note.createdAt ? ` · Updated ${formatDate(note.updatedAt)}` : ""}
               </p>
-
-              {/* Hover preview — full content, since the card body itself is no longer click-to-edit.
-                  No margin gap between card and popover (hover would drop while crossing it), and
-                  draggable is explicitly disabled here so scrolling/selecting text inside it doesn't
-                  get hijacked by the card's native drag-to-reorder behavior. */}
-              <div
-                draggable={false}
-                onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}
-                onMouseDown={(event) => event.stopPropagation()}
-                className="invisible absolute left-0 top-full z-30 max-h-72 w-full cursor-auto overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white p-4 opacity-0 shadow-xl transition-opacity duration-150 group-hover:visible group-hover:opacity-100"
-              >
-                <p className="font-bold text-[#111827]">{note.title || "Untitled note"}</p>
-                <div
-                  className="mt-1.5 text-sm text-[#374151] [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
-                  dangerouslySetInnerHTML={{ __html: note.body || "No content." }}
-                />
-              </div>
             </div>
           ))}
         </div>
@@ -2386,6 +2401,21 @@ function NotesTab({ notes, onCreate, onEdit, onDelete, onReorder }) {
             </button>
           </div>
         </div>
+      )}
+      {preview && createPortal(
+        <div
+          onMouseEnter={cancelHidePreview}
+          onMouseLeave={scheduleHidePreview}
+          style={{ position: "fixed", left: preview.left, width: preview.width, top: preview.top, bottom: preview.bottom }}
+          className="z-50 max-h-72 overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white p-4 shadow-xl"
+        >
+          <p className="font-bold text-[#111827]">{preview.note.title || "Untitled note"}</p>
+          <div
+            className="mt-1.5 text-sm text-[#374151] [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+            dangerouslySetInnerHTML={{ __html: preview.note.body || "No content." }}
+          />
+        </div>,
+        document.body
       )}
     </Section>
   );
