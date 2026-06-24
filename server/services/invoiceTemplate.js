@@ -173,7 +173,6 @@ export function renderInvoiceHtml(input) {
           }
         </td>
         <td class="c-hsn">${esc(it.hsnSac)}</td>
-        <td class="c-qty">${it.qty}</td>
         <td class="c-amt">${sym}${money(it.amount)}</td>
       </tr>`
     )
@@ -183,6 +182,11 @@ export function renderInvoiceHtml(input) {
     ? `<div class="tot-row"><span>IGST ${totals.gstRate}%</span><span>${sym}${money(totals.igst)}</span></div>`
     : `<div class="tot-row"><span>CGST ${totals.gstRate / 2}%</span><span>${sym}${money(totals.cgst)}</span></div>
        <div class="tot-row"><span>SGST ${totals.gstRate / 2}%</span><span>${sym}${money(totals.sgst)}</span></div>`;
+
+  const txnLine = [
+    tx.paymentId ? `Txn: ${esc(tx.paymentId)}` : "",
+    tx.orderRef ? `Ref: ${esc(tx.orderRef)}` : ""
+  ].filter(Boolean).join(" &nbsp;•&nbsp; ");
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -196,13 +200,15 @@ export function renderInvoiceHtml(input) {
   html, body { margin:0; padding:0; background:#f3f4f6; color:var(--ink);
     font-family: "Inter", "Segoe UI", Arial, sans-serif; font-size:12px; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .sheet { width:794px; min-height:1123px; margin:16px auto; background:var(--bg); padding:34px 38px; }
-  .title { text-align:center; letter-spacing:7px; font-size:13px; font-weight:700; color:var(--copper); margin:0 0 14px; }
 
   .top { display:flex; justify-content:space-between; gap:18px; border-bottom:2px solid var(--copper); padding-bottom:14px; }
-  .brand-name { font-size:19px; font-weight:800; color:var(--copper); margin:0 0 4px; }
-  .seller-meta { color:var(--muted); line-height:1.55; max-width:360px; }
+  .brand-block { display:flex; flex-direction:column; gap:10px; }
+  .logo { max-height:48px; max-width:160px; object-fit:contain; }
+  .title { letter-spacing:6px; font-size:12px; font-weight:700; color:var(--copper); margin:0; }
+  .seller-block { text-align:right; max-width:380px; }
+  .brand-name { font-size:18px; font-weight:800; color:var(--copper); margin:0 0 4px; }
+  .seller-meta { color:var(--muted); line-height:1.55; }
   .seller-meta strong { color:var(--ink); font-weight:600; }
-  .logo { max-height:54px; max-width:170px; object-fit:contain; }
 
   .grid { display:flex; justify-content:space-between; gap:24px; margin-top:16px; }
   .mini-label { text-transform:uppercase; letter-spacing:1px; font-size:9.5px; font-weight:700; color:var(--copper); margin:0 0 5px; }
@@ -214,13 +220,13 @@ export function renderInvoiceHtml(input) {
   .meta-table td:first-child { color:var(--muted); padding-right:18px; white-space:nowrap; }
   .meta-table td:last-child { text-align:right; font-weight:600; font-family:"Courier New",monospace; word-break:break-all; }
 
-  table.items { width:100%; border-collapse:collapse; margin-top:20px; }
+  .items-card { border:1px solid var(--line); border-radius:4px; margin-top:20px; overflow:hidden; }
+  table.items { width:100%; border-collapse:collapse; }
   table.items thead th { background:var(--copper); color:#fff; text-align:left; padding:8px 10px; font-size:10.5px; letter-spacing:.4px; }
-  table.items thead th.c-amt, table.items thead th.c-qty { text-align:right; }
-  table.items td { padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.items thead th.c-amt { text-align:right; }
+  table.items td { padding:9px 10px; vertical-align:top; }
   .c-sno { width:30px; color:var(--muted); }
-  .c-hsn { width:80px; font-family:"Courier New",monospace; color:var(--muted); }
-  .c-qty { width:46px; text-align:right; }
+  .c-hsn { width:90px; font-family:"Courier New",monospace; color:var(--muted); }
   .c-amt { width:110px; text-align:right; font-weight:600; white-space:nowrap; }
   .item-name { font-weight:700; }
   .item-label { font-weight:500; color:var(--muted); font-size:10.5px; }
@@ -228,18 +234,21 @@ export function renderInvoiceHtml(input) {
   .item-includes { margin:6px 0 0; padding-left:16px; color:var(--muted); }
   .item-includes li { margin:1px 0; }
 
-  .summary { display:flex; justify-content:space-between; gap:30px; margin-top:14px; }
-  .words { max-width:320px; color:var(--muted); line-height:1.5; padding-top:6px; }
-  .words strong { color:var(--ink); }
+  .totals-strip { border-top:1px solid var(--line); padding:10px 14px; display:flex; justify-content:flex-end; }
   .totals { min-width:260px; }
-  .tot-row { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px dashed var(--line); }
-  .tot-row.grand { border-top:2px solid var(--copper); border-bottom:none; margin-top:4px; padding-top:9px; font-size:14px; font-weight:800; color:var(--copper); }
+  .tot-row { display:flex; justify-content:space-between; padding:4px 0; }
+  .tot-row.grand { border-top:1px solid var(--line); margin-top:4px; padding-top:8px; font-size:14px; font-weight:800; color:var(--copper); }
 
-  .paid-banner { margin-top:18px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 14px;
-    display:flex; justify-content:space-between; align-items:center; gap:14px; }
-  .paid-banner .amt { font-size:16px; font-weight:800; color:#15803d; }
-  .paid-banner .meta { color:#166534; line-height:1.5; }
-  .paid-banner .txn { font-family:"Courier New",monospace; font-size:10.5px; }
+  .below-card { display:flex; justify-content:space-between; gap:24px; margin-top:8px; padding-top:6px; font-size:11px; color:var(--muted); }
+  .below-card strong { color:var(--ink); }
+  .words { text-align:right; max-width:380px; }
+
+  .paid-banner { margin-top:16px; display:flex; justify-content:flex-end; }
+  .paid-banner .box { text-align:right; }
+  .paid-banner .label { display:flex; justify-content:flex-end; align-items:center; gap:6px; font-weight:700; color:#15803d; }
+  .paid-banner .tick { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; border-radius:50%; background:#16a34a; color:#fff; font-size:9px; }
+  .paid-banner .meta { color:var(--muted); margin-top:2px; }
+  .paid-banner .txn { font-family:"Courier New",monospace; font-size:10px; color:var(--muted); margin-top:2px; }
 
   .lower { display:flex; justify-content:space-between; gap:30px; margin-top:20px; }
   .bank-box { line-height:1.6; }
@@ -259,24 +268,26 @@ export function renderInvoiceHtml(input) {
 </head>
 <body>
   <div class="sheet">
-    <p class="title">TAX&nbsp;INVOICE</p>
-
     <div class="top">
-      <div>
+      <div class="brand-block">
+        ${s.logoUrl ? `<img class="logo" src="${esc(s.logoUrl)}" alt="${esc(s.legalName)}" />` : ""}
+        <p class="title">TAX&nbsp;INVOICE</p>
+      </div>
+      <div class="seller-block">
         <p class="brand-name">${esc(s.legalName)}</p>
         <div class="seller-meta">
-          <div><strong>GSTIN:</strong> ${esc(s.gstin)}</div>
+          <div><strong>GSTIN</strong> ${esc(s.gstin)}</div>
           <div>${esc(s.address.line1)}${s.address.line2 ? `, ${esc(s.address.line2)}` : ""}</div>
-          <div>${esc(s.address.city)}, ${esc(s.address.state)} - ${esc(s.address.pincode)}</div>
-          <div>Mobile ${esc(s.mobile)} &nbsp;|&nbsp; Email ${esc(s.email)}</div>
+          <div>${esc(s.address.city)}, ${esc(s.address.state)}, ${esc(s.address.pincode)}</div>
+          <div><strong>Mobile</strong> ${esc(s.mobile)}</div>
+          <div><strong>Email</strong> ${esc(s.email)}</div>
         </div>
       </div>
-      ${s.logoUrl ? `<img class="logo" src="${esc(s.logoUrl)}" alt="${esc(s.legalName)}" />` : ""}
     </div>
 
     <div class="grid">
       <div class="bill-to">
-        <p class="mini-label">Bill To</p>
+        <p class="mini-label">Bill To:</p>
         <div class="name">${esc(client.name)}</div>
         ${client.company ? `<div>${esc(client.company)}</div>` : ""}
         ${client.gstin ? `<div class="muted">GSTIN: ${esc(client.gstin)}</div>` : ""}
@@ -286,58 +297,56 @@ export function renderInvoiceHtml(input) {
       </div>
       <div>
         <table class="meta-table">
-          <tr><td>Invoice #</td><td>${esc(m.invoiceNumber)}</td></tr>
-          <tr><td>Invoice Date</td><td>${formatDate(m.issueDate)}</td></tr>
-          <tr><td>Due Date</td><td>${formatDate(m.dueDate)}</td></tr>
-          <tr><td>Place of Supply</td><td>${esc(m.placeOfSupply)}</td></tr>
-          ${tx.orderRef ? `<tr><td>Order Ref</td><td>${esc(tx.orderRef)}</td></tr>` : ""}
-          ${tx.paymentId ? `<tr><td>Transaction ID</td><td>${esc(tx.paymentId)}</td></tr>` : ""}
+          <tr><td>Invoice #:</td><td>${esc(m.invoiceNumber)}</td></tr>
+          <tr><td>Invoice Date:</td><td>${formatDate(m.issueDate)}</td></tr>
+          <tr><td>Due Date:</td><td>${formatDate(m.dueDate)}</td></tr>
+          <tr><td>Place of Supply:</td><td>${esc(m.placeOfSupply)}</td></tr>
+          ${tx.orderRef ? `<tr><td>Order Ref:</td><td>${esc(tx.orderRef)}</td></tr>` : ""}
+          ${tx.paymentId ? `<tr><td>Payment ID:</td><td>${esc(tx.paymentId)}</td></tr>` : ""}
         </table>
       </div>
     </div>
 
-    <table class="items">
-      <thead>
-        <tr>
-          <th class="c-sno">#</th>
-          <th class="c-item">Item / Description</th>
-          <th class="c-hsn">HSN/SAC</th>
-          <th class="c-qty">Qty</th>
-          <th class="c-amt">Amount</th>
-        </tr>
-      </thead>
-      <tbody>${itemRows}</tbody>
-    </table>
-
-    <div class="summary">
-      <div class="words">
-        Total Items / Qty: <strong>${totals.totalItems} / ${totals.totalQty}</strong><br />
-        Total amount (in words):<br /><strong>${esc(totals.amountInWords)}</strong>
-      </div>
-      <div class="totals">
-        <div class="tot-row"><span>Taxable Amount</span><span>${sym}${money(totals.taxableAmount)}</span></div>
-        ${taxRows}
-        <div class="tot-row grand"><span>Total</span><span>${sym}${money(totals.total)}</span></div>
+    <div class="items-card">
+      <table class="items">
+        <thead>
+          <tr>
+            <th class="c-sno">#</th>
+            <th class="c-item">Item</th>
+            <th class="c-hsn">HSN/SAC</th>
+            <th class="c-amt">Amount</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+      </table>
+      <div class="totals-strip">
+        <div class="totals">
+          <div class="tot-row"><span>Taxable Amount</span><span>${sym}${money(totals.taxableAmount)}</span></div>
+          ${taxRows}
+          <div class="tot-row grand"><span>Total</span><span>${sym}${money(totals.total)}</span></div>
+        </div>
       </div>
     </div>
 
+    <div class="below-card">
+      <div>Total Items / Qty : ${totals.totalItems} / ${totals.totalQty}</div>
+      <div class="words">Total amount (in words): <strong>${esc(totals.amountInWords)}</strong></div>
+    </div>
+
     <div class="paid-banner">
-      <div>
-        <div class="amt">${sym}${money(totals.total)} Paid</div>
-        <div class="meta">Paid via ${esc(tx.provider)} (${esc(tx.method)}) on ${formatDate(tx.paidAt)}</div>
-      </div>
-      <div class="meta txn">
-        ${tx.paymentId ? `Txn: ${esc(tx.paymentId)}<br />` : ""}
-        ${tx.orderRef ? `Ref: ${esc(tx.orderRef)}` : ""}
+      <div class="box">
+        <div class="label"><span class="tick">&#10003;</span> Amount Paid</div>
+        <div class="meta">${sym}${money(totals.total)} Paid via ${esc(tx.provider)} (${esc(tx.method)}) on ${formatDate(tx.paidAt)}</div>
+        ${txnLine ? `<div class="txn">${txnLine}</div>` : ""}
       </div>
     </div>
 
     <div class="lower">
       <div class="bank-box">
-        <p class="mini-label">Bank Details</p>
+        <p class="mini-label">Bank Details:</p>
         <div class="row"><span>Bank</span><span>${esc(b.name)}</span></div>
         <div class="row"><span>Account #</span><span>${esc(b.accountNumber)}</span></div>
-        <div class="row"><span>IFSC</span><span>${esc(b.ifsc)}</span></div>
+        <div class="row"><span>IFSC Code</span><span>${esc(b.ifsc)}</span></div>
         <div class="row"><span>Branch</span><span>${esc(b.branch)}</span></div>
         ${b.upiId ? `<div class="row"><span>UPI</span><span>${esc(b.upiId)}</span></div>` : ""}
       </div>
@@ -348,9 +357,9 @@ export function renderInvoiceHtml(input) {
     </div>
 
     <div class="notes">
-      <h4>Notes</h4>
+      <h4>Notes:</h4>
       <div>${esc(cfg.notes)}</div>
-      <h4 style="margin-top:12px">Terms &amp; Conditions</h4>
+      <h4 style="margin-top:12px">Terms and Conditions:</h4>
       <ol>${cfg.terms.map((t) => `<li>${esc(t)}</li>`).join("")}</ol>
     </div>
 
