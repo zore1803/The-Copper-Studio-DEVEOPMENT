@@ -373,19 +373,19 @@ export default function ContactDetail() {
   return (
     <div className="flex min-h-full flex-col bg-[#f8fafc]">
       <div className="border-b border-[#e5e7eb] bg-white">
-        <div className="px-6 py-6">
-          <button onClick={() => navigate(-1)} className="mb-4 flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-800">
+        <div className="px-6 py-8">
+          <button onClick={() => navigate(-1)} className="mb-5 flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-800">
             <ChevronLeft size={15} /> Back to Contacts
           </button>
 
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-[#e5e7eb] bg-[#fff8f6]">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-5">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[#e5e7eb] bg-[#fff8f6]">
                 <Avatar name={contactFullName(contact)} size="lg" />
               </div>
               <div className="min-w-0">
                 <h2 className="truncate text-2xl font-bold text-[#111827]">{contactFullName(contact)}</h2>
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#6b7280]">
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-[#6b7280]">
                   <span>{contact.designation || "No designation"}</span>
                   <span className="inline-flex items-center gap-1"><Building2 size={12} /> {companyName}</span>
                   {(contact.whatsapp || contact.phone) && (
@@ -393,7 +393,7 @@ export default function ContactDetail() {
                   )}
                 </div>
                 {roles.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-3 flex flex-wrap gap-1.5">
                     {roles.map((role) => (
                       <span key={role} className="rounded-full bg-[#fff1ec] px-2 py-0.5 text-[11px] font-semibold text-[#884c2d]">{role}</span>
                     ))}
@@ -401,7 +401,7 @@ export default function ContactDetail() {
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2.5">
               {hasSocial && (
                 <div className="flex items-center gap-1.5 pr-2">
                   <WebsiteIconLink href={contact.website} icon={Globe} label="Website" />
