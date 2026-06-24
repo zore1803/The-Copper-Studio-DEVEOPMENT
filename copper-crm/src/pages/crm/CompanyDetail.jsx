@@ -2438,7 +2438,18 @@ function NotePanel({ company, note, onClose, onSave }) {
       }
     >
       <div className="space-y-4">
-        <Input span label="Title" value={form.title} onChange={set("title")} placeholder="e.g. Pricing discussion" />
+        <label className="block sm:col-span-2">
+          <span className="text-xs font-semibold text-[#374151]">Title</span>
+          <textarea
+            value={form.title || ""}
+            rows={1}
+            onChange={(event) => set("title")(event.target.value)}
+            placeholder="e.g. Pricing discussion"
+            className="mt-1.5 w-full resize-none overflow-hidden rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20"
+            onInput={(event) => { event.target.style.height = "auto"; event.target.style.height = `${event.target.scrollHeight}px`; }}
+            ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}
+          />
+        </label>
         <RichTextEditor span label="Note" value={form.body} onChange={set("body")} placeholder="Write a note…" />
       </div>
     </SidePanel>

@@ -70,15 +70,20 @@ function ProjectAccessPanel({ contact, contactName, projects, onClose, onSave })
   );
 }
 
+// Auto-grows with content instead of scrolling — note titles can run 2-3
+// lines, and a fixed single-line input forced horizontal scrolling to read them.
 function NoteInput({ label, value, onChange, placeholder }) {
   return (
     <label className="block">
       <span className="text-xs font-semibold text-[#374151]">{label}</span>
-      <input
+      <textarea
         value={value || ""}
+        rows={1}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20"
+        className="mt-1.5 w-full resize-none overflow-hidden rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20"
+        onInput={(event) => { event.target.style.height = "auto"; event.target.style.height = `${event.target.scrollHeight}px`; }}
+        ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }}
       />
     </label>
   );
