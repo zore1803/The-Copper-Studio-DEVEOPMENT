@@ -364,14 +364,14 @@ export default function AdminLayout() {
         style={{ width: sidebarW }}
       >
         {/* Logo */}
-        <div className={`flex flex-col items-center border-b border-[#ECECEC] ${collapsed ? "px-0 py-4" : "px-4 py-6"}`}>
+        <div className={`flex flex-col items-center border-b border-[#ECECEC] ${collapsed ? "px-0 py-3" : "px-4 py-4"}`}>
           <img
             src="/copper-studio-logo.jpeg"
             alt="Copper Studio"
-            className={`rounded-lg object-contain ${collapsed ? "h-10 w-10" : "h-32 w-32"}`}
+            className={`rounded-full object-cover ${collapsed ? "h-10 w-10" : "h-20 w-20"}`}
           />
           {!collapsed && (
-            <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[#211a17] text-center">
+            <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-[#211a17] text-center">
               The Copper Studio
             </p>
           )}
