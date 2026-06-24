@@ -15,6 +15,7 @@ import User from "./models/User.js";
 import Coupon from "./models/Coupon.js";
 import Project from "./models/Project.js";
 import Company from "./models/Company.js";
+import Contact from "./models/Contact.js";
 import authRoutes from "./routes/auth.js";
 import crmRoutes from "./routes/crm.js";
 import clientRoutes from "./routes/client.js";
@@ -129,17 +130,65 @@ function buildProjectCode(companyName, companyNumber, date = new Date()) {
   return `CS-${companyCodeFromName(companyName)}-${num}-${mm}${yy}`;
 }
 
+// Finds the checkout customer's company by name, creating it if it doesn't
+// exist yet, so the project/contact created from a paid order land under a
+// real Company record instead of just a free-text name.
+async function ensureCompanyForOrder(order) {
+  const customer = order.customer || {};
+  const companyName = String(customer.customerCompany || "").trim();
+  if (!companyName) return null;
+
+  const companies = await Company.find({}).catch(() => []);
+  const existing = companies.find((c) => String(c.name || "").trim().toLowerCase() === companyName.toLowerCase());
+  if (existing) return existing;
+
+  return Company.create({
+    name: companyName,
+    website: customer.companyWebsite || "",
+    gstin: customer.companyGstin || "",
+    status: "Active"
+  });
+}
+
+// Anyone who fills out checkout and pays is a client, so they should show up
+// as a Contact in the CRM — not just an Order/User in the background.
+// Upserts by email so retries/backfills never create duplicates.
+async function ensureContactForOrder(order, company) {
+  const customer = order.customer || {};
+  const email = String(customer.customerEmail || "").trim().toLowerCase();
+  if (!email) return null;
+
+  const fullPhone = customer.customerPhone
+    ? `${customer.customerCountryCode || "+91"} ${customer.customerPhone}`
+    : "";
+
+  const payload = {
+    name: customer.customerName || `${customer.firstName || ""} ${customer.lastName || ""}`.trim(),
+    email,
+    phone: fullPhone,
+    company: company?.name || customer.customerCompany || "",
+    companyId: company?._id || null,
+    linkedin: customer.linkedinUrl || "",
+    status: "Active",
+    isPrimary: true
+  };
+
+  const existing = await Contact.findOne({ email }).catch(() => null);
+  if (existing) return Contact.findByIdAndUpdate(existing._id, payload, { new: true });
+  return Contact.create(payload);
+}
+
 // On a paid order, create the client's project using the name they chose at
 // checkout, so it appears immediately in their multi-project portal. Idempotent
 // per order so retries/backfills never create duplicates.
-async function ensureProjectForOrder(order, clientId) {
+async function ensureProjectForOrder(order, clientId, company) {
   if (order.payment?.status !== "paid") return null;
   const orderId = order._id;
   const existing = await Project.findOne({ orderId }).catch(() => null);
   if (existing) return existing;
 
   const customer = order.customer || {};
-  const companyName = customer.customerCompany || "";
+  const companyName = company?.name || customer.customerCompany || "";
 
   // Company number = its 1-based creation-order rank among all companies (or the
   // next number if this company isn't a saved record yet).
@@ -155,6 +204,7 @@ async function ensureProjectForOrder(order, clientId) {
     name: customer.projectName || `${order.package?.name || "New"} project`,
     projectId: companyName ? buildProjectCode(companyName, companyNumber, new Date()) : "",
     clientId: clientId || null,
+    companyId: company?._id || null,
     orderId,
     packageName: order.package?.name || "",
     status: "not_started",
@@ -239,15 +289,18 @@ const OTP_CHANNELS = new Set(["phone", "email"]);
 
 app.post("/api/otp/send", async (req, res, next) => {
   try {
-    const { email, channel } = req.body;
+    const { email, channel, phone, dialCode } = req.body;
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ message: "A valid email address is required." });
     }
     if (!OTP_CHANNELS.has(channel)) {
       return res.status(400).json({ message: "Invalid OTP channel." });
     }
+    if (channel === "phone" && !/^\d{10}$/.test(String(phone || ""))) {
+      return res.status(400).json({ message: "A valid 10-digit mobile number is required." });
+    }
 
-    const result = await sendOtp({ email, channel });
+    const result = await sendOtp({ email, channel, phone, dialCode });
     res.json(result);
   } catch (error) {
     next(error);
@@ -406,7 +459,9 @@ app.post("/api/razorpay/verify", async (req, res, next) => {
       await couponResult.coupon.save();
     }
     const invite = await createPortalInvite(order);
-    await ensureProjectForOrder(order, invite?.userId);
+    const company = await ensureCompanyForOrder(order);
+    await ensureContactForOrder(order, company);
+    await ensureProjectForOrder(order, invite?.userId, company);
     const finance = await syncFinanceForOrder(order);
     await emailInvoiceForOrder(order, finance?.invoice);
 
@@ -455,7 +510,9 @@ app.post("/api/orders", async (req, res, next) => {
       await couponResult.coupon.save();
     }
     const invite = await createPortalInvite(order);
-    await ensureProjectForOrder(order, invite?.userId);
+    const company = await ensureCompanyForOrder(order);
+    if (order.payment.status === "paid") await ensureContactForOrder(order, company);
+    await ensureProjectForOrder(order, invite?.userId, company);
     const finance = await syncFinanceForOrder(order);
     if (order.payment.status === "paid") await emailInvoiceForOrder(order, finance?.invoice);
 

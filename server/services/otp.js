@@ -1,12 +1,15 @@
 import crypto from "node:crypto";
 import { sendOtpEmail } from "./email.js";
+import { sendSmsOtp, supportsSms } from "./sms.js";
 
 /**
- * Email-delivered OTP verification for the public checkout.
+ * OTP verification for the public checkout.
  *
  * Codes are stored in memory (single-instance deployment), hashed, time-limited,
- * and attempt-capped. Each (email, channel) pair has its own code — the checkout
- * uses two channels ("email" and "phone"), both delivered to the email address.
+ * and attempt-capped. Each (email, channel) pair has its own code. The "email"
+ * channel is always emailed; the "phone" channel is sent as a real SMS via
+ * Fast2SMS for +91 numbers (the only route Fast2SMS reliably delivers), and
+ * falls back to email for any other country code or if Fast2SMS isn't configured.
  */
 
 const store = new Map(); // `${email}:${channel}` -> { codeHash, expiresAt, attempts, verified }
@@ -38,10 +41,10 @@ const CHANNEL_LABEL = {
 };
 
 /**
- * Generate + email a fresh OTP for (email, channel).
- * @returns {Promise<{ sent: boolean, devCode?: string }>}
+ * Generate + deliver a fresh OTP for (email, channel).
+ * @returns {Promise<{ sent: boolean, devCode?: string, via?: "sms"|"email" }>}
  */
-export async function sendOtp({ email, channel }) {
+export async function sendOtp({ email, channel, phone, dialCode }) {
   sweep();
   const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
   store.set(keyFor(email, channel), {
@@ -51,13 +54,20 @@ export async function sendOtp({ email, channel }) {
     verified: false,
   });
 
-  const result = await sendOtpEmail({ to: email, code, label: CHANNEL_LABEL[channel] || "verification" });
+  let result;
+  let via = "email";
+  if (channel === "phone" && supportsSms(dialCode)) {
+    via = "sms";
+    result = await sendSmsOtp({ phone, code });
+  } else {
+    result = await sendOtpEmail({ to: email, code, label: CHANNEL_LABEL[channel] || "verification" });
+  }
   const sent = !result?.skipped;
 
-  // When SendGrid is not configured, surface the code only outside production
-  // so the flow remains testable locally. Never leak it in production.
+  // When the provider isn't configured, surface the code only outside
+  // production so the flow remains testable locally. Never leak it in production.
   const devCode = !sent && process.env.NODE_ENV !== "production" ? code : undefined;
-  return { sent, devCode };
+  return { sent, devCode, via };
 }
 
 /**

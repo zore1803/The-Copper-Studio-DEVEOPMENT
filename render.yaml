@@ -36,3 +36,5 @@ services:
         value: The Copper Studio
       - key: CONTACT_NOTIFY_EMAIL
         sync: false
+      - key: FAST2SMS_API_KEY
+        sync: false

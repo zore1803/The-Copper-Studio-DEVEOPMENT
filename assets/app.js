@@ -312,10 +312,11 @@ function updateVerificationUI() {
     const sendButton = document.querySelector(`[data-send-otp="${type}"]`);
     const input = document.querySelector(`[data-otp-input="${type}"]`);
     const sent = order.otpSent?.[type];
+    const via = order.otpVia?.[type] === "sms" ? "Check your SMS inbox." : "Check your email.";
 
     if (!status || !card || !button || !sendButton || !input) return;
 
-    status.textContent = verified ? "Verified" : sent ? "OTP sent. Check your email." : "OTP not sent";
+    status.textContent = verified ? "Verified" : sent ? `OTP sent. ${via}` : "OTP not sent";
     button.textContent = verified ? "Verified" : "Verify";
     button.disabled = !sent || verified;
     sendButton.disabled = verified;
@@ -410,18 +411,25 @@ function renderCheckoutPage() {
       button.disabled = true;
       button.textContent = "Sending...";
       try {
+        const phoneField = document.getElementById("customerPhone");
+        const dialCode = document.getElementById("customerCountryCode")?.value || "+91";
         const result = await apiRequest("/otp/send", {
           method: "POST",
-          body: JSON.stringify({ email: emailField.value.trim(), channel: type })
+          body: JSON.stringify({
+            email: emailField.value.trim(),
+            channel: type,
+            ...(type === "phone" ? { phone: phoneField.value.trim(), dialCode } : {})
+          })
         });
 
         if (!result.sent && !result.devCode) {
-          alert("We couldn't send the OTP email right now. Please try again in a moment or contact support.");
+          alert(`We couldn't send the OTP ${result.via === "sms" ? "SMS" : "email"} right now. Please try again in a moment or contact support.`);
           return;
         }
 
         order.otpSent = { ...defaultOrder.otpSent, ...(order.otpSent || {}) };
         order.otpSent[type] = true;
+        order.otpVia = { ...(order.otpVia || {}), [type]: result.via };
         order.verified[type] = false;
         saveOrder(order);
         updateVerificationUI();
@@ -443,7 +451,7 @@ function renderCheckoutPage() {
       const input = document.querySelector(`[data-otp-input="${type}"]`);
       const code = input.value.trim();
       if (!code) {
-        alert("Please enter the OTP sent to your email.");
+        alert("Please enter the OTP that was sent to you.");
         return;
       }
 
