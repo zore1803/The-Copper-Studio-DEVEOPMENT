@@ -4,12 +4,14 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   AlertTriangle, Building2, Calendar, CheckCircle2, Clock3, CreditCard, Download,
   Edit2, Eye, FileText, Filter, FolderKanban, FolderOpen, FolderPlus, Globe,
-  Layers, LayoutGrid, List as ListIcon, Mail, MessageSquare, Phone, Plus, ReceiptText,
-  Save, Search, Send, StickyNote, Target, Trash2, Users, X
+  Layers, LayoutGrid, Link as LinkIcon, List as ListIcon, Mail, MessageSquare, Phone, Plus, ReceiptText,
+  Save, Search, Send, StickyNote, Target, Trash2, Unlink, Users, X
 } from "lucide-react";
 import { Avatar, Button, StatusBadge } from "../../components/ui";
 import { useCrmRecords } from "../../hooks/useCrmRecords";
 import { useToast } from "../../components/useToast";
+import { useAuth } from "../../auth/useAuth";
+import { apiGet } from "../../lib/api";
 import { buildProjectPayload } from "../../lib/projectDefaults";
 import SidePanel from "../../components/SidePanel";
 import ProjectFormPanel from "../../components/ProjectFormPanel";
@@ -170,6 +172,119 @@ function KpiChip({ label, value, icon: Icon }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function ContactClientLinkRow({ contact, projects, clients, onLink, onUnlink, onToggleProject }) {
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState("");
+  const linkedUser = clients.find((u) => String(u._id) === String(contact.userId));
+  const projectIds = new Set((contact.projectIds || []).map(String));
+  const filtered = clients.filter((u) => `${u.name} ${u.email}`.toLowerCase().includes(query.toLowerCase()));
+  const contactName = contact.name || `${contact.firstName || ""} ${contact.lastName || ""}`.trim() || contact.email || "Contact";
+
+  return (
+    <div className="rounded-xl border border-[#e5e7eb] bg-white p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-[#111827]">{contactName}</p>
+          <p className="truncate text-xs text-[#6b7280]">{contact.email}</p>
+        </div>
+        {linkedUser ? (
+          <Button variant="secondary" onClick={() => onUnlink(contact)}><Unlink size={14} /> Unlink</Button>
+        ) : (
+          <Button variant="secondary" onClick={() => setSearching((v) => !v)}><LinkIcon size={14} /> Link Account</Button>
+        )}
+      </div>
+
+      {linkedUser && (
+        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+          <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Linked Account</p>
+          <p className="mt-0.5 text-sm font-semibold text-[#111827]">{linkedUser.name}</p>
+          <p className="text-xs text-[#6b7280]">{linkedUser.email}</p>
+        </div>
+      )}
+
+      {!linkedUser && searching && (
+        <div className="mt-3 space-y-2">
+          <div className="flex h-9 items-center gap-2 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-3">
+            <Search size={13} className="text-[#9ca3af]" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search client accounts" className="w-full bg-transparent text-sm outline-none" />
+          </div>
+          {filtered.length ? (
+            <div className="max-h-40 space-y-1.5 overflow-y-auto">
+              {filtered.map((user) => (
+                <button
+                  key={user._id}
+                  onClick={() => { onLink(contact, user); setSearching(false); }}
+                  className="flex w-full items-center justify-between rounded-lg border border-[#e5e7eb] px-3 py-2 text-left text-sm hover:bg-[#f9fafb]"
+                >
+                  <span>
+                    <span className="block font-semibold text-[#111827]">{user.name}</span>
+                    <span className="block text-xs text-[#6b7280]">{user.email}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-[#6b7280]">No client accounts found.</p>
+          )}
+        </div>
+      )}
+
+      {linkedUser && (
+        <div className="mt-3 space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#9ca3af]">Projects visible in their portal</p>
+          {projects.length ? (
+            projects.map((project) => {
+              const id = String(project._id || project.id);
+              const checked = projectIds.has(id);
+              return (
+                <label
+                  key={id}
+                  className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${checked ? "border-[#884c2d] bg-[#fff1ec]" : "border-[#e5e7eb] hover:bg-[#f9fafb]"}`}
+                >
+                  <span className="font-semibold text-[#111827]">{project.name}</span>
+                  <input type="checkbox" checked={checked} onChange={() => onToggleProject(contact, id)} className="h-4 w-4 rounded border-[#d1d5db] accent-[#884c2d]" />
+                </label>
+              );
+            })
+          ) : (
+            <p className="text-xs text-[#6b7280]">No projects yet under this company.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LinkClientPanel({ company, contacts, projects, clients, loading, onClose, onLink, onUnlink, onToggleProject }) {
+  return (
+    <SidePanel
+      title="Link Client Portal Accounts"
+      subtitle={`Connect each contact at ${company.name} to their own client login and pick which project(s) they can see.`}
+      onClose={onClose}
+    >
+      {loading ? (
+        <p className="text-sm text-[#6b7280]">Loading client accounts…</p>
+      ) : contacts.length ? (
+        <div className="space-y-3">
+          {contacts.map((contact) => (
+            <ContactClientLinkRow
+              key={contact._id || contact.id}
+              contact={contact}
+              projects={projects}
+              clients={clients}
+              onLink={onLink}
+              onUnlink={onUnlink}
+              onToggleProject={onToggleProject}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-[#6b7280]">Add a contact to {company.name} first, then link their client account here.</p>
+      )}
+    </SidePanel>
   );
 }
 
@@ -486,6 +601,7 @@ export default function CompanyDetail() {
   const { companyId } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { token } = useAuth();
   const [activeTab, setActiveTab] = useState("Projects");
   const [creatingProject, setCreatingProject] = useState(false);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -495,6 +611,9 @@ export default function CompanyDetail() {
   const [selectedContact, setSelectedContact] = useState(null);
   const [contactQuery, setContactQuery] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [linkingClient, setLinkingClient] = useState(false);
+  const [clientUsers, setClientUsers] = useState([]);
+  const [loadingClients, setLoadingClients] = useState(false);
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [viewingFolder, setViewingFolder] = useState(null);
   const [editingNote, setEditingNote] = useState(null);
@@ -515,6 +634,21 @@ export default function CompanyDetail() {
   const { records: notes, save: saveNote, remove: removeNote } = useCrmRecords("notes");
 
   useClickOutside(addMenuRef, () => setAddMenuOpen(false), addMenuOpen);
+
+  useEffect(() => {
+    if (!linkingClient) return;
+    let alive = true;
+    apiGet("/api/admin/clients", token)
+      .then((users) => { if (alive) setClientUsers(Array.isArray(users) ? users : []); })
+      .catch(() => { if (alive) setClientUsers([]); })
+      .finally(() => { if (alive) setLoadingClients(false); });
+    return () => { alive = false; };
+  }, [linkingClient, token]);
+
+  function openLinkClient() {
+    setLoadingClients(true);
+    setLinkingClient(true);
+  }
 
   const company = useMemo(() => companies.find((c) => String(c.id || c._id) === companyId), [companies, companyId]);
   const linked = useMemo(() => {
