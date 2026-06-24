@@ -658,8 +658,8 @@ export default function ContactDetail() {
               </div>
             )}
             {linkedNotes.map((n) => (
-              <div key={n._id || n.id} className="overflow-hidden rounded-xl border-2 border-red-500 bg-white">
-                <div className="flex items-center justify-between bg-white border-b border-red-500 px-5 py-3">
+              <div key={n._id || n.id} className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
+                <div className="flex items-center justify-between border-b border-[#e5e7eb] px-5 py-3">
                   <button type="button" onClick={() => setEditingNote(n)} className="min-w-0 flex-1 text-left">
                     <p className="text-sm font-bold text-gray-700">{n.title || "Note"}</p>
                   </button>
