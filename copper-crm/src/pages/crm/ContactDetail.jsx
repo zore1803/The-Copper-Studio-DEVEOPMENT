@@ -575,6 +575,7 @@ export default function ContactDetail() {
       </div>
 
       {editing && <ContactFormPanel contact={contact} companies={companies} onClose={() => setEditing(false)} onSave={handleSave} />}
+      {editingNote && <NotePanel contact={contact} note={editingNote._id || editingNote.id ? editingNote : null} onClose={() => setEditingNote(null)} onSave={handleSaveNote} />}
     </div>
   );
 }
