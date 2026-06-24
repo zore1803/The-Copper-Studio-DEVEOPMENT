@@ -2336,8 +2336,16 @@ function NotesTab({ notes, onCreate, onEdit, onDelete, onReorder }) {
                 {note.updatedAt && note.updatedAt !== note.createdAt ? ` · Updated ${formatDate(note.updatedAt)}` : ""}
               </p>
 
-              {/* Hover preview — full content, since the card body itself is no longer click-to-edit */}
-              <div className="invisible absolute left-0 top-full z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white p-4 opacity-0 shadow-xl transition-opacity duration-150 group-hover:visible group-hover:opacity-100">
+              {/* Hover preview — full content, since the card body itself is no longer click-to-edit.
+                  No margin gap between card and popover (hover would drop while crossing it), and
+                  draggable is explicitly disabled here so scrolling/selecting text inside it doesn't
+                  get hijacked by the card's native drag-to-reorder behavior. */}
+              <div
+                draggable={false}
+                onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}
+                onMouseDown={(event) => event.stopPropagation()}
+                className="invisible absolute left-0 top-full z-30 max-h-72 w-full cursor-auto overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white p-4 opacity-0 shadow-xl transition-opacity duration-150 group-hover:visible group-hover:opacity-100"
+              >
                 <p className="font-bold text-[#111827]">{note.title || "Untitled note"}</p>
                 <div
                   className="mt-1.5 text-sm text-[#374151] [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"

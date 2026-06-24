@@ -707,8 +707,16 @@ export default function ContactDetail() {
                                     </p>
                                   </div>
 
-                                  {/* Hover preview — full content, since clicking the note no longer opens the editor */}
-                                  <div className="invisible absolute left-0 top-full z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white p-4 opacity-0 shadow-xl transition-opacity duration-150 group-hover:visible group-hover:opacity-100">
+                                  {/* Hover preview — full content, since clicking the note no longer opens the editor.
+                                      No margin gap (hover drops while the cursor crosses it), and drag is
+                                      explicitly disabled here so scrolling/selecting text doesn't get
+                                      hijacked by the row's drag-to-reorder handlers. */}
+                                  <div
+                                    draggable={false}
+                                    onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}
+                                    onMouseDown={(event) => event.stopPropagation()}
+                                    className="invisible absolute left-0 top-full z-30 max-h-72 w-full cursor-auto overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white p-4 opacity-0 shadow-xl transition-opacity duration-150 group-hover:visible group-hover:opacity-100"
+                                  >
                                     <p className="font-bold text-gray-700">{n.title || "Note"}</p>
                                     <div
                                       className="mt-1.5 text-sm text-gray-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
