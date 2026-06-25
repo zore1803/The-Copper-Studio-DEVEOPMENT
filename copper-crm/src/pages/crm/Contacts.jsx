@@ -15,7 +15,7 @@ import { useToast } from "../../components/useToast";
 import FilterButton from "../../components/FilterButton";
 import { contactFullName } from "../../lib/contacts";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 25;
 const FOLDER_PAGE_SIZE = 8;
 
 const SORT_OPTIONS = [

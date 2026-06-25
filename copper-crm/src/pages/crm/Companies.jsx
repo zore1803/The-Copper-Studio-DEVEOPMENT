@@ -13,7 +13,7 @@ import SidePanel from "../../components/SidePanel";
 import CompanyFormPanel from "../../components/CompanyFormPanel";
 import FilterButton from "../../components/FilterButton";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 const FOLDER_PAGE_SIZE = 8;
 
 const SORT_OPTIONS = [
@@ -115,7 +115,7 @@ function DocSignedBadge({ status, onChange }) {
   );
 }
 
-function CompanyRow({ company, onEdit, onDelete, onClick, onOpen, onVerifyDocument, checked, onToggleSelect }) {
+function CompanyRow({ company, onEdit, onDelete, onClick, onOpen, onVerifyDocument }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState(null);
   const btnRef = useRef(null);
@@ -151,9 +151,6 @@ function CompanyRow({ company, onEdit, onDelete, onClick, onOpen, onVerifyDocume
       className="border-b border-[#f3f4f6] hover:bg-[#fafafa] cursor-pointer transition-colors group"
       onClick={onClick}
     >
-      <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-        <input type="checkbox" checked={checked} onChange={onToggleSelect} className="rounded border-[#d1d5db] accent-[#884c2d]" />
-      </td>
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 shrink-0 rounded-full bg-[#f3f4f6] border border-[#e5e7eb] flex items-center justify-center">
@@ -464,7 +461,6 @@ export default function Companies() {
   const [folderPage, setFolderPage] = useState(1);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
   const { records: companies, save, remove, loading } = useCrmRecords("companies");
   const { showToast } = useToast();
   const actionsRef = useRef(null);
@@ -512,17 +508,6 @@ export default function Companies() {
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const paginated = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const paginatedIds = paginated.map((c) => c._id || c.id);
-  const allPaginatedSelected = paginatedIds.length > 0 && paginatedIds.every((id) => selectedIds.includes(id));
-
-  function toggleSelectAll() {
-    setSelectedIds((prev) => (allPaginatedSelected ? prev.filter((id) => !paginatedIds.includes(id)) : [...new Set([...prev, ...paginatedIds])]));
-  }
-
-  function toggleSelectOne(id) {
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
 
   // Folders shown = the managed list plus any folder a company is already
   // assigned to, so membership is never orphaned if the list is edited.
@@ -736,14 +721,6 @@ export default function Companies() {
               <table className="min-w-full">
                 <thead className="bg-[#fff1ec] border-b border-[#f3e5e0]">
                   <tr>
-                    <th className="px-3 py-3 w-12">
-                      <input
-                        type="checkbox"
-                        checked={allPaginatedSelected}
-                        onChange={toggleSelectAll}
-                        className="rounded border-[#d1d5db] accent-[#884c2d]"
-                      />
-                    </th>
                     <th className="px-3 py-3 text-left">
                       <div className="flex items-center gap-1.5 text-xs font-medium text-[#525866]">
                         <Building2 size={13} />
@@ -788,11 +765,11 @@ export default function Companies() {
                 <tbody className="bg-white">
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-12 text-center text-sm text-[#6b7280]">Loading companies…</td>
+                      <td colSpan={8} className="px-4 py-12 text-center text-sm text-[#6b7280]">Loading companies…</td>
                     </tr>
                   ) : paginated.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-12 text-center text-sm text-[#6b7280]">No companies found.</td>
+                      <td colSpan={8} className="px-4 py-12 text-center text-sm text-[#6b7280]">No companies found.</td>
                     </tr>
                   ) : paginated.map((company) => (
                     <CompanyRow
@@ -803,8 +780,6 @@ export default function Companies() {
                       onOpen={openCompany}
                       onClick={() => openCompany(company)}
                       onVerifyDocument={verifyDocument}
-                      checked={selectedIds.includes(company._id || company.id)}
-                      onToggleSelect={() => toggleSelectOne(company._id || company.id)}
                     />
                   ))}
                 </tbody>
