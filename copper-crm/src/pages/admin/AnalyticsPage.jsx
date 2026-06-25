@@ -4,7 +4,8 @@ import SidePanel from "../../components/SidePanel";
 import {
   CalendarDays, Clock3, Copy, FileDown,
   Minus, PackageCheck, Plus, ReceiptText, Send,
-  Tag, Users, WalletCards, Table2, Info, ChevronLeft, ChevronRight, Search
+  Tag, Users, WalletCards, Table2, Info, ChevronLeft, ChevronRight, Search,
+  RefreshCcw, AlertTriangle, Activity
 } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell,
@@ -120,7 +121,7 @@ function EarningsCard({ records, filterType, filterYear, filterMonth, filterBiMo
       const parsedDate = rawDate ? new Date(rawDate) : fallbackDate;
       const date = Number.isNaN(parsedDate.getTime()) ? fallbackDate : parsedDate;
       const monthIndex = date.getMonth();
-      acc[monthIndex].revenue += moneyValue(record.amount ?? record.total ?? record.value ?? record.package?.total);
+      acc[monthIndex].revenue += moneyValue(record.amount ?? record.total ?? record.value ?? record.package?.total ?? record.finalAmount ?? record.budget);
     });
     return acc;
   }, [yearRecords, year, fallbackDate]);
@@ -314,8 +315,9 @@ function KpiDrillDownPanel({ kpi, data, onClose }) {
   if (kpi === "Pending Dues") {
     const pendingOrders = (data.filteredOrders || []).filter(o => !isPaidStatus(o.status));
     const pendingPayments = (data.filteredPayments || []).filter(p => !isPaidStatus(p.status));
+    const pendingProjects = (data.filteredProjects || []).filter(p => !isPaidStatus(p.paymentStatus) && !p.linkedInvoiceId && moneyValue(p.finalAmount ?? p.budget) > 0);
     
-    if (pendingOrders.length === 0 && pendingPayments.length === 0) {
+    if (pendingOrders.length === 0 && pendingPayments.length === 0 && pendingProjects.length === 0) {
       content = <div className="text-center py-10 text-[#6B7280]">No pending dues for this period.</div>;
     } else {
       content = (
@@ -344,6 +346,20 @@ function KpiDrillDownPanel({ kpi, data, onClose }) {
                 <div className="text-right">
                   <p className="text-sm font-bold text-red-600">Rs {moneyValue(p.amount ?? p.value).toLocaleString("en-IN")}</p>
                   <span className="inline-flex items-center px-2 py-0.5 mt-1 rounded text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700">{String(p.status)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+          {pendingProjects.map((p, i) => (
+            <div key={`proj-${p._id || i}`} className="p-3 border border-[#E1E4EA] rounded-lg bg-[#ffffff]">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-bold text-[#1F2937]">{String(p.companyName || p.clientName || "Unknown Company")}</p>
+                  <p className="text-xs text-[#6B7280]">{String(p.name || p.projectName || "Project")}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-red-600">Rs {moneyValue(p.finalAmount ?? p.budget).toLocaleString("en-IN")}</p>
+                  <span className="inline-flex items-center px-2 py-0.5 mt-1 rounded text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700">{String(p.paymentStatus || "Pending")}</span>
                 </div>
               </div>
             </div>
@@ -496,15 +512,41 @@ export function AnalyticsPage() {
     const filteredContacts = contacts.filter(i => isWithinRange(i, true));
 
     const paidOrders = filteredOrders.filter((order) => isPaidStatus(order.payment?.status || order.status));
-    const paidPayments = filteredPayments.filter((payment) => isPaidStatus(payment.status));
     
-    // KPI: Pending Dues (Only calculate from unpaid orders, avoid double counting payments)
-    const pendingOrdersAmt = filteredOrders.filter(o => !isPaidStatus(o.payment?.status || o.status)).reduce((sum, o) => sum + moneyValue(o.amount ?? o.package?.total ?? o.total), 0);
-    const pendingDues = pendingOrdersAmt;
-    const pendingPaymentsCount = filteredOrders.filter(o => !isPaidStatus(o.payment?.status || o.status)).length;
+    // Calculate pending dues (Unpaid items)
+    // Only count unpaid payments and unpaid standalone orders/projects
+    const pendingOrdersAmt = filteredOrders
+      .filter(o => !isPaidStatus(o.payment?.status || o.status))
+      .reduce((sum, o) => sum + moneyValue(o.amount ?? o.package?.total ?? o.total), 0);
+    
+    // A standalone project has neither a linked invoice nor an order.
+    // If it has an order, the amount is already counted in pendingOrdersAmt above.
+    const standaloneProjects = filteredProjects.filter(p => !p.linkedInvoiceId && !p.orderId);
+    
+    const pendingProjectsAmt = standaloneProjects
+      .filter(p => !isPaidStatus(p.paymentStatus))
+      .reduce((sum, p) => sum + moneyValue(p.finalAmount ?? p.budget), 0);
+      
+    // Include pending payments too if they exist and are not already orders (fallback deduplication)
+    const pendingPaymentsAmt = filteredPayments
+      .filter(p => !isPaidStatus(p.status) && !p.orderId && !p.sourceOrderId)
+      .reduce((sum, p) => sum + moneyValue(p.amount ?? p.value ?? p.total), 0);
 
-    // KPI: Revenue (Only calculate from paid payments, avoid double counting orders)
-    const revenue = paidPayments.reduce((sum, item) => sum + moneyValue(item.amount ?? item.value ?? item.package?.total ?? item.total), 0);
+    const pendingDues = pendingOrdersAmt + pendingProjectsAmt + pendingPaymentsAmt;
+
+    const pendingPaymentsCount = 
+      filteredOrders.filter(o => !isPaidStatus(o.payment?.status || o.status)).length + 
+      standaloneProjects.filter(p => !isPaidStatus(p.paymentStatus)).length + 
+      filteredPayments.filter(p => !isPaidStatus(p.status) && !p.orderId && !p.sourceOrderId).length;
+
+    // Calculate revenue (Paid items)
+    const paidPayments = filteredPayments.filter(p => isPaidStatus(p.status));
+    const revenueFromPayments = paidPayments.reduce((sum, item) => sum + moneyValue(item.amount ?? item.value ?? item.package?.total ?? item.total), 0);
+    
+    // Only add revenue from projects that are PAID and STANDALONE (no invoice, no order)
+    const paidProjects = standaloneProjects.filter(p => isPaidStatus(p.paymentStatus));
+    const revenueFromProjects = paidProjects.reduce((sum, p) => sum + moneyValue(p.finalAmount ?? p.budget), 0);
+    const revenue = revenueFromPayments + revenueFromProjects;
     const paymentRate = Math.round((paidOrders.length / Math.max(filteredOrders.length, 1)) * 100);
     
     // KPI: Average Project Value
@@ -607,23 +649,32 @@ export function AnalyticsPage() {
     ].filter((item) => item.value > 0);
     const statusTotal = statusData.reduce((sum, item) => sum + item.value, 0) || 1;
 
-    const packageRevenue = Object.values(filteredOrders.reduce((acc, order) => {
+    const packageRevenueMap = filteredOrders.reduce((acc, order) => {
       const name = order.package?.name || order.packageName || order.projectType || "Unassigned";
       acc[name] = acc[name] || { name, revenue: 0, count: 0 };
       acc[name].revenue += moneyValue(order.amount ?? order.value ?? order.package?.total ?? order.total);
       acc[name].count += 1;
       return acc;
-    }, {})).sort((a, b) => b.revenue - a.revenue);
+    }, {});
+    
+    filteredProjects.filter(p => !p.linkedInvoiceId && !p.orderId).forEach(p => {
+      const name = p.packageName || p.template || "Unassigned";
+      packageRevenueMap[name] = packageRevenueMap[name] || { name, revenue: 0, count: 0 };
+      packageRevenueMap[name].revenue += moneyValue(p.finalAmount ?? p.budget);
+      packageRevenueMap[name].count += 1;
+    });
+    
+    const packageRevenue = Object.values(packageRevenueMap).sort((a, b) => b.revenue - a.revenue);
 
     const formatKey = (created) => created.toISOString().slice(0, 10);
     const formatDay = (created) => created.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 
-    const revenueGraph = Object.values([...paidOrders, ...paidPayments].reduce((acc, item) => {
+    const revenueGraph = Object.values([...paidOrders, ...paidPayments, ...paidProjects].reduce((acc, item) => {
       const stamp = item.paidAt || item.date || item.generatedAt || item.createdAt;
       const created = stamp ? new Date(stamp) : new Date(now);
       const key = formatKey(created);
       acc[key] = acc[key] || { key, day: formatDay(created), value: 0 };
-      acc[key].value += moneyValue(item.amount ?? item.value ?? item.package?.total ?? item.total);
+      acc[key].value += moneyValue(item.amount ?? item.value ?? item.package?.total ?? item.total ?? item.finalAmount ?? item.budget);
       return acc;
     }, {})).sort((a, b) => a.key.localeCompare(b.key));
 
@@ -723,6 +774,48 @@ export function AnalyticsPage() {
       };
     }
 
+    // KPI: Client Repeat Rate
+    const clientProjectCounts = {};
+    filteredProjects.forEach(p => {
+      const clientId = p.clientId || p.companyId || p.clientCompany || p.client;
+      if (clientId) {
+        clientProjectCounts[clientId] = (clientProjectCounts[clientId] || 0) + 1;
+      }
+    });
+    filteredOrders.forEach(o => {
+      const clientId = o.customerId || o.companyId || o.client;
+      if (clientId) {
+        clientProjectCounts[clientId] = (clientProjectCounts[clientId] || 0) + 1;
+      }
+    });
+    const totalUniqueClients = Object.keys(clientProjectCounts).length;
+    const repeatClients = Object.values(clientProjectCounts).filter(count => count > 1).length;
+    const clientRepeatRate = totalUniqueClients > 0 ? Math.round((repeatClients / totalUniqueClients) * 100) : 0;
+
+    // KPI: Current Bottleneck
+    const activeProjects = filteredProjects.filter(p => !isDoneStatus(p.status || p.clientStatus));
+    const phaseCounts = {};
+    activeProjects.forEach(p => {
+      let phase = p.currentPhase;
+      if (!phase) {
+        const activeStage = (p.stages || []).find(s => s.status === "in_progress");
+        if (activeStage) phase = activeStage.name;
+        else phase = "Not Started";
+      }
+      phaseCounts[phase] = (phaseCounts[phase] || 0) + 1;
+    });
+    let bottleneckPhase = "None";
+    let maxCount = 0;
+    Object.entries(phaseCounts).forEach(([phase, count]) => {
+      if (count > maxCount) {
+        maxCount = count;
+        bottleneckPhase = phase;
+      }
+    });
+    const currentBottleneck = maxCount > 0 ? `${bottleneckPhase} (${maxCount})` : "No bottlenecks";
+
+    const delayedProjectsPercent = filteredProjects.length > 0 ? Math.round((delayedProjects / filteredProjects.length) * 100) : 0;
+
     return { 
       revenue, paymentRate, avgProjectValue, completedProjects, delayedProjects, onTrack, 
       statusData, statusTotal, packageRevenue, pendingPaymentsCount, finalChartData, allActivities,
@@ -737,23 +830,29 @@ export function AnalyticsPage() {
       filteredContactsLength: filteredContacts.length,
       avgCompletionTime,
       onTimeDeliveryPercent,
+      delayedProjectsPercent,
       contactsPerClient,
       completedProjectsList,
       delayedProjectsList,
       priorityProjectsList,
       recentPaymentsList,
-      drillDownData
+      drillDownData,
+      clientRepeatRate,
+      currentBottleneck
     };
   }, [orders, payments, projects, companies, contacts, now, metricFilter, filterType, filterYear, filterMonth, filterBiMonth, filterQuarter, customStartDate, customEndDate, selectedChartDate]);
 
   const topMetrics = [
     { label: "Total Revenue", value: formatMoney(data.revenue), icon: WalletCards, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", tooltip: "Total revenue from paid orders and payments." },
+    { label: "Avg Revenue", value: formatMoney(data.avgProjectValue), icon: Tag, color: "text-cyan-600", bg: "bg-cyan-50", border: "border-cyan-100", tooltip: "Calculated as: Total Revenue ÷ Total Projects." },
     { label: "Pending Dues", value: formatMoney(data.pendingDues), icon: ReceiptText, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", tooltip: "Sum of all pending and overdue payments." },
     { label: "Active Clients", value: data.filteredCompaniesLength, icon: Users, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100", tooltip: "Total number of unique companies." },
+    { label: "Client Repeat Rate", value: `${data.clientRepeatRate}%`, icon: RefreshCcw, color: "text-pink-600", bg: "bg-pink-50", border: "border-pink-100", tooltip: "Percentage of clients with more than one project or order." },
     { label: "Total Projects", value: data.filteredProjectsLength, icon: PackageCheck, color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-100", tooltip: "Total number of created projects." },
-    { label: "Avg Project Value", value: formatMoney(data.avgProjectValue), icon: Tag, color: "text-cyan-600", bg: "bg-cyan-50", border: "border-cyan-100", tooltip: "Calculated as: Total Revenue ÷ Total Projects." },
-    { label: "Total Contacts", value: data.filteredContactsLength, icon: Users, color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", tooltip: "Count of all contact persons.", subtext: `${data.contactsPerClient} Contacts per Client` },
+    { label: "Current Bottleneck", value: data.currentBottleneck, icon: AlertTriangle, color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-100", tooltip: "Phase where most active projects are currently stuck." },
+    { label: "Delayed Projects %", value: `${data.delayedProjectsPercent}%`, icon: Clock3, color: "text-red-600", bg: "bg-red-50", border: "border-red-100", tooltip: "Percentage of total projects that have missed their deadline and are currently delayed." },
     { label: "Avg Completion Time", value: `${data.avgCompletionTime} Days`, icon: Clock3, color: "text-rose-600", bg: "bg-rose-50", border: "border-rose-100", tooltip: "Average days from start to completion for delivered projects." },
+    { label: "Total Contacts", value: data.filteredContactsLength, icon: Users, color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", tooltip: "Count of all contact persons.", subtext: `${data.contactsPerClient} Contacts per Client` },
     { label: "On-Time Delivery %", value: `${data.onTimeDeliveryPercent}%`, icon: CalendarDays, color: "text-teal-600", bg: "bg-teal-50", border: "border-teal-100", tooltip: "(Projects Delivered On Time ÷ Total Completed Projects) × 100" }
   ];
 
@@ -1012,7 +1111,7 @@ export function AnalyticsPage() {
 
         <div className="flex flex-col gap-5">
           <EarningsCard 
-            records={data.filteredPayments.filter(p => isPaidStatus(p.status))} 
+            records={[...data.filteredPayments.filter(p => isPaidStatus(p.status)), ...data.filteredProjects.filter(p => isPaidStatus(p.paymentStatus) && !p.linkedInvoiceId && !p.orderId)]} 
             filterType={filterType}
             filterYear={filterYear}
             filterMonth={filterMonth}

@@ -214,15 +214,12 @@ export function KanbanView({ stages, onDragEnd, onOpenNew, onOpenEdit }) {
 export function GanttView({ stages, onOpenEdit, groupBy = "status", groupCategories }) {
   const [colWidth, setColWidth] = useState(DEFAULT_COL_WIDTH);
   const scrollRef = useRef(null);
-  const targetCenterRef = useRef(null);
+
 
   const updateZoom = (updater) => {
     setColWidth((prevWidth) => {
       const nextWidth = typeof updater === "function" ? updater(prevWidth) : updater;
       if (nextWidth === prevWidth) return prevWidth;
-      if (scrollRef.current) {
-        targetCenterRef.current = (scrollRef.current.scrollLeft + scrollRef.current.clientWidth / 2) / prevWidth;
-      }
       return nextWidth;
     });
   };
@@ -325,7 +322,8 @@ export function GanttView({ stages, onOpenEdit, groupBy = "status", groupCategor
     };
   }, [stages, groupBy, groupCategories]);
 
-  // Auto-scroll the timeline to TODAY (or the nearest date) when it loads or when the date range changes.
+  // Auto-scroll the timeline to TODAY (or the nearest date) when it loads, when the date range changes,
+  // or when zooming (to keep Today in view per user request).
   useEffect(() => {
     if (scrollRef.current && minDate && maxDate) {
       const TODAY = today();
@@ -338,14 +336,7 @@ export function GanttView({ stages, onOpenEdit, groupBy = "status", groupCategor
       // Scroll so the target date is slightly offset from the left edge (e.g. roughly 1 column)
       scrollRef.current.scrollLeft = Math.max(0, targetPx - colWidth);
     }
-  }, [minDate, maxDate]); // We explicitly removed colWidth from deps so it doesn't snap to Today on zoom.
-
-  useEffect(() => {
-    if (scrollRef.current && targetCenterRef.current != null) {
-      scrollRef.current.scrollLeft = targetCenterRef.current * colWidth - scrollRef.current.clientWidth / 2;
-      targetCenterRef.current = null;
-    }
-  }, [colWidth]);
+  }, [minDate, maxDate, colWidth]);
 
   if (!groups.length) {
     return (

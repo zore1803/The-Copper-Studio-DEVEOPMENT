@@ -120,7 +120,7 @@ export function createStarterTasks(project, company, timeline) {
 
 export function buildProjectPayload(form, company) {
   const projectId = `project-${Date.now()}`;
-  const timeline = createDefaultTimeline(form.startDate);
+  const timeline = []; // Initialize empty as requested
   const payload = {
     ...form,
     id: projectId,
@@ -135,7 +135,7 @@ export function buildProjectPayload(form, company) {
     linkedInvoiceId: form.linkedInvoiceId,
     budgetUsed: 0,
     progress: Number(form.progress) || 0,
-    stages: stagesFromTemplate(form.template, form.startDate),
+    stages: [], // Initialize empty as requested
     template: form.template || "Custom",
     timeline,
     tasksBoard: ["Backlog", "To Do", "In Progress", "Review", "Completed", "Blocked"],
@@ -143,16 +143,12 @@ export function buildProjectPayload(form, company) {
     customFolders: [],
     activity: [
       { icon: "check", text: "Project workspace created", time: "Just now" },
-      { icon: "check", text: "Timeline initialized", time: "Just now" },
-      { icon: "check", text: "Tasks board initialized", time: "Just now" },
     ],
     history: [
       { event: "Project Created", createdAt: new Date().toISOString() },
-      { event: "Timeline Generated", createdAt: new Date().toISOString() },
-      { event: "Tasks Created", createdAt: new Date().toISOString() },
     ],
     createdAt: new Date().toISOString(),
   };
-  const starterTasks = createStarterTasks(payload, company, timeline);
+  const starterTasks = []; // No default tasks
   return { payload, starterTasks };
 }
