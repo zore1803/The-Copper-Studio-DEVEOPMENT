@@ -1224,6 +1224,7 @@ export default function CompanyDetail() {
                 <Button size="sm" onClick={() => setEditingContact({})}><Plus size={14} /> Contact</Button>
               </div>
             }
+            flush={Boolean(filteredContacts.length)}
           >
             {filteredContacts.length ? <ContactsTable contacts={filteredContacts} onEdit={setEditingContact} onDelete={handleDeleteContact} onView={setSelectedContact} onPrimary={handleMakePrimary} /> : <EmptyState icon={Users} title="No contacts linked." />}
           </Section>
@@ -1243,6 +1244,7 @@ export default function CompanyDetail() {
                 />
               </div>
             }
+            flush={Boolean(filteredInvoices.length)}
           >
             {filteredInvoices.length ? <InvoicesTable invoices={filteredInvoices} onView={setSelectedInvoice} onDownload={downloadInvoicePdf} /> : <EmptyState icon={FileText} title="No invoices linked." />}
           </Section>
@@ -1331,14 +1333,14 @@ export default function CompanyDetail() {
   );
 }
 
-function Section({ title, action, children }) {
+function Section({ title, action, flush = false, children }) {
   return (
     <section className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
       <div className="flex items-center justify-between bg-[#fff1ec] border-b border-[#f3e5e0] px-5 py-4">
         <h3 className="text-sm font-bold text-[#111827]">{title}</h3>
         {action}
       </div>
-      <div className="p-5">{children}</div>
+      <div className={flush ? "" : "p-5"}>{children}</div>
     </section>
   );
 }
@@ -1429,27 +1431,27 @@ function ProjectsTable({ projects, companyId, onOpen, onDelete }) {
       <table className="min-w-full text-sm">
         <thead className="bg-[#fff1ec] border-b border-[#f3e5e0]">
           <tr>
-            <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Project</th>
+            <th className="py-3 pl-5 pr-4 text-left text-xs font-medium text-[#525866]">Project</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Package</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Status</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Progress</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Due</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Project Manager</th>
             <th className="py-3 pr-4 text-right text-xs font-medium text-[#525866]">Budget</th>
-            <th className="py-3 pr-4 w-10" />
+            <th className="py-3 pl-2 pr-5 w-10" />
           </tr>
         </thead>
         <tbody>
           {projects.map((project) => (
             <tr key={project.id || project._id} onClick={() => onOpen(`/admin/companies/${companyId}/projects/${project.id || project._id}`)} className="cursor-pointer border-b border-[#f9fafb] hover:bg-[#fafafa]">
-              <td className="py-3 pr-4 font-semibold text-[#111827]">{project.name || "Untitled project"}</td>
+              <td className="py-3 pl-5 pr-4 font-semibold text-[#111827]">{project.name || "Untitled project"}</td>
               <td className="py-3 pr-4 text-[#374151]">{project.packageName || project.package || "Not linked"}</td>
               <td className="py-3 pr-4"><StatusBadge status={project.status || project.currentPhase || "Not Started"} /></td>
               <td className="py-3 pr-4 text-[#374151]">{Number(project.progress) || 0}%</td>
               <td className="py-3 pr-4 text-[#374151]">{project.dueDate || project.expectedEndDate || "Not set"}</td>
               <td className="py-3 pr-4 text-[#374151]">{project.projectManager || project.manager || "Unassigned"}</td>
               <td className="py-3 pr-4 text-right font-semibold text-[#111827]">{formatINR(Number(project.budget || project.value || 0))}</td>
-              <td className="py-3 pr-4 text-right" onClick={(event) => event.stopPropagation()}>
+              <td className="py-3 pl-2 pr-5 text-right" onClick={(event) => event.stopPropagation()}>
                 <button onClick={() => onDelete(project)} className="rounded-lg p-2 text-[#9ca3af] hover:bg-red-50 hover:text-red-600" title="Delete project">
                   <Trash2 size={14} />
                 </button>
@@ -1498,6 +1500,7 @@ function ProjectsWorkspace({ projects, allProjects, companyId, view, onView, onO
           <Button size="sm" onClick={onCreate}><Plus size={14} /> Project</Button>
         </div>
       }
+      flush={Boolean(projects.length) && view === "Table"}
     >
       {!allProjects.length ? <EmptyState icon={FolderKanban} title="No projects yet." action={<Button onClick={onCreate}><Plus size={14} /> New Project</Button>} /> : null}
       {allProjects.length && !projects.length ? <EmptyState icon={Filter} title="No projects match these filters." /> : null}
@@ -1607,13 +1610,13 @@ function ContactsTable({ contacts, onEdit, onDelete, onView, onPrimary }) {
       <table className="min-w-full text-sm">
         <thead className="bg-[#fff1ec] border-b border-[#f3e5e0]">
           <tr>
-            <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Contact</th>
+            <th className="py-3 pl-5 pr-4 text-left text-xs font-medium text-[#525866]">Contact</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Email</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Phone</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">WhatsApp</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">LinkedIn</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Status</th>
-            <th className="py-3 pr-4 text-right text-xs font-medium text-[#525866]">Actions</th>
+            <th className="py-3 pr-5 text-right text-xs font-medium text-[#525866]">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[#f3f4f6]">
@@ -1621,7 +1624,7 @@ function ContactsTable({ contacts, onEdit, onDelete, onView, onPrimary }) {
             const name = contact.name || `${contact.salutation || ""} ${contact.firstName || ""} ${contact.lastName || ""}`.trim();
             return (
             <tr key={contact.id || contact._id}>
-              <td className="py-3 pr-4">
+              <td className="py-3 pl-5 pr-4">
                 <div className="flex items-center gap-3">
                   <Avatar name={name} size="sm" />
                   <div>
@@ -1635,7 +1638,7 @@ function ContactsTable({ contacts, onEdit, onDelete, onView, onPrimary }) {
               <td className="py-3 pr-4 text-[#374151]">{contact.whatsapp || "No WhatsApp"}</td>
               <td className="py-3 pr-4 text-[#374151]">{contact.linkedin ? <a className="text-[#884c2d] hover:underline" href={contact.linkedin} target="_blank" rel="noreferrer">Open</a> : "No LinkedIn"}</td>
               <td className="py-3 pr-4"><StatusBadge status={contact.status || "Active"} /></td>
-              <td className="py-3 text-right">
+              <td className="py-3 pr-5 text-right">
                 <div className="inline-flex items-center gap-2">
                   <button onClick={() => onView(contact)} className="rounded-lg p-2 text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#884c2d]"><Eye size={14} /></button>
                   <button onClick={() => onEdit(contact)} className="rounded-lg p-2 text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#884c2d]"><Edit2 size={14} /></button>
@@ -1657,27 +1660,27 @@ function InvoicesTable({ invoices, onView, onDownload }) {
       <table className="min-w-full text-sm">
         <thead className="bg-[#fff1ec] border-b border-[#f3e5e0]">
           <tr>
-            <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Invoice ID</th>
+            <th className="py-3 pl-5 pr-4 text-left text-xs font-medium text-[#525866]">Invoice ID</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Amount</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Date</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Due Date</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Status</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Payment</th>
             <th className="py-3 pr-4 text-left text-xs font-medium text-[#525866]">Transaction ID</th>
-            <th className="py-3 pr-4 text-right text-xs font-medium text-[#525866]">Actions</th>
+            <th className="py-3 pr-5 text-right text-xs font-medium text-[#525866]">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-[#f3f4f6]">
           {invoices.map((invoice) => (
             <tr key={invoice.id || invoice._id}>
-              <td className="py-3 pr-4 font-mono text-xs text-[#6b7280]">{invoice.invoiceId || invoice.id || invoice._id}</td>
+              <td className="py-3 pl-5 pr-4 font-mono text-xs text-[#6b7280]">{invoice.invoiceId || invoice.id || invoice._id}</td>
               <td className="py-3 pr-4 font-semibold text-[#111827]">{formatINR(parseMoney(invoice.total || invoice.amount))}</td>
               <td className="py-3 pr-4 text-[#374151]">{invoice.date || invoice.createdAt || "No date"}</td>
               <td className="py-3 pr-4 text-[#374151]">{invoice.dueDate || "No due date"}</td>
               <td className="py-3 pr-4"><StatusBadge status={invoice.status || "Pending"} /></td>
               <td className="py-3 pr-4"><StatusBadge status={invoice.paymentStatus || invoice.status || "Pending"} /></td>
               <td className="py-3 pr-4 font-mono text-xs text-[#6b7280]">{invoice.transactionId || invoice.paymentId || invoice.razorpayPaymentId || "Not linked"}</td>
-              <td className="py-3 text-right">
+              <td className="py-3 pr-5 text-right">
                 <div className="inline-flex items-center gap-2">
                   <button onClick={() => onView(invoice)} className="rounded-lg p-2 text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#884c2d]"><Eye size={14} /></button>
                   <button onClick={() => onDownload(invoice)} className="rounded-lg p-2 text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#884c2d]"><Download size={14} /></button>
