@@ -721,45 +721,45 @@ export default function Companies() {
               <table className="min-w-full">
                 <thead className="bg-[#fff1ec] border-b border-[#f3e5e0]">
                   <tr>
-                    <th className="px-3 py-3 text-left">
+                    <th className="px-4 py-3 text-left">
                       <div className="flex items-center gap-1.5 text-xs font-medium text-[#525866]">
                         <Building2 size={13} />
                         Company Name
                       </div>
                     </th>
-                    <th className="px-3 py-3 text-left">
+                    <th className="px-4 py-3 text-left">
                       <div className="flex items-center gap-1.5 text-xs font-medium text-[#525866]">
                         <SlidersHorizontal size={13} />
                         Industry
                       </div>
                     </th>
-                    <th className="px-3 py-3 text-left">
+                    <th className="px-4 py-3 text-left">
                       <div className="flex items-center gap-1.5 text-xs font-medium text-[#525866]">
                         Location
                       </div>
                     </th>
-                    <th className="px-3 py-3 text-left">
+                    <th className="px-4 py-3 text-left">
                       <div className="flex items-center gap-1.5 text-xs font-medium text-[#525866]">
                         <Globe size={13} />
                         Website
                       </div>
                     </th>
-                    <th className="px-3 py-3 text-left">
+                    <th className="px-4 py-3 text-left">
                       <div className="flex items-center gap-1.5 text-xs font-medium text-[#525866]">
                         GSTIN
                       </div>
                     </th>
-                    <th className="px-3 py-3 text-left">
+                    <th className="px-4 py-3 text-left">
                       <div className="flex items-center gap-1.5 text-xs font-medium text-[#525866]">
                         Document Signed
                       </div>
                     </th>
-                    <th className="px-3 py-3 text-left">
+                    <th className="px-4 py-3 text-left">
                       <div className="flex items-center gap-1.5 text-xs font-medium text-[#525866]">
                         Lead Source
                       </div>
                     </th>
-                    <th className="px-3 py-3 w-10" />
+                    <th className="px-4 py-3 w-10" />
                   </tr>
                 </thead>
                 <tbody className="bg-white">
