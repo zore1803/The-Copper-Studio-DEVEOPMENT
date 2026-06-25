@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  ArrowUpDown, Building2, Check, ChevronLeft, ChevronRight, Download, Edit2, Eye, Filter, FolderOpen, FolderPlus,
+  ArrowUpDown, Building2, Check, ChevronLeft, ChevronRight, Download, Edit2, Eye, FolderOpen, FolderPlus,
   Folder as FolderIcon, Globe, Grid2x2, List, MoreVertical, Plus, Save, Search,
   SlidersHorizontal, Trash2, X
 } from "lucide-react";
@@ -11,6 +11,7 @@ import { useCrmRecords } from "../../hooks/useCrmRecords";
 import { useToast } from "../../components/useToast";
 import SidePanel from "../../components/SidePanel";
 import CompanyFormPanel from "../../components/CompanyFormPanel";
+import FilterButton from "../../components/FilterButton";
 
 const PAGE_SIZE = 10;
 const FOLDER_PAGE_SIZE = 8;
@@ -445,7 +446,6 @@ export default function Companies() {
   const [editing, setEditing] = useState(() => (location.state?.openCreate
     ? { name: "", gstin: "", industry: "", contact: "", projects: 0, status: "Prospect", address: "", city: "", state: "", pincode: "", website: "", leadSource: "", owner: "", notes: "" }
     : null));
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
   const [industryFilter, setIndustryFilter] = useState("All");
@@ -469,10 +469,8 @@ export default function Companies() {
   const { showToast } = useToast();
   const actionsRef = useRef(null);
   const sortRef = useRef(null);
-  const filtersRef = useRef(null);
   useClickOutside(actionsRef, () => setActionsOpen(false), actionsOpen);
   useClickOutside(sortRef, () => setSortOpen(false), sortOpen);
-  useClickOutside(filtersRef, () => setFiltersOpen(false), filtersOpen);
 
   useEffect(() => {
     if (location.state?.openCreate) {
@@ -699,63 +697,17 @@ export default function Companies() {
               </div>
             )}
           </div>
-          <div className="relative" ref={filtersRef}>
-            <button
-              onClick={() => setFiltersOpen((value) => !value)}
-              className={`flex h-11 w-11 items-center justify-center rounded-full border transition-colors ${filtersOpen ? "border-[#884c2d] bg-[#fff8f6] text-[#884c2d]" : "border-[#E1E4EA] bg-white text-[#1F2937] hover:bg-[#f9fafb]"}`}
-            >
-              <Filter size={16} />
-            </button>
-            {filtersOpen && (
-              <div className="absolute right-0 z-20 mt-2 w-[640px] max-w-[90vw] rounded-xl border border-[#e5e7eb] bg-white p-3 shadow-lg">
-                <p className="px-1 pb-2 text-xs font-bold uppercase tracking-wide text-[#9ca3af]">Filters</p>
-                <div className="grid max-h-[60vh] grid-cols-3 gap-3 overflow-y-auto">
-                  <label className="block">
-                    <span className="text-xs font-semibold text-[#6b7280]">Document / Status</span>
-                    <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-                      {["All", "Accepted", "Pending", "Rejected", "Active", "Prospect"].map((status) => <option key={status}>{status}</option>)}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-semibold text-[#6b7280]">Industry</span>
-                    <select value={industryFilter} onChange={(event) => { setIndustryFilter(event.target.value); setPage(1); }} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-                      {industries.map((industry) => <option key={industry}>{industry}</option>)}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-semibold text-[#6b7280]">City</span>
-                    <select value={cityFilter} onChange={(event) => { setCityFilter(event.target.value); setPage(1); }} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-                      {cities.map((city) => <option key={city}>{city}</option>)}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-semibold text-[#6b7280]">State</span>
-                    <select value={stateFilter} onChange={(event) => { setStateFilter(event.target.value); setPage(1); }} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-                      {states.map((state) => <option key={state}>{state}</option>)}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-semibold text-[#6b7280]">Company owner</span>
-                    <select value={ownerFilter} onChange={(event) => { setOwnerFilter(event.target.value); setPage(1); }} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-                      {owners.map((owner) => <option key={owner}>{owner}</option>)}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-semibold text-[#6b7280]">Pincode</span>
-                    <input
-                      value={pincodeFilter}
-                      onChange={(event) => { setPincodeFilter(event.target.value); setPage(1); }}
-                      placeholder="e.g. 400001"
-                      className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm outline-none transition-all focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20"
-                    />
-                  </label>
-                </div>
-                <div className="mt-3 flex justify-end border-t border-[#f3f4f6] pt-3">
-                  <Button variant="secondary" onClick={resetFilters}><X size={14} /> Reset</Button>
-                </div>
-              </div>
-            )}
-          </div>
+          <FilterButton
+            onReset={resetFilters}
+            fields={[
+              { key: "status", label: "Document / Status", type: "select", value: statusFilter, onChange: (value) => { setStatusFilter(value); setPage(1); }, options: ["All", "Accepted", "Pending", "Rejected", "Active", "Prospect"] },
+              { key: "industry", label: "Industry", type: "select", value: industryFilter, onChange: (value) => { setIndustryFilter(value); setPage(1); }, options: industries },
+              { key: "city", label: "City", type: "select", value: cityFilter, onChange: (value) => { setCityFilter(value); setPage(1); }, options: cities },
+              { key: "state", label: "State", type: "select", value: stateFilter, onChange: (value) => { setStateFilter(value); setPage(1); }, options: states },
+              { key: "owner", label: "Company owner", type: "select", value: ownerFilter, onChange: (value) => { setOwnerFilter(value); setPage(1); }, options: owners },
+              { key: "pincode", label: "Pincode", type: "text", value: pincodeFilter, onChange: (value) => { setPincodeFilter(value); setPage(1); }, placeholder: "e.g. 400001" }
+            ]}
+          />
           {/* View toggle */}
           <button
             onClick={() => setView((v) => (v === "table" ? "hotlist" : "table"))}

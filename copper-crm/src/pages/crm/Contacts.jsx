@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  ArrowUpDown, Building2, Check, ChevronLeft, ChevronRight, Eye, Filter, Folder as FolderIcon,
+  ArrowUpDown, Building2, Check, ChevronLeft, ChevronRight, Eye, Folder as FolderIcon,
   FolderOpen, FolderPlus, Grid2x2, Edit2, List, Mail, MessageCircle, MoreVertical, Phone, Plus,
   Save, Search, SlidersHorizontal, Trash2, X
 } from "lucide-react";
@@ -12,6 +12,7 @@ import SidePanel from "../../components/SidePanel";
 import ContactFormPanel from "../../components/ContactFormPanel";
 import ContactExportMenu from "../../components/ContactExportMenu";
 import { useToast } from "../../components/useToast";
+import FilterButton from "../../components/FilterButton";
 import { contactFullName } from "../../lib/contacts";
 
 const PAGE_SIZE = 12;
@@ -348,7 +349,6 @@ export default function Contacts() {
   }, []);
 
   const [view, setView] = useState("table");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("All");
   const [designationFilter, setDesignationFilter] = useState("All");
   const [companyFilter, setCompanyFilter] = useState("All");
@@ -357,10 +357,8 @@ export default function Contacts() {
   const [sortOpen, setSortOpen] = useState(false);
   const actionsRef = useRef(null);
   const sortRef = useRef(null);
-  const filtersRef = useRef(null);
   useClickOutside(actionsRef, () => setActionsOpen(false), actionsOpen);
   useClickOutside(sortRef, () => setSortOpen(false), sortOpen);
-  useClickOutside(filtersRef, () => setFiltersOpen(false), filtersOpen);
 
   const [folders, setFolders] = useState(loadStoredFolders);
   const [folderSearch, setFolderSearch] = useState("");
@@ -544,42 +542,15 @@ export default function Contacts() {
             </div>
 
             {/* Filters */}
-            <div className="relative" ref={filtersRef}>
-              <button
-                onClick={() => setFiltersOpen((value) => !value)}
-                className={`flex h-11 w-11 items-center justify-center rounded-full border transition-colors ${filtersOpen ? "border-[#884c2d] bg-[#fff8f6] text-[#884c2d]" : "border-[#E1E4EA] bg-white text-[#1F2937] hover:bg-[#f9fafb]"}`}
-              >
-                <Filter size={16} />
-              </button>
-              {filtersOpen && (
-                <div className="absolute right-0 z-20 mt-2 w-[520px] max-w-[90vw] rounded-xl border border-[#e5e7eb] bg-white p-3 shadow-lg">
-                  <p className="px-1 pb-2 text-xs font-bold uppercase tracking-wide text-[#9ca3af]">Filters</p>
-                  <div className="grid grid-cols-3 gap-3">
-                    <label className="block">
-                      <span className="text-xs font-semibold text-[#6b7280]">Status</span>
-                      <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-                        {statuses.map((status) => <option key={status}>{status}</option>)}
-                      </select>
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-semibold text-[#6b7280]">Designation</span>
-                      <select value={designationFilter} onChange={(e) => { setDesignationFilter(e.target.value); setPage(1); }} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-                        {designations.map((d) => <option key={d}>{d}</option>)}
-                      </select>
-                    </label>
-                    <label className="block">
-                      <span className="text-xs font-semibold text-[#6b7280]">Company</span>
-                      <select value={companyFilter} onChange={(e) => { setCompanyFilter(e.target.value); setPage(1); }} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] bg-white px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-                        {companyNames.map((name) => <option key={name}>{name}</option>)}
-                      </select>
-                    </label>
-                  </div>
-                  <div className="mt-3 flex justify-end border-t border-[#f3f4f6] pt-3">
-                    <Button variant="secondary" onClick={resetFilters}><X size={14} /> Reset</Button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <FilterButton
+              panelWidth={520}
+              onReset={resetFilters}
+              fields={[
+                { key: "status", label: "Status", type: "select", value: statusFilter, onChange: (value) => { setStatusFilter(value); setPage(1); }, options: statuses },
+                { key: "designation", label: "Designation", type: "select", value: designationFilter, onChange: (value) => { setDesignationFilter(value); setPage(1); }, options: designations },
+                { key: "company", label: "Company", type: "select", value: companyFilter, onChange: (value) => { setCompanyFilter(value); setPage(1); }, options: companyNames }
+              ]}
+            />
 
             {/* View toggle */}
             <button

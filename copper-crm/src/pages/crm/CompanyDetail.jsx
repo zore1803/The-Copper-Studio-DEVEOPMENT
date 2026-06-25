@@ -20,6 +20,7 @@ import ProjectFormPanel from "../../components/ProjectFormPanel";
 import CompanyFormPanel from "../../components/CompanyFormPanel";
 import ContactFormPanel from "../../components/ContactFormPanel";
 import RichTextEditor, { isRichTextEmpty, stripHtml } from "../../components/RichTextEditor";
+import FilterButton from "../../components/FilterButton";
 
 const TABS = ["Projects", "Contacts", "Invoices", "Documents", "Tasks", "Notes", "Meetings", "Activity"];
 const PROJECT_STATUS = ["Pending", "Confirmed", "Requirement Gathering", "Design", "Development", "Testing", "Review", "Deployment", "Completed", "Cancelled", "On Hold"];
@@ -1348,20 +1349,16 @@ function ProjectsWorkspace({ projects, allProjects, companyId, view, onView, onO
   return (
     <Section title="Projects" action={<Button size="sm" onClick={onCreate}><Plus size={14} /> Project</Button>}>
       <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="grid gap-2 sm:grid-cols-4">
-          <select value={statusFilter} onChange={(event) => onStatusFilter(event.target.value)} className="rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm">
-            {["All", ...PROJECT_STATUS].map((item) => <option key={item}>{item}</option>)}
-          </select>
-          <select value={packageFilter} onChange={(event) => onPackageFilter(event.target.value)} className="rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm">
-            {packages.map((item) => <option key={item}>{item}</option>)}
-          </select>
-          <select value={managerFilter} onChange={(event) => onManagerFilter(event.target.value)} className="rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm">
-            {managers.map((item) => <option key={item}>{item}</option>)}
-          </select>
-          <select value={timelineFilter} onChange={(event) => onTimelineFilter(event.target.value)} className="rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm">
-            {["All", "Due Soon", "Overdue"].map((item) => <option key={item}>{item}</option>)}
-          </select>
-        </div>
+        <FilterButton
+          panelWidth={560}
+          onReset={() => { onStatusFilter("All"); onPackageFilter("All"); onManagerFilter("All"); onTimelineFilter("All"); }}
+          fields={[
+            { key: "status", label: "Status", type: "select", value: statusFilter, onChange: onStatusFilter, options: ["All", ...PROJECT_STATUS] },
+            { key: "package", label: "Package", type: "select", value: packageFilter, onChange: onPackageFilter, options: packages },
+            { key: "manager", label: "Project manager", type: "select", value: managerFilter, onChange: onManagerFilter, options: managers },
+            { key: "timeline", label: "Timeline", type: "select", value: timelineFilter, onChange: onTimelineFilter, options: ["All", "Due Soon", "Overdue"] }
+          ]}
+        />
         <WorkspaceToggle options={PROJECT_VIEWS} value={view} onChange={onView} />
       </div>
       {!allProjects.length ? <EmptyState icon={FolderKanban} title="No projects yet." action={<Button onClick={onCreate}><Plus size={14} /> New Project</Button>} /> : null}
@@ -1981,17 +1978,15 @@ function TasksWorkspace({ tasks, projects, view, onView, onCreate, onMoveTask, o
       action={
         <div className="flex flex-wrap items-center gap-2">
           {view === "Gantt" && (
-            <>
-              <select value={ganttProjectFilter} onChange={(e) => setGanttProjectFilter(e.target.value)} className="rounded-lg border border-[#e5e7eb] px-2.5 py-1.5 text-xs">
-                {projectOptions.map((item) => <option key={item}>{item}</option>)}
-              </select>
-              <select value={ganttStatusFilter} onChange={(e) => setGanttStatusFilter(e.target.value)} className="rounded-lg border border-[#e5e7eb] px-2.5 py-1.5 text-xs">
-                {["All", ...TASK_BOARD_STATUSES].map((item) => <option key={item}>{item}</option>)}
-              </select>
-              <select value={ganttPriorityFilter} onChange={(e) => setGanttPriorityFilter(e.target.value)} className="rounded-lg border border-[#e5e7eb] px-2.5 py-1.5 text-xs">
-                {["All", "Low", "Medium", "High", "Critical"].map((item) => <option key={item}>{item}</option>)}
-              </select>
-            </>
+            <FilterButton
+              panelWidth={480}
+              onReset={() => { setGanttProjectFilter("All"); setGanttStatusFilter("All"); setGanttPriorityFilter("All"); }}
+              fields={[
+                { key: "project", label: "Project", type: "select", value: ganttProjectFilter, onChange: setGanttProjectFilter, options: projectOptions },
+                { key: "status", label: "Status", type: "select", value: ganttStatusFilter, onChange: setGanttStatusFilter, options: ["All", ...TASK_BOARD_STATUSES] },
+                { key: "priority", label: "Priority", type: "select", value: ganttPriorityFilter, onChange: setGanttPriorityFilter, options: ["All", "Low", "Medium", "High", "Critical"] }
+              ]}
+            />
           )}
           <Button size="sm" onClick={onCreate}><Plus size={14} /> Task</Button>
           <WorkspaceToggle options={TASK_VIEWS} value={view} onChange={onView} />
