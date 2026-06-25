@@ -997,16 +997,16 @@ export default function CompanyDetail() {
                   <WebsiteIconLink href={company.personalWebsite} icon={Globe} label="Personal site" />
                 </div>
               )}
-              <div className="flex items-center">
-                <button
-                  onClick={openLinkClient}
-                  title="Link Client Portal"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#d8c2b9] bg-white text-[#211a17] transition-colors hover:bg-[#fff1ec]"
-                >
-                  <LinkIcon size={15} />
-                </button>
+              <button
+                onClick={openLinkClient}
+                title="Link Client Portal"
+                className={`flex h-9 items-center rounded-full border border-[#d8c2b9] bg-white text-[#211a17] transition-colors hover:bg-[#fff1ec] ${
+                  linkedClientContacts.length ? "gap-1.5 pl-3 pr-1.5" : "w-9 justify-center"
+                }`}
+              >
+                <LinkIcon size={15} className="shrink-0" />
                 {linkedClientContacts.length > 0 && (
-                  <div className="flex items-center -space-x-2 pl-1.5">
+                  <span className="flex items-center -space-x-2">
                     {linkedClientContacts.slice(0, 4).map((contact) => (
                       <span
                         key={contact._id || contact.id}
@@ -1021,9 +1021,9 @@ export default function CompanyDetail() {
                         +{linkedClientContacts.length - 4}
                       </span>
                     )}
-                  </div>
+                  </span>
                 )}
-              </div>
+              </button>
               <Button variant="secondary" onClick={() => setEditingCompany(true)}><Edit2 size={14} /> Edit Company</Button>
               <div className="relative" ref={addMenuRef}>
                 <Button onClick={() => setAddMenuOpen((open) => !open)}><Plus size={14} /> Add New</Button>
