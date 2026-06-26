@@ -368,13 +368,18 @@ export default function Coupons() {
     const total = coupons.length;
     const conversionRate = total > 0 ? Math.round((redeemed / total) * 100) : 0;
 
-    // Revenue influenced = sum of fixed discounts given on used (Redeemed) coupons only.
-    // Percentage-based coupons are excluded since order value is unknown.
+    // Revenue influenced = actual discount amount given on Redeemed coupons.
+    // discountAmount is stored by the server when a coupon is redeemed via an order (covers both % and fixed).
+    // Fallback: for fixed-amount coupons redeemed before this field was added, derive from the amount string.
     const revenue = coupons
-      .filter((c) => c.status === "Redeemed" && (c.amountType === "fixed" || String(c.amount || "").startsWith("Rs")))
+      .filter((c) => c.status === "Redeemed")
       .reduce((sum, c) => {
-        const raw = c.discount || String(c.amount || "").replace(/[^0-9.]/g, "");
-        return sum + (Number(raw) || 0);
+        if (c.discountAmount != null) return sum + Number(c.discountAmount);
+        if (c.amountType === "fixed" || String(c.amount || "").startsWith("Rs")) {
+          const raw = c.discount || String(c.amount || "").replace(/[^0-9.]/g, "");
+          return sum + (Number(raw) || 0);
+        }
+        return sum;
       }, 0);
 
     return { active, redeemed, expired, revenue, conversionRate };
