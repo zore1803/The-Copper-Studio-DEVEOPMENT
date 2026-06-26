@@ -4,262 +4,144 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Checkout | The Copper Studio</title>
-    <link rel="stylesheet" href="assets/styles.css?v=checkout-2">
+    <link rel="stylesheet" href="assets/styles.css?v=pages-1">
     <style>
-      body[data-page="checkout"] {
-        background: #f8fafc;
-      }
-      body[data-page="checkout"] .shell-header {
-        position: sticky;
-        top: 0;
-        z-index: 40;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        min-height: 68px;
-        padding: 12px clamp(22px, 6vw, 72px);
-        border-bottom: 1px solid #d9e0ea;
-        background: rgba(255, 248, 246, 0.92);
-        backdrop-filter: blur(14px);
-        box-shadow: none;
-      }
-      body[data-page="checkout"] .shell-header .brand {
-        gap: 12px;
-        color: #252525;
-        font-size: 0.95rem;
-        font-weight: 800;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-      body[data-page="checkout"] .shell-header .brand-mark {
-        width: 154px;
-        height: 36px;
-        border-radius: 0;
-        background: url("copper-crm/public/copper-studio-wordmark.png") left center / contain no-repeat;
-        box-shadow: none;
-      }
-      body[data-page="checkout"] .shell-header .brand > span:not(.brand-mark) {
-        display: none;
-      }
-      body[data-page="checkout"] .top-nav a {
-        display: inline-flex;
-        align-items: center;
-        min-height: 38px;
-        padding: 9px 14px;
-        border: 1px solid #d9e0ea;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.78);
-        color: #475569;
-        font-size: 0.78rem;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-      body[data-page="checkout"] .page-shell {
-        width: min(1120px, 100%);
-        padding: 0;
-      }
-      body[data-page="checkout"] .two-column {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 390px;
-        gap: 0;
-        min-height: 100vh;
-      }
-      #customerForm {
-        display: block;
-        min-width: 0;
-        padding: 62px 86px 56px 72px;
-        background: #ffffff;
-      }
-      .checkout-kicker,
-      .order-kicker,
-      .checkout-section-title,
-      .mini-label,
-      label span {
-        color: #9c9c9c;
-        font-size: 0.76rem;
-        font-weight: 800;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-      }
-      .checkout-title {
-        margin-top: 58px;
-        color: #2f2f2f;
-        font-family: "DM Sans", system-ui, sans-serif;
-        font-size: 2.15rem;
-        font-weight: 400;
-        line-height: 1.12;
-        letter-spacing: -0.04em;
-      }
-      .checkout-subtitle {
-        margin-top: 12px;
-        color: #6f6f6f;
-        font-size: 1rem;
-      }
       .checkout-progress {
         display: flex;
         align-items: center;
-        max-width: 430px;
-        margin: 54px 0 48px;
+        margin-bottom: 22px;
       }
       .checkout-step {
         display: flex;
         align-items: center;
-        gap: 12px;
-        color: #a8a8a8;
+        gap: 8px;
         font-size: 0.8rem;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--muted);
       }
       .checkout-step-num {
-        width: 7px;
-        height: 7px;
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
         border-radius: 50%;
-        border: 0;
-        background: #e8e8e8;
-        color: transparent;
+        border: 2px solid var(--line);
+        font-size: 0.75rem;
+        font-weight: 800;
+        background: var(--surface);
+        color: var(--muted);
         flex-shrink: 0;
       }
       .checkout-step.is-active .checkout-step-num {
-        background: #111111;
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
       }
-      .checkout-step.is-active { color: #222222; }
+      .checkout-step.is-active { color: var(--ink); }
       .checkout-step-divider {
         flex: 1;
         height: 1px;
-        background: #e8e8e8;
-        margin: 0 16px;
-        min-width: 48px;
+        background: var(--line);
+        margin: 0 10px;
+        min-width: 24px;
       }
       .trust-row {
         display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 14px;
-        padding: 28px 0 0;
-        border-top: 1px solid #e8e8e8;
-        margin-top: 0;
+        align-items: center;
+        gap: 18px;
+        flex-wrap: wrap;
+        padding: 12px 0 0;
+        border-top: 1px solid var(--line);
+        margin-top: 4px;
       }
       .trust-item {
         display: flex;
         align-items: center;
-        gap: 8px;
-        color: #a0a0a0;
-        font-size: 0.82rem;
+        gap: 5px;
+        font-size: 0.74rem;
         font-weight: 600;
+        color: var(--muted);
       }
       .trust-item .material-symbols-outlined {
-        font-size: 1rem;
-        color: #a0a0a0;
+        font-size: 0.95rem;
+        color: var(--success);
       }
       .verify-badge {
-        display: none;
+        display: inline-flex;
         align-items: center;
+        gap: 5px;
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        background: #ecfdf5;
+        color: var(--success);
+        border: 1px solid #bbf7d0;
+      }
+      .verify-badge.pending {
+        background: #fef9ee;
+        color: #92400e;
+        border-color: #fde68a;
       }
       .section-badge {
-        display: none;
-      }
-      .form-section-block {
-        max-width: 520px;
-        padding: 24px;
-        border: 1px solid #e4e7ec;
-        border-radius: 12px;
-        background: #ffffff;
-        box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
-        margin: 0 0 20px;
-      }
-      .block-header {
-        display: block;
-        margin: -2px 0 22px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid #e8e8e8;
-      }
-      .block-header h3 {
-        color: #9c9c9c;
-        font-family: "DM Sans", system-ui, sans-serif;
-        font-size: 0.82rem;
-        font-weight: 800;
-        letter-spacing: 0.12em;
-        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: var(--surface-soft);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 9px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: var(--accent-dark);
+        letter-spacing: 0.03em;
         text-transform: uppercase;
       }
+      .form-section-block {
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: var(--shadow);
+        margin-bottom: 14px;
+      }
+      .block-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .block-header h3 {
+        font-size: 0.97rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
       .verify-header {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
         margin-bottom: 8px;
       }
       .verify-header label { display: block; margin: 0; gap: 0; }
       .verify-header label span { margin: 0; }
-      .checkout-form-stack {
-        display: grid;
-        gap: 20px;
-        align-items: start;
-      }
-      .checkout-form-stack > label,
-      .checkout-form-stack > .name-row,
-      .checkout-form-stack > .verify-field,
-      .checkout-form-stack > .field-grid {
-        width: min(100%, var(--field-width, 520px));
-      }
-      .checkout-form-stack .field-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 20px;
-        align-items: start;
-      }
-      .verify-field {
-        --field-width: 520px;
-        padding: 14px;
-        border: 1px solid #e4e7ec;
-        border-radius: 10px;
-        background: #fcfcfd;
-      }
-      .verify-field[data-verify-card="phone"] {
-        --field-width: 520px;
-      }
-      .verify-field .input-action {
-        grid-template-columns: minmax(0, 270px) 148px;
-        gap: 16px;
-        align-items: end;
-      }
-      .verify-field .otp-row {
-        width: min(100%, 270px);
-        grid-template-columns: 1fr 88px;
-        gap: 8px;
-        margin-top: 8px;
-      }
-      .verify-field .otp-row input,
-      .verify-field .otp-row .btn,
-      .verify-field .input-action .btn {
-        height: 40px;
-        min-height: 40px;
-        padding-block: 7px;
-      }
-      .verify-field .otp-row input {
-        padding-inline: 10px;
-      }
-      .verify-field .otp-row small {
-        margin-top: -2px;
-      }
-      .checkout-phone-grid {
-        --field-width: 520px;
-      }
-      .checkout-form-stack .checkout-website-field {
-        --field-width: 520px;
-        grid-template-columns: 1fr;
-      }
       .input-hint {
         display: block;
-        margin-top: 10px;
+        margin-top: 4px;
         font-size: 0.74rem;
-        color: #a0a0a0;
+        color: var(--muted);
       }
       .form-footer-note {
         display: flex;
         align-items: center;
         gap: 7px;
         font-size: 0.77rem;
-        max-width: 420px;
-        color: #a0a0a0;
+        color: var(--muted);
         font-weight: 500;
         margin-top: 14px;
       }
@@ -267,102 +149,26 @@
         font-size: 0.95rem;
         flex-shrink: 0;
       }
-      .sticky-panel {
-        position: sticky;
-        top: 0;
-        min-width: 0;
-        min-height: 100vh;
-        padding: 70px 54px;
-        background: #ffffff !important;
-        border: 0;
-        border-left: 1px solid #e8e8e8;
-        border-radius: 0;
-        box-shadow: none;
-      }
-      body[data-page="checkout"] input,
-      body[data-page="checkout"] select,
-      body[data-page="checkout"] .phone-field,
-      body[data-page="checkout"] .plain-phone {
-        min-height: 50px;
-        border: 1px solid #d6d9df;
-        border-radius: 8px;
-        background: #ffffff;
-        color: #242424;
-        font-size: 1.08rem;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-        transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
-      }
-      body[data-page="checkout"] input:hover,
-      body[data-page="checkout"] select:hover,
-      body[data-page="checkout"] .phone-field:hover,
-      body[data-page="checkout"] .plain-phone:hover {
-        border-color: #bfc5ce;
-      }
-      body[data-page="checkout"] input:focus,
-      body[data-page="checkout"] select:focus,
-      body[data-page="checkout"] .phone-field:focus-within,
-      body[data-page="checkout"] .plain-phone:focus-within {
-        border-color: #884c2d;
-        background: #ffffff;
-        box-shadow: 0 0 0 3px rgba(136, 76, 45, 0.14), 0 1px 2px rgba(15, 23, 42, 0.05);
-      }
-      body[data-page="checkout"] input::placeholder {
-        color: #9a9a9a;
-      }
-      body[data-page="checkout"] .btn {
-        min-height: 50px;
-        border-radius: 8px;
-        border: 1px solid #cfd4dc;
-        background: #ffffff;
-        color: #222222;
-        font-size: 0.9rem;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-      body[data-page="checkout"] .btn:hover {
-        border-color: #aeb5c0;
-        background: #f8fafc;
-      }
-      body[data-page="checkout"] .btn-primary {
-        background: #ffffff;
-        color: #222222;
-      }
-      body[data-page="checkout"] .form-actions {
-        max-width: 520px;
-        justify-content: space-between;
-        align-items: center;
-        padding: 6px 0 0;
-      }
-      body[data-page="checkout"] .panel .mini-label {
-        margin-bottom: 64px;
-      }
-      body[data-page="checkout"] .coupon-box .input-action {
-        grid-template-columns: minmax(0, 1fr) 112px;
-        gap: 14px;
-      }
+      .sticky-panel { background: #ffffff !important; }
       /* Salutation + name row: narrow select + two equal inputs */
       .name-row {
         display: grid;
-        grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr);
-        gap: 20px;
-      }
-      .name-row label:first-child select {
-        min-height: 40px;
-        padding: 7px 8px;
+        grid-template-columns: 100px 1fr 1fr;
+        gap: 12px;
       }
       /* Simple phone row without OTP (alt / whatsapp) */
       .plain-phone {
         display: grid;
         grid-template-columns: auto minmax(0,1fr);
+        border: 1px solid var(--line);
         border-radius: 8px;
         overflow: hidden;
-        background: #ffffff;
+        background: var(--surface);
         transition: border-color 160ms ease, box-shadow 160ms ease;
       }
       .plain-phone:focus-within {
-        border-color: #884c2d;
-        box-shadow: 0 0 0 3px rgba(136,76,45,0.14);
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(136,76,45,0.16);
       }
       .plain-phone input {
         border: 0;
@@ -375,159 +181,17 @@
         display: flex;
         align-items: center;
         padding: 0 10px;
-        background: #ffffff;
-        border-right: 0;
-        color: #666666;
-        font-size: 1rem;
-        font-weight: 500;
+        background: var(--surface-soft);
+        border-right: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.88rem;
+        font-weight: 600;
         white-space: nowrap;
         user-select: none;
       }
-      .overview-card {
-        gap: 0;
-      }
-      .overview-card h3 {
-        color: #242424;
-        font-family: "DM Sans", system-ui, sans-serif;
-        font-size: 1.15rem;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-      }
-      .overview-card p {
-        max-width: 260px;
-        margin-top: 6px;
-        color: #666666;
-        font-size: 0.94rem;
-        line-height: 1.45;
-      }
-      .overview-card .package-price {
-        margin: 26px 0 32px;
-        color: #333333;
-        font-size: 1.9rem;
-        font-weight: 400;
-        letter-spacing: -0.04em;
-      }
-      .overview-card .package-price small {
-        color: #666666;
-        font-size: 0.86rem;
-        letter-spacing: 0;
-      }
-      .overview-row,
-      .total-row {
-        padding: 9px 0;
-        color: #666666;
-        font-size: 0.95rem;
-      }
-      .overview-row strong,
-      .total-row strong {
-        color: #333333;
-        font-weight: 600;
-      }
-      .summary-divider {
-        margin: 20px 0;
-        background: #e8e8e8;
-      }
-      .total-row {
-        display: block;
-        padding: 10px 0 22px;
-      }
-      .total-row span {
-        display: block;
-        color: #a0a0a0;
-        font-size: 0.82rem;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-      .total-row strong {
-        display: block;
-        margin-top: 12px;
-        color: #333333;
-        font-size: 2.15rem;
-        font-weight: 400;
-        letter-spacing: -0.05em;
-      }
-      .coupon-box {
-        gap: 12px;
-      }
-      .coupon-box small {
-        color: #a0a0a0;
-        font-size: 0.78rem;
-      }
-      @media (max-width: 760px) {
-        body[data-page="checkout"] .page-shell {
-          width: 100%;
-        }
-        body[data-page="checkout"] .two-column {
-          grid-template-columns: minmax(0, 1fr);
-        }
-        #customerForm {
-          padding: 38px 22px;
-        }
-        body[data-page="checkout"] .sticky-panel {
-          width: 100%;
-          min-height: auto;
-          padding: 34px 22px;
-          border-left: 0;
-          border-top: 1px solid #e8e8e8;
-        }
-        .checkout-progress {
-          max-width: 100%;
-          border-radius: 14px;
-          align-items: flex-start;
-        }
-        .checkout-step {
-          gap: 8px;
-          min-width: 0;
-        }
-        .checkout-step span:last-child {
-          font-size: 0.7rem;
-          line-height: 1.15;
-        }
-        .checkout-form-stack > label,
-        .checkout-form-stack > .name-row,
-        .checkout-form-stack > .verify-field,
-        .checkout-form-stack > .field-grid,
-        .verify-field .otp-row {
-          width: 100%;
-        }
-        .checkout-form-stack .field-grid,
-        .verify-field .input-action,
-        .verify-field .otp-row {
-          grid-template-columns: 1fr;
-        }
-        .verify-field {
-          padding: 14px;
-          border: 1px solid #e4e7ec;
-        }
-      }
       @media (max-width: 600px) {
-        body[data-page="checkout"] .shell-header {
-          align-items: center;
-          flex-direction: row;
-          min-height: 64px;
-          padding: 12px 18px;
-        }
-        body[data-page="checkout"] .shell-header .brand {
-          width: auto;
-        }
-        body[data-page="checkout"] .shell-header .brand-mark {
-          width: 132px;
-          height: 32px;
-        }
-        body[data-page="checkout"] .top-nav a {
-          min-height: 36px;
-          padding: 8px 11px;
-          font-size: 0.7rem;
-        }
-        .name-row { grid-template-columns: 0.7fr 1fr; }
+        .name-row { grid-template-columns: 1fr 1fr; }
         .name-row label:first-child { grid-column: 1 / -1; }
-        body[data-page="checkout"] .form-actions {
-          flex-direction: column-reverse;
-        }
-        body[data-page="checkout"] .form-actions .btn {
-          width: 100%;
-        }
       }
     </style>
   </head>
@@ -544,46 +208,43 @@
 
     <main class="page-shell">
 
+      <!-- Progress -->
+      <div class="checkout-progress">
+        <div class="checkout-step is-active">
+          <span class="checkout-step-num">1</span>
+          <span>Your Details</span>
+        </div>
+        <div class="checkout-step-divider"></div>
+        <div class="checkout-step">
+          <span class="checkout-step-num">2</span>
+          <span>Payment</span>
+        </div>
+        <div class="checkout-step-divider"></div>
+        <div class="checkout-step">
+          <span class="checkout-step-num">3</span>
+          <span>Confirmation</span>
+        </div>
+      </div>
+
       <div class="two-column">
 
         <!-- LEFT: Form -->
         <form id="customerForm" novalidate>
-          <p class="checkout-kicker">The Copper Studio</p>
-          <h1 class="checkout-title">Tell us about yourself</h1>
-          <p class="checkout-subtitle">Step 1 of 3 — your details. Takes about two minutes.</p>
-
-          <!-- Progress -->
-          <div class="checkout-progress">
-            <div class="checkout-step is-active">
-              <span class="checkout-step-num">1</span>
-              <span>Details</span>
-            </div>
-            <div class="checkout-step-divider"></div>
-            <div class="checkout-step">
-              <span class="checkout-step-num">2</span>
-              <span>Payment</span>
-            </div>
-            <div class="checkout-step-divider"></div>
-            <div class="checkout-step">
-              <span class="checkout-step-num">3</span>
-              <span>Done</span>
-            </div>
-          </div>
 
           <!-- 1. Personal Information -->
           <div class="form-section-block">
             <div class="block-header">
-              <h3>Who are you</h3>
+              <h3>Personal Information</h3>
               <span class="section-badge">
                 <span class="material-symbols-outlined" style="font-size:0.85rem;">person</span>
                 Step 1 of 3
               </span>
             </div>
-            <div class="checkout-form-stack">
+            <div style="display:grid;gap:16px;">
               <!-- Salutation + First + Last -->
               <div class="name-row">
                 <label>
-                  <span>Title</span>
+                  <span>Salutation</span>
                   <select id="salutation" name="salutation" autocomplete="honorific-prefix">
                     <option value="">—</option>
                     <option value="Mr.">Mr.</option>
@@ -613,13 +274,13 @@
           <!-- 2. Communication -->
           <div class="form-section-block">
             <div class="block-header">
-              <h3>How to reach you</h3>
+              <h3>Communication Details</h3>
               <span class="section-badge">
                 <span class="material-symbols-outlined" style="font-size:0.85rem;">contact_mail</span>
                 Step 2 of 3
               </span>
             </div>
-            <div class="checkout-form-stack">
+            <div style="display:grid;gap:16px;">
 
               <!-- Work Email + OTP -->
               <div class="verify-field" data-verify-card="email">
@@ -669,35 +330,33 @@
                 </div>
               </div>
 
-              <!-- Alt + WhatsApp side by side -->
-              <div class="field-grid checkout-phone-grid">
-                <label>
-                  <span>Alternative Number <em>optional</em></span>
-                  <div class="plain-phone">
-                    <span class="plain-phone-prefix">+91</span>
-                    <input id="alternativePhone" name="alternativePhone" type="tel" inputmode="numeric" maxlength="10" placeholder="98765 43210" autocomplete="tel">
-                  </div>
-                </label>
-                <label>
-                  <span>WhatsApp Number</span>
-                  <div class="plain-phone">
-                    <span class="plain-phone-prefix">
-                      <span class="material-symbols-outlined" style="font-size:0.95rem;margin-right:3px;color:#25D366;">chat</span>
-                      +91
-                    </span>
-                    <input id="whatsappNumber" name="whatsappNumber" type="tel" inputmode="numeric" maxlength="10" placeholder="98765 43210" required autocomplete="tel">
-                  </div>
-                  <span class="input-hint">Order updates &amp; onboarding sent here.</span>
-                </label>
-              </div>
+              <!-- Alternative Number (no OTP) -->
+              <label>
+                <span>Alternative Number <em>optional</em></span>
+                <div class="plain-phone">
+                  <span class="plain-phone-prefix">+91</span>
+                  <input id="alternativePhone" name="alternativePhone" type="tel" inputmode="numeric" maxlength="10" placeholder="98765 43210" autocomplete="tel">
+                </div>
+              </label>
 
-              <!-- Company Website — half width -->
-              <div class="field-grid checkout-website-field">
-                <label>
-                  <span>Company / Brand Website <em>optional</em></span>
-                  <input id="companyWebsite" name="companyWebsite" type="url" placeholder="https://www.yourcompany.com" autocomplete="url">
-                </label>
-              </div>
+              <!-- WhatsApp Number -->
+              <label>
+                <span>WhatsApp Number</span>
+                <div class="plain-phone">
+                  <span class="plain-phone-prefix">
+                    <span class="material-symbols-outlined" style="font-size:1rem;margin-right:4px;color:var(--accent);">chat</span>
+                    +91
+                  </span>
+                  <input id="whatsappNumber" name="whatsappNumber" type="tel" inputmode="numeric" maxlength="10" placeholder="98765 43210" required autocomplete="tel">
+                </div>
+                <span class="input-hint">We'll send order updates and onboarding info here.</span>
+              </label>
+
+              <!-- Company Website -->
+              <label>
+                <span>Company / Brand Website <em>optional</em></span>
+                <input id="companyWebsite" name="companyWebsite" type="url" placeholder="https://www.yourcompany.com" autocomplete="url">
+              </label>
 
             </div>
           </div>
@@ -705,7 +364,7 @@
           <!-- 3. Billing Details -->
           <div class="form-section-block">
             <div class="block-header">
-              <h3>Billing Address</h3>
+              <h3>Billing Details</h3>
               <span class="section-badge">
                 <span class="material-symbols-outlined" style="font-size:0.85rem;">receipt_long</span>
                 Step 3 of 3
@@ -782,7 +441,7 @@
           <div class="form-actions" style="margin-top:18px;">
             <a class="btn btn-secondary" href="index.html">
               <span class="material-symbols-outlined" style="font-size:1rem;line-height:1;">arrow_back</span>
-              Back
+              Back to Packages
             </a>
             <button class="btn btn-primary" type="submit">
               Continue to Payment
@@ -797,27 +456,27 @@
 
         <!-- RIGHT: Order summary -->
         <aside class="panel sticky-panel">
-          <p class="order-kicker">Your Order</p>
+          <p class="mini-label">Order Summary</p>
           <div id="selectedOverview"></div>
-
-          <div class="summary-divider"></div>
-
-          <div class="total-row">
-            <span>Total payable</span>
-            <strong id="overviewTotal">—</strong>
-          </div>
 
           <div class="summary-divider"></div>
 
           <div class="coupon-box">
             <label for="couponCode">
-              <span>Coupon Code</span>
+              <span>Apply Code <em>optional</em></span>
             </label>
             <div class="input-action">
               <input id="couponCode" type="text" placeholder="" autocomplete="off">
               <button class="btn btn-secondary" type="button" id="applyCouponButton">Apply</button>
             </div>
             <small id="couponStatus">Have a coupon? Apply it before payment.</small>
+          </div>
+
+          <div class="summary-divider"></div>
+
+          <div class="total-row">
+            <span>Total payable</span>
+            <strong id="overviewTotal">—</strong>
           </div>
 
           <div class="trust-row">
@@ -838,6 +497,6 @@
       </div>
     </main>
 
-    <script src="assets/app.js?v=checkout-2"></script>
+    <script src="assets/app.js?v=pages-1"></script>
   </body>
 </html>
