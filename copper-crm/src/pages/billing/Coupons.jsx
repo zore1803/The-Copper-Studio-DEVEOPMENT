@@ -105,126 +105,108 @@ function CouponField({ label, value, onChange, error = "", required = false, typ
   );
 }
 
-const R = 88; // clock radius
-const CX = 100; const CY = 100; // center
+const ITEM_H = 40;
+
+function DrumColumn({ items, selected, onSelect }) {
+  const idx = items.indexOf(selected);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTop = idx * ITEM_H;
+  }, []);
+
+  function onScroll(e) {
+    const i = Math.round(e.target.scrollTop / ITEM_H);
+    if (items[i] !== undefined) onSelect(items[i]);
+  }
+
+  return (
+    <div className="relative flex-1">
+      {/* selection highlight */}
+      <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 h-10 rounded-xl bg-[#884c2d]/10 border border-[#884c2d]/20 z-10" />
+      {/* fade top */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white to-transparent z-10" />
+      {/* fade bottom */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent z-10" />
+      <div
+        ref={ref}
+        onScroll={onScroll}
+        className="h-[200px] overflow-y-scroll scrollbar-hide"
+        style={{ scrollSnapType: "y mandatory" }}
+      >
+        {/* padding items */}
+        <div style={{ height: 80 }} />
+        {items.map((item) => (
+          <div
+            key={item}
+            onClick={() => {
+              onSelect(item);
+              if (ref.current) ref.current.scrollTop = items.indexOf(item) * ITEM_H;
+            }}
+            style={{ height: ITEM_H, scrollSnapAlign: "center" }}
+            className={`flex cursor-pointer items-center justify-center text-[15px] font-semibold transition-colors select-none ${item === selected ? "text-[#884c2d]" : "text-[#9ca3af]"}`}
+          >
+            {item}
+          </div>
+        ))}
+        <div style={{ height: 80 }} />
+      </div>
+    </div>
+  );
+}
 
 function ClockPicker({ value, onChange, onClose }) {
   const parsed = value ? value.split(":") : ["12", "00"];
-  const [hour, setHour] = useState(Number(parsed[0]));
+  const initH = Number(parsed[0]);
+  const [hour24, setHour24] = useState(initH);
   const [minute, setMinute] = useState(Number(parsed[1]));
-  const [selecting, setSelecting] = useState("hour"); // "hour" | "minute"
+  const isAM = hour24 < 12;
+
+  const hours12 = ["12","01","02","03","04","05","06","07","08","09","10","11"];
+  const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+  const meridiem = ["AM", "PM"];
+
+  const h12str = String(hour24 % 12 || 12).padStart(2, "0");
+  const minStr = String(minute).padStart(2, "0");
+  const merStr = isAM ? "AM" : "PM";
+
+  function onHourSelect(v) {
+    const base = isAM ? 0 : 12;
+    setHour24(base + (Number(v) % 12));
+  }
+  function onMinuteSelect(v) { setMinute(Number(v)); }
+  function onMerSelect(v) {
+    if (v === "AM" && !isAM) setHour24((h) => h - 12);
+    if (v === "PM" && isAM) setHour24((h) => h + 12);
+  }
 
   function apply() {
-    onChange(`${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`);
+    onChange(`${String(hour24).padStart(2, "0")}:${minStr}`);
     onClose();
   }
 
-  function handleClockClick(e) {
-    const svg = e.currentTarget;
-    const rect = svg.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 200 - CX;
-    const y = ((e.clientY - rect.top) / rect.height) * 200 - CY;
-    const angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
-    const deg = (angle + 360) % 360;
-    if (selecting === "hour") {
-      const h24base = hour >= 12 ? 12 : 0;
-      setHour(h24base + Math.round(deg / 30) % 12);
-      setSelecting("minute");
-    } else {
-      setMinute(Math.round(deg / 6) % 60);
-    }
-  }
-
-  const hourDeg = ((hour % 12) / 12) * 360 + (minute / 60) * 30 - 90;
-  const minDeg = (minute / 60) * 360 - 90;
-  const isAM = hour < 12;
-
-  const hourHandX = CX + 52 * Math.cos(hourDeg * Math.PI / 180);
-  const hourHandY = CY + 52 * Math.sin(hourDeg * Math.PI / 180);
-  const minHandX = CX + 72 * Math.cos(minDeg * Math.PI / 180);
-  const minHandY = CY + 72 * Math.sin(minDeg * Math.PI / 180);
-
   return (
-    <div className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-2xl shadow-black/15">
+    <div className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-2xl border border-[#e5e7eb] bg-white shadow-2xl shadow-black/15">
       {/* Header */}
-      <div className="bg-[#884c2d] px-5 py-4">
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-[#e2c4b4]">Select time</p>
-        <div className="flex items-end gap-1">
-          <button onClick={() => setSelecting("hour")} className={`text-4xl font-bold leading-none transition-opacity ${selecting === "hour" ? "text-white" : "text-[#c4916e]"}`}>
-            {String(hour % 12 || 12).padStart(2, "0")}
-          </button>
-          <span className="mb-0.5 text-3xl font-bold text-[#c4916e]">:</span>
-          <button onClick={() => setSelecting("minute")} className={`text-4xl font-bold leading-none transition-opacity ${selecting === "minute" ? "text-white" : "text-[#c4916e]"}`}>
-            {String(minute).padStart(2, "0")}
-          </button>
-          <div className="ml-2 mb-0.5 flex flex-col gap-0.5">
-            <button onClick={() => setHour((h) => h < 12 ? h : h - 12)} className={`rounded px-1.5 py-0.5 text-[11px] font-bold transition-colors ${isAM ? "bg-white text-[#884c2d]" : "text-[#c4916e] hover:text-white"}`}>AM</button>
-            <button onClick={() => setHour((h) => h >= 12 ? h : h + 12)} className={`rounded px-1.5 py-0.5 text-[11px] font-bold transition-colors ${!isAM ? "bg-white text-[#884c2d]" : "text-[#c4916e] hover:text-white"}`}>PM</button>
-          </div>
-        </div>
+      <div className="bg-[#884c2d] px-4 py-3 text-center">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[#e2c4b4] mb-1">Select Time</p>
+        <p className="text-3xl font-bold text-white tracking-wide">
+          {h12str}<span className="text-[#e2c4b4]">:</span>{minStr}
+          <span className="ml-2 text-lg font-semibold text-[#e2c4b4]">{merStr}</span>
+        </p>
       </div>
 
-      {/* Clock face */}
-      <div className="p-4">
-        <svg viewBox="0 0 200 200" className="w-full cursor-pointer select-none" onClick={handleClockClick}>
-          {/* Outer ring */}
-          <circle cx={CX} cy={CY} r={R} fill="#fafafa" stroke="#f3f4f6" strokeWidth="1" />
-          {/* Minute ticks */}
-          {Array.from({ length: 60 }, (_, i) => {
-            const a = (i / 60) * 2 * Math.PI - Math.PI / 2;
-            const isMaj = i % 5 === 0;
-            const r1 = isMaj ? R - 10 : R - 6;
-            return <line key={i} x1={CX + R * Math.cos(a)} y1={CY + R * Math.sin(a)} x2={CX + r1 * Math.cos(a)} y2={CY + r1 * Math.sin(a)} stroke={isMaj ? "#d1d5db" : "#e5e7eb"} strokeWidth={isMaj ? 1.5 : 1} />;
-          })}
-          {/* Hour numbers */}
-          {[12,1,2,3,4,5,6,7,8,9,10,11].map((n, i) => {
-            const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
-            const active = selecting === "hour" && (hour % 12 || 12) === n;
-            return (
-              <g key={n}>
-                {active && <circle cx={CX + 68 * Math.cos(a)} cy={CY + 68 * Math.sin(a)} r="13" fill="#884c2d" />}
-                <text x={CX + 68 * Math.cos(a)} y={CY + 68 * Math.sin(a)} textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight={active ? "700" : "500"} fill={active ? "white" : "#374151"}>{n}</text>
-              </g>
-            );
-          })}
-          {/* Minute numbers (every 5) */}
-          {selecting === "minute" && [0,5,10,15,20,25,30,35,40,45,50,55].map((n, i) => {
-            const a = (i / 12) * 2 * Math.PI - Math.PI / 2;
-            const active = minute === n || (n === 0 && minute === 0);
-            return (
-              <g key={n}>
-                {active && <circle cx={CX + 68 * Math.cos(a)} cy={CY + 68 * Math.sin(a)} r="13" fill="#884c2d" />}
-                <text x={CX + 68 * Math.cos(a)} y={CY + 68 * Math.sin(a)} textAnchor="middle" dominantBaseline="central" fontSize="11" fontWeight={active ? "700" : "500"} fill={active ? "white" : "#374151"}>{String(n).padStart(2,"0")}</text>
-              </g>
-            );
-          })}
-          {/* Hand track line */}
-          <line x1={CX} y1={CY} x2={selecting === "hour" ? hourHandX : minHandX} y2={selecting === "hour" ? hourHandY : minHandY} stroke="#884c2d" strokeWidth="2" strokeLinecap="round" />
-          {/* Hand tip circle */}
-          <circle cx={selecting === "hour" ? hourHandX : minHandX} cy={selecting === "hour" ? hourHandY : minHandY} r="5" fill="#884c2d" />
-          {/* Center dot */}
-          <circle cx={CX} cy={CY} r="3.5" fill="#884c2d" />
-        </svg>
+      {/* Drum scrollers */}
+      <div className="flex items-center gap-0 px-2 pt-1">
+        <DrumColumn items={hours12} selected={h12str} onSelect={onHourSelect} />
+        <span className="text-xl font-bold text-[#884c2d] pb-1">:</span>
+        <DrumColumn items={minutes} selected={minStr} onSelect={onMinuteSelect} />
+        <DrumColumn items={meridiem} selected={merStr} onSelect={onMerSelect} />
+      </div>
 
-        {/* Fine-tune spinners */}
-        <div className="mt-2 flex items-center justify-center gap-3 border-t border-[#f3f4f6] pt-3">
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setHour((h) => (h - 1 + 24) % 24)} className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e5e7eb] text-[#6b7280] hover:border-[#884c2d] hover:text-[#884c2d] text-xs transition-colors">−</button>
-            <span className="w-8 text-center text-sm font-bold text-[#111827]">{String(hour).padStart(2,"0")}</span>
-            <button onClick={() => setHour((h) => (h + 1) % 24)} className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e5e7eb] text-[#6b7280] hover:border-[#884c2d] hover:text-[#884c2d] text-xs transition-colors">+</button>
-          </div>
-          <span className="text-sm font-bold text-[#9ca3af]">:</span>
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setMinute((m) => (m - 1 + 60) % 60)} className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e5e7eb] text-[#6b7280] hover:border-[#884c2d] hover:text-[#884c2d] text-xs transition-colors">−</button>
-            <span className="w-8 text-center text-sm font-bold text-[#111827]">{String(minute).padStart(2,"0")}</span>
-            <button onClick={() => setMinute((m) => (m + 1) % 60)} className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e5e7eb] text-[#6b7280] hover:border-[#884c2d] hover:text-[#884c2d] text-xs transition-colors">+</button>
-          </div>
-        </div>
-
-        <div className="mt-3 flex gap-2">
-          <button onClick={onClose} className="flex-1 rounded-lg border border-[#e5e7eb] py-2 text-sm font-semibold text-[#6b7280] hover:bg-[#f9fafb] transition-colors">Cancel</button>
-          <button onClick={apply} className="flex-1 rounded-lg bg-[#884c2d] py-2 text-sm font-semibold text-white hover:bg-[#7a4228] transition-colors">Set time</button>
-        </div>
+      <div className="flex gap-2 px-3 pb-3">
+        <button onClick={onClose} className="flex-1 rounded-lg border border-[#e5e7eb] py-2 text-sm font-semibold text-[#6b7280] hover:bg-[#f9fafb] transition-colors">Cancel</button>
+        <button onClick={apply} className="flex-1 rounded-lg bg-[#884c2d] py-2 text-sm font-semibold text-white hover:bg-[#7a4228] transition-colors">Set</button>
       </div>
     </div>
   );
@@ -263,9 +245,9 @@ function ValidFromField({ value, onChange, error }) {
           type="button"
           onClick={() => setClockOpen((v) => !v)}
           title="Pick time with clock"
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-r-lg transition-colors ${clockOpen ? "text-[#884c2d]" : "text-[#9ca3af] hover:text-[#884c2d]"}`}
+          className={`mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors ${clockOpen ? "text-[#884c2d]" : "text-[#c4c9d4] hover:text-[#884c2d]"}`}
         >
-          <Clock size={15} />
+          <Clock size={14} />
         </button>
       </div>
       {error && <span className="mt-1 block text-[11px] font-semibold text-red-500">{error}</span>}
