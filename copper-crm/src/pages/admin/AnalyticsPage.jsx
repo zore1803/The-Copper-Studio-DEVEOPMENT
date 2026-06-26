@@ -316,143 +316,139 @@ function ChartDrillDownPanel({ data, onClose, navigate }) {
   );
 }
 
+function KpiFormula({ formula, result }) {
+  return (
+    <div className="rounded-xl border border-[#E1E4EA] bg-white p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#9CA3AF]">Calculation</p>
+      <p className="mt-2 text-sm font-semibold text-[#1F2937]">{formula}</p>
+      <p className="mt-2 text-xs text-[#6B7280]">{result}</p>
+    </div>
+  );
+}
+
+function KpiRow({ title, subtitle, value, tone = "text-[#1F2937]" }) {
+  return (
+    <div className="rounded-xl border border-[#E1E4EA] bg-white p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-[#1F2937]">{title}</p>
+          {subtitle && <p className="mt-1 text-xs text-[#6B7280]">{subtitle}</p>}
+        </div>
+        {value !== undefined && <p className={`shrink-0 text-sm font-bold ${tone}`}>{value}</p>}
+      </div>
+    </div>
+  );
+}
+
+function EmptyKpiRows({ text }) {
+  return <div className="rounded-xl border border-dashed border-[#D1D5DB] bg-white p-6 text-center text-sm text-[#6B7280]">{text}</div>;
+}
+
 function KpiDrillDownPanel({ kpi, data, onClose }) {
-  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   if (!kpi) return null;
 
-  let content;
+  let formula = "";
+  let result = "";
+  let rows = null;
 
-  if (kpi === "Pending Dues") {
-    const pendingOrders = (data.filteredOrders || []).filter(o => !isPaidStatus(o.status));
-    const pendingPayments = (data.filteredPayments || []).filter(p => !isPaidStatus(p.status));
+  if (kpi === "Total Revenue") {
+    const purchases = data.packagePurchases || [];
+    formula = "Sum of paid invoice revenue, plus paid payment/order fallbacks that do not already have invoices.";
+    result = `${formatMoney(data.revenue)} from ${purchases.length} paid purchase record${purchases.length === 1 ? "" : "s"}.`;
+    rows = purchases.length ? purchases.map((item, i) => (
+      <KpiRow
+        key={item.id || i}
+        title={item.companyName || item.clientName || "Unknown client"}
+        subtitle={`${item.packageName || "Package"} · ${item.source || "record"}`}
+        value={formatMoney(item.amount)}
+        tone="text-emerald-600"
+      />
+    )) : <EmptyKpiRows text="No paid revenue records in this period." />;
+  } else if (kpi === "Avg Revenue") {
+    const projectCount = Math.max(data.filteredProjectsLength || 0, 1);
+    formula = "Total Revenue ÷ Total Projects.";
+    result = `${formatMoney(data.revenue)} ÷ ${projectCount} = ${formatMoney(data.avgProjectValue)}.`;
+    rows = (data.filteredProjects || []).length ? (data.filteredProjects || []).map((project, i) => (
+      <KpiRow
+        key={project._id || project.id || i}
+        title={String(project.name || project.projectName || "Project")}
+        subtitle={String(project.companyName || project.client || "Unknown company")}
+        value={formatMoney(moneyValue(project.finalAmount ?? project.budget ?? project.packageValue))}
+      />
+    )) : <EmptyKpiRows text="No projects in this period." />;
+  } else if (kpi === "Pending Dues") {
+    const pendingOrders = (data.filteredOrders || []).filter(o => !isPaidStatus(o.payment?.status || o.status));
+    const pendingPayments = (data.filteredPayments || []).filter(p => !isPaidStatus(p.status) && !p.orderId && !p.sourceOrderId);
     const pendingProjects = (data.filteredProjects || []).filter(p => !isPaidStatus(p.paymentStatus) && !p.linkedInvoiceId && moneyValue(p.finalAmount ?? p.budget) > 0);
-    
-    if (pendingOrders.length === 0 && pendingPayments.length === 0 && pendingProjects.length === 0) {
-      content = <div className="text-center py-10 text-[#6B7280]">No pending dues for this period.</div>;
-    } else {
-      content = (
-        <div className="flex flex-col gap-2">
-          {pendingOrders.map((o, i) => (
-            <div key={`o-${o._id || i}`} className="p-3 border border-[#E1E4EA] rounded-lg bg-[#ffffff]">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-bold text-[#1F2937]">{String(o.customer?.customerCompany || o.company || "Unknown Company")}</p>
-                  <p className="text-xs text-[#6B7280]">{String(o.customer?.customerName || o.client || "Unknown Contact")}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-red-600">Rs {moneyValue(o.amount ?? o.package?.total ?? o.total).toLocaleString("en-IN")}</p>
-                  <span className="inline-flex items-center px-2 py-0.5 mt-1 rounded text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700">{String(o.status)}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-          {pendingPayments.map((p, i) => (
-            <div key={`p-${p._id || i}`} className="p-3 border border-[#E1E4EA] rounded-lg bg-[#ffffff]">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-bold text-[#1F2937]">{String(p.companyName || p.client || "Unknown Company")}</p>
-                  <p className="text-xs text-[#6B7280]">{String(p.clientName || "Unknown Contact")}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-red-600">Rs {moneyValue(p.amount ?? p.value).toLocaleString("en-IN")}</p>
-                  <span className="inline-flex items-center px-2 py-0.5 mt-1 rounded text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700">{String(p.status)}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-          {pendingProjects.map((p, i) => (
-            <div key={`proj-${p._id || i}`} className="p-3 border border-[#E1E4EA] rounded-lg bg-[#ffffff]">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-sm font-bold text-[#1F2937]">{String(p.companyName || p.clientName || "Unknown Company")}</p>
-                  <p className="text-xs text-[#6B7280]">{String(p.name || p.projectName || "Project")}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-red-600">Rs {moneyValue(p.finalAmount ?? p.budget).toLocaleString("en-IN")}</p>
-                  <span className="inline-flex items-center px-2 py-0.5 mt-1 rounded text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700">{String(p.paymentStatus || "Pending")}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
+    formula = "Unpaid orders + unpaid standalone payments + uninvoiced unpaid project amounts.";
+    result = `${formatMoney(data.pendingDues)} across ${pendingOrders.length + pendingPayments.length + pendingProjects.length} pending record${pendingOrders.length + pendingPayments.length + pendingProjects.length === 1 ? "" : "s"}.`;
+    rows = pendingOrders.length + pendingPayments.length + pendingProjects.length ? (
+      <>
+        {pendingOrders.map((o, i) => <KpiRow key={`o-${o._id || i}`} title={String(o.customer?.customerCompany || o.company || "Unknown Company")} subtitle={String(o.customer?.customerName || o.client || "Order")} value={formatMoney(moneyValue(o.amount ?? o.package?.total ?? o.total))} tone="text-red-600" />)}
+        {pendingPayments.map((p, i) => <KpiRow key={`p-${p._id || i}`} title={String(p.companyName || p.client || "Unknown Company")} subtitle={String(p.clientName || "Payment")} value={formatMoney(moneyValue(p.amount ?? p.value))} tone="text-red-600" />)}
+        {pendingProjects.map((p, i) => <KpiRow key={`proj-${p._id || i}`} title={String(p.companyName || p.clientName || "Unknown Company")} subtitle={String(p.name || p.projectName || "Project")} value={formatMoney(moneyValue(p.finalAmount ?? p.budget))} tone="text-red-600" />)}
+      </>
+    ) : <EmptyKpiRows text="No pending dues for this period." />;
+  } else if (kpi === "Active Clients") {
+    formula = "Count of company records in the selected period.";
+    result = `${data.filteredCompaniesLength} active client${data.filteredCompaniesLength === 1 ? "" : "s"}.`;
+    rows = (data.filteredCompanies || []).length ? data.filteredCompanies.map((company, i) => (
+      <KpiRow key={company._id || company.id || i} title={String(company.name || company.company || "Unnamed company")} subtitle={String(company.industry || company.status || "Company")} />
+    )) : <EmptyKpiRows text="No clients in this period." />;
+  } else if (kpi === "Total Projects") {
+    formula = "Count of project records created in the selected period.";
+    result = `${data.filteredProjectsLength} project${data.filteredProjectsLength === 1 ? "" : "s"}.`;
+    rows = (data.filteredProjects || []).length ? data.filteredProjects.map((project, i) => (
+      <KpiRow key={project._id || project.id || i} title={String(project.name || project.projectName || "Project")} subtitle={String(project.companyName || project.client || project.status || "Project")} />
+    )) : <EmptyKpiRows text="No projects in this period." />;
   } else if (kpi === "Avg Completion Time") {
     const completedList = data.completedProjectsList || [];
-    if (completedList.length === 0) {
-      content = <div className="text-center py-10 text-[#6B7280]">No completed projects found.</div>;
-    } else {
-      content = (
-        <div className="flex flex-col gap-2">
-          {completedList.map((p, i) => {
-            const start = new Date(p.startDate || p.createdAt || now);
-            const end = new Date(p.actualEndDate || p.expectedEndDate || p.updatedAt || now);
-            const diffDays = Math.max(Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)), 0);
-            return (
-              <div key={`cp-${p._id || i}`} className="p-3 border border-[#E1E4EA] rounded-lg bg-[#ffffff]">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm font-bold text-[#1F2937]">{String(p.name || p.projectName || "Unknown Project")}</p>
-                    <p className="text-xs text-[#6B7280]">{String(p.companyName || p.clientName || "Unknown Company")}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-[#1F2937]">{diffDays} Days</p>
-                  </div>
-                </div>
-                <div className="mt-2 text-[10px] text-[#9CA3AF] flex justify-between">
-                  <span>Start: {start.toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>
-                  <span>End: {end.toLocaleDateString("en-IN", { month: "short", day: "numeric" })}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
+    formula = "Average days from project start date to actual/expected completion date for completed projects.";
+    result = `${data.avgCompletionTime} day average from ${completedList.length} completed project${completedList.length === 1 ? "" : "s"}.`;
+    rows = completedList.length ? completedList.map((p, i) => {
+      const start = new Date(p.startDate || p.createdAt || now);
+      const end = new Date(p.actualEndDate || p.expectedEndDate || p.updatedAt || now);
+      const diffDays = Math.max(Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)), 0);
+      return <KpiRow key={`cp-${p._id || i}`} title={String(p.name || p.projectName || "Unknown Project")} subtitle={`${start.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} to ${end.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`} value={`${diffDays} days`} />;
+    }) : <EmptyKpiRows text="No completed projects found." />;
+  } else if (kpi === "Total Contacts") {
+    formula = "Count of contact records in the selected period.";
+    result = `${data.filteredContactsLength} contact${data.filteredContactsLength === 1 ? "" : "s"} · ${data.contactsPerClient} contacts per client.`;
+    rows = (data.filteredContacts || []).length ? data.filteredContacts.map((contact, i) => (
+      <KpiRow key={contact._id || contact.id || i} title={String(contact.name || contact.email || "Unnamed contact")} subtitle={String(contact.company || contact.designation || "Contact")} />
+    )) : <EmptyKpiRows text="No contacts in this period." />;
   } else if (kpi === "On-Time Delivery %") {
     const completedList = data.completedProjectsList || [];
     const onTimeProjects = [];
-    const delayedProjects = [];
-    completedList.forEach(p => {
-      const end = new Date(p.updatedAt || p.date || now).getTime();
-      const expected = new Date(p.expectedCompletion || p.dueDate || p.updatedAt || now).getTime();
-      if (end <= expected) onTimeProjects.push(p);
-      else delayedProjects.push(p);
+    const lateProjects = [];
+    completedList.forEach((project) => {
+      const end = new Date(project.actualEndDate || project.expectedEndDate || project.updatedAt || now).getTime();
+      const start = new Date(project.startDate || project.createdAt || now).getTime();
+      const expectedDateStr = project.expectedEndDate || project.expectedCompletion || project.dueDate;
+      const expected = expectedDateStr ? new Date(expectedDateStr).getTime() : start + 45 * 24 * 60 * 60 * 1000;
+      if (end <= expected) onTimeProjects.push(project);
+      else lateProjects.push(project);
     });
-
-    content = (
-      <div className="flex flex-col gap-5">
-        <div>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-green-600 mb-2">Delivered On Time ({onTimeProjects.length})</h4>
-          <div className="flex flex-col gap-2">
-            {onTimeProjects.length === 0 ? <p className="text-xs text-[#9CA3AF]">None</p> : onTimeProjects.map((p, i) => (
-              <div key={`on-${p._id || i}`} className="p-2 border border-green-100 bg-green-50 rounded-lg text-sm font-medium text-[#1F2937]">
-                {String(p.name || p.projectName || "Unknown Project")}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-red-600 mb-2">Delayed ({delayedProjects.length})</h4>
-          <div className="flex flex-col gap-2">
-            {delayedProjects.length === 0 ? <p className="text-xs text-[#9CA3AF]">None</p> : delayedProjects.map((p, i) => (
-              <div key={`dl-${p._id || i}`} className="p-2 border border-red-100 bg-red-50 rounded-lg text-sm font-medium text-[#1F2937]">
-                {String(p.name || p.projectName || "Unknown Project")}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    formula = "Projects delivered on or before expected date ÷ completed projects × 100.";
+    result = `${onTimeProjects.length} on time ÷ ${Math.max(completedList.length, 1)} completed = ${data.onTimeDeliveryPercent}%.`;
+    rows = completedList.length ? (
+      <>
+        {onTimeProjects.map((p, i) => <KpiRow key={`on-${p._id || i}`} title={String(p.name || p.projectName || "Project")} subtitle="Delivered on time" value="On time" tone="text-emerald-600" />)}
+        {lateProjects.map((p, i) => <KpiRow key={`late-${p._id || i}`} title={String(p.name || p.projectName || "Project")} subtitle="Delivered after expected date" value="Late" tone="text-red-600" />)}
+      </>
+    ) : <EmptyKpiRows text="No completed projects found." />;
   } else {
-    content = <div className="text-center py-10 text-[#6B7280]">Drill down not available for this metric.</div>;
+    formula = "No calculation configured.";
+    result = "This KPI does not have a detail view yet.";
+    rows = <EmptyKpiRows text="No detailed records available." />;
   }
 
   return (
-    <SidePanel title={`${kpi} Drill Down`} onClose={onClose}>
-      <div className="p-5 bg-[#F5F7FA] min-h-full">
-        {content}
+    <SidePanel title={`${kpi} Details`} subtitle="Formula, result, and source records." onClose={onClose}>
+      <div className="min-h-full space-y-4 bg-[#F5F7FA] p-5">
+        <KpiFormula formula={formula} result={result} />
+        <div className="space-y-2">{rows}</div>
       </div>
     </SidePanel>
   );
