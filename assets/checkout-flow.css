@@ -1190,10 +1190,10 @@ body[data-page="packages"] .shell-header {
   position: sticky;
   top: 0;
   z-index: 30;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  justify-content: center;
   align-items: center;
-  min-height: 74px;
+  min-height: 96px;
   padding: 0 clamp(24px, 5vw, 64px);
   border-bottom: 1px solid #e8ddd8;
   background: #fff8f6;
@@ -1201,17 +1201,17 @@ body[data-page="packages"] .shell-header {
 }
 
 body[data-page="packages"] .brand {
-  justify-self: start;
+  justify-self: center;
   display: inline-flex;
   align-items: center;
 }
 
 body[data-page="packages"] .brand-mark {
   display: block;
-  width: 172px;
-  height: 42px;
+  width: 260px;
+  height: 64px;
   border-radius: 0;
-  background: url("../copper-crm/public/copper-studio-wordmark.png") left center / contain no-repeat;
+  background: url("../copper-crm/public/copper-studio-wordmark.png") center / contain no-repeat;
   box-shadow: none;
 }
 
@@ -1470,11 +1470,11 @@ body[data-page="packages"] .package-card .btn-secondary:hover {
 
 @media (max-width: 680px) {
   body[data-page="packages"] .shell-header {
-    min-height: 68px;
+    min-height: 76px;
   }
   body[data-page="packages"] .brand-mark {
-    width: 136px;
-    height: 34px;
+    width: 190px;
+    height: 48px;
   }
   body[data-page="packages"] .page-shell {
     width: min(100% - 24px, 1160px);
