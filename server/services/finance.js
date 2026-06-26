@@ -198,7 +198,11 @@ export async function syncStandaloneProjectInvoices() {
       : null;
     const issuedAt = asDate(project.startDate) || asDate(project.createdAt) || new Date();
     const gst = amount ? amount - Math.round(amount / 1.18) : 0;
-    const status = projectInvoiceStatus(project);
+    const status = existing
+      ? (isPaidStatus(project.paymentStatus)
+          ? { status: "Paid", paymentStatus: "Paid" }
+          : { status: existing.status || "Draft", paymentStatus: existing.paymentStatus || existing.status || "Draft" })
+      : projectInvoiceStatus(project);
     const invoiceFields = {
       projectId: project._id,
       companyId: company?._id || project.companyId || null,

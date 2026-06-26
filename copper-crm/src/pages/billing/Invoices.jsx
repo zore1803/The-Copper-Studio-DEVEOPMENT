@@ -7,6 +7,8 @@ import { useToast } from "../../components/useToast";
 import SidePanel from "../../components/SidePanel";
 import { generateInvoiceNumber } from "../../lib/invoiceDefaults";
 
+const INVOICE_STATUSES = ["Draft", "Generated", "Sent", "Paid", "Overdue", "Cancelled"];
+
 function parseMoney(value) {
   return Number(String(value || "").replace(/[^\d.-]/g, "")) || 0;
 }
@@ -20,6 +22,10 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Not set";
   return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function isPaidInvoice(invoice) {
+  return String(invoice.status || invoice.paymentStatus || "").toLowerCase() === "paid";
 }
 
 function Metric({ label, value, icon: Icon }) {
@@ -87,7 +93,7 @@ function InvoiceModal({ companies, onClose, onSave }) {
         <Field label="GST / Tax" type="number" value={form.tax} onChange={set("tax")} />
         <Field label="Issue date" type="date" value={form.issueDate} onChange={set("issueDate")} />
         <Field label="Due date" type="date" value={form.dueDate} onChange={set("dueDate")} />
-        <Field label="Status" value={form.status} onChange={set("status")} options={["Draft", "Generated", "Sent", "Paid", "Overdue", "Cancelled"]} />
+        <Field label="Status" value={form.status} onChange={set("status")} options={INVOICE_STATUSES} />
       </div>
     </SidePanel>
   );
@@ -117,18 +123,37 @@ export default function Invoices() {
     return matchesStatus && haystack.includes(query.toLowerCase());
   }), [invoices, query, status]);
 
-  const totals = useMemo(() => ({
-    gross: invoices.reduce((sum, invoice) => sum + parseMoney(invoice.total || invoice.amount), 0),
-    tax: invoices.reduce((sum, invoice) => sum + parseMoney(invoice.tax || invoice.gst), 0),
-    paid: invoices.filter((invoice) => invoice.status === "Paid").length,
-    overdue: invoices.filter((invoice) => invoice.status === "Overdue").length,
-  }), [invoices]);
+  const totals = useMemo(() => {
+    const paidInvoices = invoices.filter(isPaidInvoice);
+    return {
+      paidRevenue: paidInvoices.reduce((sum, invoice) => sum + parseMoney(invoice.total || invoice.amount), 0),
+      paidTax: paidInvoices.reduce((sum, invoice) => sum + parseMoney(invoice.tax || invoice.gst), 0),
+      paid: paidInvoices.length,
+      overdue: invoices.filter((invoice) => invoice.status === "Overdue").length,
+    };
+  }, [invoices]);
 
   async function handleCreate(form) {
     const invoiceNumber = generateInvoiceNumber(invoices, form.issueDate || new Date());
     const created = await saveInvoice({ ...form, id: `invoice-${Date.now()}`, invoiceNumber, createdAt: new Date().toISOString() });
     setCreating(false);
     showToast({ title: "Invoice generated", message: `${created.invoiceNumber || invoiceNumber} saved.` });
+  }
+
+  async function handleStatusChange(invoice, nextStatus) {
+    const now = new Date().toISOString();
+    const updated = {
+      ...invoice,
+      status: nextStatus,
+      paymentStatus: nextStatus,
+      paidAt: nextStatus === "Paid" ? (invoice.paidAt || now) : null,
+      updatedAt: now
+    };
+    await saveInvoice(updated);
+    showToast({
+      title: "Invoice updated",
+      message: `${invoice.invoiceNumber || invoice.id || "Invoice"} marked ${nextStatus}.`
+    });
   }
 
   function downloadInvoice(invoice) {
@@ -155,8 +180,8 @@ export default function Invoices() {
 
       <div className="p-5 xl:p-6">
       <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Gross Billing" value={money(totals.gross)} icon={WalletCards} />
-        <Metric label="GST / Tax" value={money(totals.tax)} icon={ReceiptText} />
+        <Metric label="Paid Revenue" value={money(totals.paidRevenue)} icon={WalletCards} />
+        <Metric label="Paid GST / Tax" value={money(totals.paidTax)} icon={ReceiptText} />
         <Metric label="Paid" value={totals.paid} icon={FileText} />
         <Metric label="Overdue" value={totals.overdue} icon={Send} />
       </div>
@@ -164,7 +189,7 @@ export default function Invoices() {
       <section className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
         <div className="flex flex-col gap-3 border-b border-[#f3f4f6] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
-            {["All", "Draft", "Generated", "Sent", "Paid", "Overdue", "Cancelled"].map((item) => (
+            {["All", ...INVOICE_STATUSES].map((item) => (
               <button key={item} onClick={() => setStatus(item)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${status === item ? "bg-[#884c2d] text-white" : "bg-[#f3f4f6] text-[#6b7280]"}`}>{item}</button>
             ))}
           </div>
@@ -192,7 +217,7 @@ export default function Invoices() {
                     <td className="px-4 py-3 text-sm text-[#374151]">{money(parseMoney(invoice.tax || invoice.gst))}</td>
                     <td className="px-4 py-3 text-sm text-[#374151]">{formatDate(invoice.issueDate || invoice.date)}</td>
                     <td className="px-4 py-3 text-sm text-[#374151]">{formatDate(invoice.dueDate)}</td>
-                    <td className="px-4 py-3"><Status value={invoice.status || "Draft"} /></td>
+                    <td className="px-4 py-3"><StatusSelect value={invoice.status || "Draft"} onChange={(nextStatus) => handleStatusChange(invoice, nextStatus)} /></td>
                     <td className="px-4 py-3"><button onClick={() => downloadInvoice(invoice)} className="text-[#884c2d] hover:underline"><Download size={15} /></button></td>
                   </tr>
                 ))}
@@ -213,7 +238,25 @@ export default function Invoices() {
   );
 }
 
-function Status({ value }) {
-  const tone = value === "Paid" ? "bg-emerald-50 text-emerald-700" : value === "Overdue" ? "bg-red-50 text-red-600" : value === "Sent" ? "bg-blue-50 text-blue-700" : "bg-[#f3f4f6] text-[#6b7280]";
-  return <span className={`rounded-full px-2 py-1 text-xs font-semibold ${tone}`}>{value}</span>;
+function StatusSelect({ value, onChange }) {
+  const tone = value === "Paid"
+    ? "bg-emerald-50 text-emerald-700"
+    : value === "Overdue"
+      ? "bg-red-50 text-red-600"
+      : value === "Sent"
+        ? "bg-blue-50 text-blue-700"
+        : "bg-[#f3f4f6] text-[#6b7280]";
+
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className={`rounded-full border-0 px-2 py-1 text-xs font-semibold outline-none ring-1 ring-transparent transition focus:ring-[#884c2d]/30 ${tone}`}
+      aria-label="Invoice status"
+    >
+      {INVOICE_STATUSES.map((status) => (
+        <option key={status} value={status}>{status}</option>
+      ))}
+    </select>
+  );
 }
