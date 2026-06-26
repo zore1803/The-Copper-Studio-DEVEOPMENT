@@ -160,8 +160,9 @@ router.put("/:type/:id", validateType, async (req, res, next) => {
   }
 });
 
-// The Supabase shim has no deleteMany/$pull, so we find() then delete each by id,
-// and unlink array references by loading/modifying/saving the parent record.
+// Kept driver-agnostic (works on both Mongo and the Supabase fallback): we
+// find() then delete each by id, and unlink array references by loading,
+// modifying, and saving the parent record.
 async function deleteEachById(Model, records) {
   await Promise.all(
     records.map((r) =>
