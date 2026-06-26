@@ -4,13 +4,52 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Checkout | The Copper Studio</title>
-    <link rel="stylesheet" href="assets/styles.css?v=pages-1">
+    <link rel="stylesheet" href="assets/styles.css?v=checkout-2">
     <style>
       body[data-page="checkout"] {
         background: #ffffff;
       }
       body[data-page="checkout"] .shell-header {
-        display: none;
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 68px;
+        padding: 12px clamp(22px, 6vw, 72px);
+        border-bottom: 1px solid #e8e8e8;
+        background: rgba(255, 255, 255, 0.94);
+        backdrop-filter: blur(14px);
+        box-shadow: none;
+      }
+      body[data-page="checkout"] .shell-header .brand {
+        gap: 12px;
+        color: #252525;
+        font-size: 0.95rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      body[data-page="checkout"] .shell-header .brand-mark {
+        width: 48px;
+        height: 30px;
+        border-radius: 6px;
+        box-shadow: none;
+      }
+      body[data-page="checkout"] .top-nav a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 38px;
+        padding: 9px 14px;
+        border: 1px solid #d8d8d8;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #252525;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
       body[data-page="checkout"] .page-shell {
         width: min(1120px, 100%);
@@ -25,7 +64,7 @@
       #customerForm {
         display: block;
         min-width: 0;
-        padding: 70px 86px 56px 72px;
+        padding: 62px 86px 56px 72px;
       }
       .checkout-kicker,
       .order-kicker,
@@ -440,6 +479,23 @@
         }
       }
       @media (max-width: 600px) {
+        body[data-page="checkout"] .shell-header {
+          align-items: center;
+          flex-direction: row;
+          min-height: 64px;
+          padding: 12px 18px;
+        }
+        body[data-page="checkout"] .shell-header .brand {
+          width: auto;
+        }
+        body[data-page="checkout"] .shell-header .brand > span:not(.brand-mark) {
+          display: none;
+        }
+        body[data-page="checkout"] .top-nav a {
+          min-height: 36px;
+          padding: 8px 11px;
+          font-size: 0.7rem;
+        }
         .name-row { grid-template-columns: 0.7fr 1fr; }
         .name-row label:first-child { grid-column: 1 / -1; }
         body[data-page="checkout"] .form-actions {
@@ -758,6 +814,6 @@
       </div>
     </main>
 
-    <script src="assets/app.js?v=pages-1"></script>
+    <script src="assets/app.js?v=checkout-2"></script>
   </body>
 </html>
