@@ -363,7 +363,9 @@ function requirePackage() {
 
 function requireCustomer() {
   requirePackage();
-  if (!order.customer.firstName || !order.verified.phone || !order.verified.email) {
+  // verified flags are reset on every page load (security), so only check
+  // that customer data exists — it is only saved after OTP verification passes.
+  if (!order.customer.firstName || !order.customer.customerEmail || !order.customer.customerPhone) {
     window.location.href = "checkout.html";
   }
 }
