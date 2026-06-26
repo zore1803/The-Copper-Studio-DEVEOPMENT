@@ -80,6 +80,18 @@ function isDoneStatus(status) {
   return ["completed", "delivered"].includes(String(status || "").toLowerCase());
 }
 
+function recordKey(...values) {
+  return values.find((value) => value !== null && value !== undefined && String(value).trim())?.toString() || "";
+}
+
+function packageNameFor(record) {
+  return record.package?.name || record.packageName || record.package || record.projectType || record.template || "Unassigned";
+}
+
+function amountFor(record) {
+  return moneyValue(record.amount ?? record.value ?? record.package?.total ?? record.total ?? record.finalAmount ?? record.budget);
+}
+
 function EarningsCard({ records, filterType, filterYear, filterMonth, filterBiMonth, filterQuarter }) {
   const currentYear = new Date().getFullYear();
   const [localYear, setLocalYear] = useState(null);
@@ -498,7 +510,7 @@ export function AnalyticsPage() {
     }
 
     const isWithinRange = (item, isCreated = false) => {
-      const stamp = isCreated ? (item.createdAt || item.date) : (item.paidAt || item.date || item.generatedAt || item.createdAt);
+      const stamp = isCreated ? (item.createdAt || item.date) : (item.paidAt || item.payment?.paidAt || item.date || item.generatedAt || item.createdAt);
       if (!stamp) return true;
       const t = new Date(stamp).getTime();
       return t >= startDate && t <= endDate;
@@ -540,12 +552,22 @@ export function AnalyticsPage() {
 
     // Calculate revenue (Paid items)
     const paidPayments = filteredPayments.filter(p => isPaidStatus(p.status));
-    const revenueFromPayments = paidPayments.reduce((sum, item) => sum + moneyValue(item.amount ?? item.value ?? item.package?.total ?? item.total), 0);
+    const paymentOrderKeys = new Set(
+      paidPayments
+        .map((p) => recordKey(p.sourceOrderId, p.orderId))
+        .filter(Boolean)
+    );
+    const paidOrdersWithoutPayment = paidOrders.filter((order) => {
+      const orderKeys = [recordKey(order._id), recordKey(order.id), recordKey(order.payment?.razorpayOrderId)].filter(Boolean);
+      return !orderKeys.some((key) => paymentOrderKeys.has(key));
+    });
+    const revenueFromPayments = paidPayments.reduce((sum, item) => sum + amountFor(item), 0);
+    const revenueFromOrders = paidOrdersWithoutPayment.reduce((sum, item) => sum + amountFor(item), 0);
     
     // Only add revenue from projects that are PAID and STANDALONE (no invoice, no order)
     const paidProjects = standaloneProjects.filter(p => isPaidStatus(p.paymentStatus));
-    const revenueFromProjects = paidProjects.reduce((sum, p) => sum + moneyValue(p.finalAmount ?? p.budget), 0);
-    const revenue = revenueFromPayments + revenueFromProjects;
+    const revenueFromProjects = paidProjects.reduce((sum, p) => sum + amountFor(p), 0);
+    const revenue = revenueFromPayments + revenueFromOrders + revenueFromProjects;
     const paymentRate = Math.round((paidOrders.length / Math.max(filteredOrders.length, 1)) * 100);
     
     // KPI: Average Project Value
@@ -648,18 +670,38 @@ export function AnalyticsPage() {
     ].filter((item) => item.value > 0);
     const statusTotal = statusData.reduce((sum, item) => sum + item.value, 0) || 1;
 
-    const packageRevenueMap = filteredOrders.reduce((acc, order) => {
-      const name = order.package?.name || order.packageName || order.projectType || "Unassigned";
+    const packageRevenueMap = paidOrders.reduce((acc, order) => {
+      const name = packageNameFor(order);
       acc[name] = acc[name] || { name, revenue: 0, count: 0 };
-      acc[name].revenue += moneyValue(order.amount ?? order.value ?? order.package?.total ?? order.total);
+      acc[name].revenue += amountFor(order);
       acc[name].count += 1;
       return acc;
     }, {});
+
+    const packageOrderKeys = new Set(
+      paidOrders.flatMap((order) => [
+        recordKey(order._id),
+        recordKey(order.id),
+        recordKey(order.payment?.razorpayOrderId)
+      ]).filter(Boolean)
+    );
+
+    paidPayments
+      .filter((payment) => {
+        const keys = [recordKey(payment.sourceOrderId), recordKey(payment.orderId), recordKey(payment.razorpayOrderId)].filter(Boolean);
+        return !keys.some((key) => packageOrderKeys.has(key));
+      })
+      .forEach((payment) => {
+        const name = packageNameFor(payment);
+        packageRevenueMap[name] = packageRevenueMap[name] || { name, revenue: 0, count: 0 };
+        packageRevenueMap[name].revenue += amountFor(payment);
+        packageRevenueMap[name].count += 1;
+      });
     
     filteredProjects.filter(p => !p.linkedInvoiceId && !p.orderId).forEach(p => {
-      const name = p.packageName || p.template || "Unassigned";
+      const name = packageNameFor(p);
       packageRevenueMap[name] = packageRevenueMap[name] || { name, revenue: 0, count: 0 };
-      packageRevenueMap[name].revenue += moneyValue(p.finalAmount ?? p.budget);
+      packageRevenueMap[name].revenue += amountFor(p);
       packageRevenueMap[name].count += 1;
     });
     
@@ -668,12 +710,12 @@ export function AnalyticsPage() {
     const formatKey = (created) => created.toISOString().slice(0, 10);
     const formatDay = (created) => created.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 
-    const revenueGraph = Object.values([...paidOrders, ...paidPayments, ...paidProjects].reduce((acc, item) => {
-      const stamp = item.paidAt || item.date || item.generatedAt || item.createdAt;
+    const revenueGraph = Object.values([...paidOrdersWithoutPayment, ...paidPayments, ...paidProjects].reduce((acc, item) => {
+      const stamp = item.paidAt || item.payment?.paidAt || item.date || item.generatedAt || item.createdAt;
       const created = stamp ? new Date(stamp) : new Date(now);
       const key = formatKey(created);
       acc[key] = acc[key] || { key, day: formatDay(created), value: 0 };
-      acc[key].value += moneyValue(item.amount ?? item.value ?? item.package?.total ?? item.total ?? item.finalAmount ?? item.budget);
+      acc[key].value += amountFor(item);
       return acc;
     }, {})).sort((a, b) => a.key.localeCompare(b.key));
 
@@ -1443,4 +1485,3 @@ function RecentPaymentsTable({ payments, page, setPage, search, setSearch, navig
     </Card>
   );
 }
-

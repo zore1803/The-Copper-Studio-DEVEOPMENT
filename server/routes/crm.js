@@ -9,6 +9,7 @@ import Project from "../models/Project.js";
 import Document from "../models/Document.js";
 import Meeting from "../models/Meeting.js";
 import Note from "../models/Note.js";
+import Order from "../models/Order.js";
 import Payment from "../models/Payment.js";
 import Invoice from "../models/Invoice.js";
 import User from "../models/User.js";
@@ -42,6 +43,7 @@ const models = {
   documents: Document,
   meetings: Meeting,
   notes: Note,
+  orders: Order,
   payments: Payment,
   invoices: Invoice
 };
