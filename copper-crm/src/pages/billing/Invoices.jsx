@@ -8,7 +8,7 @@ import SidePanel from "../../components/SidePanel";
 import { generateInvoiceNumber } from "../../lib/invoiceDefaults";
 
 const INVOICE_STATUSES = ["Draft", "Generated", "Sent", "Paid", "Overdue", "Cancelled"];
-const DRAFT_STATUS_ACTIONS = ["Draft", "Paid"];
+const UNPAID_STATUS_ACTIONS = ["Draft", "Generated", "Paid"];
 
 function parseMoney(value) {
   return Number(String(value || "").replace(/[^\d.-]/g, "")) || 0;
@@ -37,7 +37,7 @@ function normalizedStatus(value, fallback = "Draft") {
 
 function isDraftLikeStatus(value) {
   const status = String(value || "").trim().toLowerCase();
-  return !status || status === "draft" || status === "pending";
+  return !status || status === "draft" || status === "pending" || status === "generated";
 }
 
 function Metric({ label, value, icon: Icon }) {
@@ -262,7 +262,7 @@ function statusTone(value) {
 
 function InvoiceStatus({ invoice, onChange }) {
   const rawValue = invoice.status || invoice.paymentStatus || "";
-  const value = isDraftLikeStatus(rawValue) ? "Draft" : normalizedStatus(rawValue);
+  const value = isDraftLikeStatus(rawValue) ? normalizedStatus(rawValue, "Draft") : normalizedStatus(rawValue);
   if (!isDraftLikeStatus(rawValue)) {
     return <span className={`rounded-full px-2 py-1 text-xs font-semibold ${statusTone(value)}`}>{value}</span>;
   }
@@ -278,7 +278,7 @@ function StatusSelect({ value, onChange }) {
       className={`rounded-full border-0 px-2 py-1 text-xs font-semibold outline-none ring-1 ring-transparent transition focus:ring-[#884c2d]/30 ${statusTone(value)}`}
       aria-label="Invoice status"
     >
-      {DRAFT_STATUS_ACTIONS.map((status) => (
+      {UNPAID_STATUS_ACTIONS.map((status) => (
         <option key={status} value={status}>{status}</option>
       ))}
     </select>
