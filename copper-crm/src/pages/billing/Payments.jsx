@@ -1,9 +1,34 @@
-import { useMemo, useState } from "react";
-import { CalendarDays, CreditCard, PackageCheck, Plus, ReceiptText, Save, Search, WalletCards } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowUpDown, Check, ChevronLeft, ChevronRight, CreditCard, PackageCheck, Plus, ReceiptText, Save, Search, WalletCards } from "lucide-react";
 import { Button } from "../../components/ui";
 import { useCrmRecords } from "../../hooks/useCrmRecords";
 import { useToast } from "../../components/useToast";
 import SidePanel from "../../components/SidePanel";
+import FilterButton from "../../components/FilterButton";
+
+const PAYMENT_STATUSES = ["Success", "Pending", "Failed", "Refunded"];
+const PAGE_SIZE = 25;
+
+const SORT_OPTIONS = [
+  { value: "created_desc", label: "Newest first" },
+  { value: "created_asc", label: "Oldest first" },
+  { value: "amount_desc", label: "Amount (high–low)" },
+  { value: "amount_asc", label: "Amount (low–high)" },
+  { value: "company_asc", label: "Company (A–Z)" }
+];
+
+// Closes the sort dropdown when clicking outside its trigger/menu.
+function useClickOutside(ref, onOutside, active) {
+  useEffect(() => {
+    if (!active) return;
+    function onDown(event) {
+      if (ref.current && ref.current.contains(event.target)) return;
+      onOutside();
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [active, onOutside, ref]);
+}
 
 function money(value) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value) || 0);
@@ -86,18 +111,66 @@ function PaymentModal({ companies, onClose, onSave }) {
 export default function Payments() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All");
+  const [methodFilter, setMethodFilter] = useState("All");
+  const [gatewayFilter, setGatewayFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("created_desc");
+  const [sortOpen, setSortOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const { records: companies } = useCrmRecords("companies");
   const { records: payments, save: savePayment } = useCrmRecords("payments");
   const { records: invoices } = useCrmRecords("invoices");
   const { showToast } = useToast();
+  const sortRef = useRef(null);
+  useClickOutside(sortRef, () => setSortOpen(false), sortOpen);
+
+  const methodNames = useMemo(
+    () => ["All", ...Array.from(new Set(payments.map((p) => p.paymentMethod || p.method).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b)))],
+    [payments]
+  );
+  const gatewayNames = useMemo(
+    () => ["All", ...Array.from(new Set(payments.map((p) => p.gateway).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b)))],
+    [payments]
+  );
 
   const filtered = useMemo(() => payments.filter((row) => {
     const rowStatus = row.status || "Pending";
     const matchesStatus = status === "All" || rowStatus === status;
+    const matchesMethod = methodFilter === "All" || (row.paymentMethod || row.method) === methodFilter;
+    const matchesGateway = gatewayFilter === "All" || (row.gateway || "Razorpay") === gatewayFilter;
     const haystack = `${row.paymentId || row.id || ""} ${row.company || ""} ${rowStatus}`.toLowerCase();
-    return matchesStatus && haystack.includes(query.toLowerCase());
-  }), [query, payments, status]);
+    return matchesStatus && matchesMethod && matchesGateway && haystack.includes(query.toLowerCase());
+  }), [query, payments, status, methodFilter, gatewayFilter]);
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    const amt = (p) => parseMoney(p.amount);
+    const created = (p) => new Date(p.createdAt || p.paidAt || p.date || 0);
+    const byStr = (a, b, key) => String(a[key] || "").localeCompare(String(b[key] || ""), undefined, { sensitivity: "base" });
+    switch (sortBy) {
+      case "created_asc": return arr.sort((a, b) => created(a) - created(b));
+      case "amount_desc": return arr.sort((a, b) => amt(b) - amt(a));
+      case "amount_asc": return arr.sort((a, b) => amt(a) - amt(b));
+      case "company_asc": return arr.sort((a, b) => byStr(a, b, "company"));
+      case "created_desc":
+      default: return arr.sort((a, b) => created(b) - created(a));
+    }
+  }, [filtered, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const paginated = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [page, totalPages]);
+
+  function resetFilters() {
+    setStatus("All");
+    setMethodFilter("All");
+    setGatewayFilter("All");
+    setQuery("");
+    setPage(1);
+  }
 
   const successfulPayments = payments.filter((payment) => ["Success", "Paid", "successful"].includes(payment.status));
   const revenue = successfulPayments.reduce((sum, payment) => sum + parseMoney(payment.amount), 0);
@@ -117,11 +190,55 @@ export default function Payments() {
           <p className="text-xs text-[#525866] mt-0.5">Actual money received, Razorpay mapping, refund state, and payment audit.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex h-9 items-center gap-2 rounded-lg border border-[#e5e7eb] bg-white px-3">
-            <CalendarDays size={14} className="text-[#9ca3af]" />
-            <span className="text-sm text-[#374151]">All time</span>
+          {/* Search */}
+          <div className="flex h-11 w-full items-center gap-2 rounded-full border border-[#1F2937]/10 px-3.5 sm:w-72">
+            <Search size={16} className="text-[#1F2937]/50 shrink-0" />
+            <input
+              className="w-full bg-transparent text-sm outline-none placeholder:text-[#1F2937]/50"
+              placeholder="Search by ID, company, or status…"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+            />
           </div>
-          <Button onClick={() => setCreating(true)}><Plus size={14} /> New Payment</Button>
+          {/* Sort */}
+          <div className="relative" ref={sortRef}>
+            <button
+              onClick={() => setSortOpen((value) => !value)}
+              className={`flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors ${sortOpen ? "border-[#884c2d] bg-[#fff8f6] text-[#884c2d]" : "border-[#E1E4EA] bg-white text-[#1F2937] hover:bg-[#f9fafb]"}`}
+            >
+              <ArrowUpDown size={15} />
+              <span className="hidden sm:inline">{SORT_OPTIONS.find((o) => o.value === sortBy)?.label || "Sort"}</span>
+            </button>
+            {sortOpen && (
+              <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-[#e5e7eb] bg-white p-1 shadow-lg">
+                {SORT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setSortBy(opt.value); setSortOpen(false); setPage(1); }}
+                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-[#f9fafb] ${sortBy === opt.value ? "font-semibold text-[#884c2d]" : "text-[#374151]"}`}
+                  >
+                    {opt.label}
+                    {sortBy === opt.value && <Check size={14} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <FilterButton
+            onReset={resetFilters}
+            buttonClassName="h-11 w-11"
+            fields={[
+              { key: "status", label: "Status", type: "select", value: status, onChange: (value) => { setStatus(value); setPage(1); }, options: ["All", ...PAYMENT_STATUSES] },
+              { key: "method", label: "Method", type: "select", value: methodFilter, onChange: (value) => { setMethodFilter(value); setPage(1); }, options: methodNames },
+              { key: "gateway", label: "Gateway", type: "select", value: gatewayFilter, onChange: (value) => { setGatewayFilter(value); setPage(1); }, options: gatewayNames }
+            ]}
+          />
+          <button
+            onClick={() => setCreating(true)}
+            className="flex h-11 items-center gap-1.5 rounded-full bg-[#C57E5B] px-4 text-sm font-medium text-white hover:bg-[#b06a48] transition-colors shadow-sm"
+          >
+            <Plus size={16} /> New Payment
+          </button>
         </div>
       </div>
 
@@ -134,46 +251,67 @@ export default function Payments() {
       </div>
 
       <section className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
-        <div className="flex flex-col gap-3 border-b border-[#f3f4f6] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {["All", "Success", "Pending", "Failed", "Refunded"].map((item) => (
-              <button
-                key={item}
-                onClick={() => setStatus(item)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${status === item ? "bg-[#884c2d] text-white" : "bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e5e7eb]"}`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-          <div className="flex h-9 items-center gap-2 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-3">
-            <Search size={14} className="text-[#9ca3af]" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search payments" className="w-64 bg-transparent text-sm outline-none" />
-          </div>
-        </div>
-
-        {filtered.length ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-[#fff1ec] border-b border-[#f3e5e0]">
-                <tr>
-                  {["Payment ID", "Company", "Amount", "Method", "Gateway", "Status"].map((head) => <th key={head} className="px-4 py-3 text-left text-xs font-medium text-[#525866]">{head}</th>)}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#f3f4f6]">
-                {filtered.map((row) => (
-                  <tr key={row._id || row.id || row.paymentId} className="hover:bg-[#fafafa]">
-                    <td className="px-4 py-3 font-mono text-xs text-[#6b7280]">{row.paymentId || row.id || row._id}</td>
-                    <td className="px-4 py-3 text-sm text-[#374151]">{row.company || "Not linked"}</td>
-                    <td className="px-4 py-3 text-sm font-semibold text-[#111827]">{money(parseMoney(row.amount))}</td>
-                    <td className="px-4 py-3 text-sm text-[#374151]">{row.paymentMethod || row.method || "Not added"}</td>
-                    <td className="px-4 py-3 text-sm text-[#374151]">{row.gateway || "Razorpay"}</td>
-                    <td className="px-4 py-3"><Status value={row.status || "Pending"} /></td>
+        {sorted.length ? (
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-[#fff1ec] border-b border-[#f3e5e0]">
+                  <tr>
+                    {["Payment ID", "Company", "Amount", "Method", "Gateway", "Status"].map((head) => <th key={head} className="px-4 py-3 text-left text-xs font-medium text-[#525866]">{head}</th>)}
                   </tr>
+                </thead>
+                <tbody className="divide-y divide-[#f3f4f6]">
+                  {paginated.map((row) => (
+                    <tr key={row._id || row.id || row.paymentId} className="hover:bg-[#fafafa]">
+                      <td className="px-4 py-3 font-mono text-xs text-[#6b7280]">{row.paymentId || row.id || row._id}</td>
+                      <td className="px-4 py-3 text-sm text-[#374151]">{row.company || "Not linked"}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-[#111827]">{money(parseMoney(row.amount))}</td>
+                      <td className="px-4 py-3 text-sm text-[#374151]">{row.paymentMethod || row.method || "Not added"}</td>
+                      <td className="px-4 py-3 text-sm text-[#374151]">{row.gateway || "Razorpay"}</td>
+                      <td className="px-4 py-3"><Status value={row.status || "Pending"} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between px-6 py-3.5 border-t border-[#E1E4EA]">
+              <p className="text-sm text-[#6b7280]">
+                Showing <span className="font-semibold text-[#111827]">{paginated.length}</span> of{" "}
+                <span className="font-semibold text-[#111827]">{sorted.length}</span> Payments
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f9fafb] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 5).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+                      p === page
+                        ? "bg-[#884c2d] text-white"
+                        : "border border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f9fafb]"
+                    }`}
+                  >
+                    {p}
+                  </button>
                 ))}
-              </tbody>
-            </table>
-          </div>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f9fafb] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          </>
         ) : (
           <EmptyState title="No payments yet." text="Successful Razorpay payments and refunds will appear here." />
         )}
