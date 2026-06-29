@@ -515,8 +515,8 @@ function InvoicePanel({ invoice, onClose, onDownload, onMarkPaid }) {
         <DetailRow label="Payment ID" value={invoice.paymentId || invoice.razorpayPaymentId || "Not linked"} />
         <DetailRow label="Transaction ID" value={invoice.transactionId || invoice.paymentId || "Not linked"} />
         <DetailRow label="Order ID" value={invoice.orderId || "Not linked"} />
-        <DetailRow label="Issue Date" value={invoice.date || invoice.createdAt || "Not added"} />
-        <DetailRow label="Due Date" value={invoice.dueDate || "Not added"} />
+        <DetailRow label="Issue Date" value={formatDate(invoice.date || invoice.issueDate || invoice.createdAt)} />
+        <DetailRow label="Due Date" value={formatDate(invoice.dueDate)} />
         <DetailRow label="History" value={invoice.history || "Generated / Sent / Paid events will appear here."} />
       </div>
     </SidePanel>
@@ -630,8 +630,14 @@ function DetailRow({ label, value }) {
 }
 
 function formatDate(value) {
+  if (!value) return "No date";
+  const isoDate = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoDate) {
+    const [, year, month, day] = isoDate;
+    return new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  }
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value || "No date";
+  if (Number.isNaN(date.getTime())) return "No date";
   return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
@@ -791,9 +797,33 @@ export default function CompanyDetail() {
     return matchesQuery && matchesStatus && matchesDesignation;
   }), [contactQuery, contactStatusFilter, contactDesignationFilter, linked.contacts]);
   const filteredInvoices = useMemo(() => linked.invoices.filter((invoice) => {
-    const matchesQuery = `${invoice.invoiceId || invoice.id || invoice._id || ""} ${invoice.transactionId || invoice.paymentId || invoice.razorpayPaymentId || ""}`
-      .toLowerCase().includes(invoiceQuery.toLowerCase());
-    const matchesStatus = invoiceStatusFilter === "All" || (invoice.status || "Pending") === invoiceStatusFilter;
+    const amount = parseMoney(invoice.total || invoice.amount);
+    const date = invoice.date || invoice.issueDate || invoice.createdAt;
+    const dueDate = invoice.dueDate;
+    const haystack = [
+      invoice.invoiceId,
+      invoice.invoiceNumber,
+      invoice.id,
+      invoice._id,
+      invoice.transactionId,
+      invoice.paymentId,
+      invoice.razorpayPaymentId,
+      invoice.status,
+      invoice.paymentStatus,
+      invoice.company,
+      invoice.client,
+      invoice.project,
+      invoice.package,
+      invoice.customerEmail,
+      amount,
+      formatINR(amount),
+      date,
+      dueDate,
+      formatDate(date),
+      formatDate(dueDate),
+    ].filter(Boolean).join(" ").toLowerCase();
+    const matchesQuery = haystack.includes(invoiceQuery.trim().toLowerCase());
+    const matchesStatus = invoiceStatusFilter === "All" || String(invoice.status || "Pending").toLowerCase() === invoiceStatusFilter.toLowerCase();
     return matchesQuery && matchesStatus;
   }), [invoiceQuery, invoiceStatusFilter, linked.invoices]);
 
@@ -1084,8 +1114,8 @@ export default function CompanyDetail() {
       ["Status", invoice.status || "Pending"],
       ["Payment ID", invoice.paymentId || invoice.razorpayPaymentId || "-"],
       ["Order ID", invoice.orderId || "-"],
-      ["Issue Date", invoice.date || invoice.createdAt || "-"],
-      ["Due Date", invoice.dueDate || "-"],
+      ["Issue Date", formatDate(invoice.date || invoice.issueDate || invoice.createdAt)],
+      ["Due Date", formatDate(invoice.dueDate)],
     ];
     rows.forEach(([label, value], index) => {
       const y = 205 + index * 28;
@@ -1312,7 +1342,7 @@ export default function CompanyDetail() {
             }
             flush={Boolean(filteredInvoices.length)}
           >
-            {filteredInvoices.length ? <InvoicesTable invoices={filteredInvoices} onView={setSelectedInvoice} onDownload={downloadInvoicePdf} /> : <EmptyState icon={FileText} title="No invoices linked." />}
+            <InvoicesTable invoices={filteredInvoices} onView={setSelectedInvoice} onDownload={downloadInvoicePdf} />
           </Section>
         )}
         {activeTab === "Documents" && (
@@ -1748,12 +1778,12 @@ function InvoicesTable({ invoices, onView, onDownload }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-[#f3f4f6] bg-white">
-          {invoices.map((invoice) => (
+          {invoices.length ? invoices.map((invoice) => (
             <tr key={invoice.id || invoice._id}>
               <td className="py-3 pl-5 pr-4 font-mono text-xs text-[#6b7280]">{invoice.invoiceId || invoice.id || invoice._id}</td>
               <td className="py-3 pr-4 font-semibold text-[#111827]">{formatINR(parseMoney(invoice.total || invoice.amount))}</td>
-              <td className="py-3 pr-4 text-[#374151]">{invoice.date || invoice.createdAt || "No date"}</td>
-              <td className="py-3 pr-4 text-[#374151]">{invoice.dueDate || "No due date"}</td>
+              <td className="py-3 pr-4 text-[#374151]">{formatDate(invoice.date || invoice.issueDate || invoice.createdAt)}</td>
+              <td className="py-3 pr-4 text-[#374151]">{formatDate(invoice.dueDate)}</td>
               <td className="py-3 pr-4"><StatusBadge status={invoice.status || "Pending"} /></td>
               <td className="py-3 pr-4"><StatusBadge status={invoice.paymentStatus || invoice.status || "Pending"} /></td>
               <td className="py-3 pr-4 font-mono text-xs text-[#6b7280]">{invoice.transactionId || invoice.paymentId || invoice.razorpayPaymentId || "Not linked"}</td>
@@ -1764,7 +1794,17 @@ function InvoicesTable({ invoices, onView, onDownload }) {
                 </div>
               </td>
             </tr>
-          ))}
+          )) : (
+            <tr>
+              <td colSpan={8} className="px-5 py-10 text-center">
+                <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-[#fff1ec] text-[#884c2d]">
+                  <FileText size={20} />
+                </div>
+                <p className="text-sm font-semibold text-[#111827]">No invoices match your search.</p>
+                <p className="mt-1 text-sm text-[#6b7280]">Try searching by invoice ID, amount, status, payment, date, or transaction ID.</p>
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
