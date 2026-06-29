@@ -33,6 +33,7 @@ async function loadByInvoiceId(invoiceId) {
   let invoice = null;
   if (isObjectId(invoiceId)) invoice = await Invoice.findById(invoiceId);
   if (!invoice) invoice = await Invoice.findOne({ invoiceNumber: invoiceId });
+  if (!invoice) invoice = await Invoice.findOne({ id: invoiceId });
   if (!invoice) return null;
   const order = invoice.sourceOrderId ? await Order.findById(invoice.sourceOrderId) : null;
   return { order, invoice };
@@ -51,10 +52,15 @@ async function respond(res, data, format) {
   }
 
   try {
-    const pdf = await htmlToPdfBuffer(html);
+    const pdfPromise = htmlToPdfBuffer(html);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("PDF generation timed out after 8s")), 8000)
+    );
+    const pdf = await Promise.race([pdfPromise, timeoutPromise]);
+
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename="${safeFileName(model.invoiceNumber)}"`);
-    res.send(pdf);
+    res.send(Buffer.from(pdf));
   } catch (error) {
     // Graceful fallback for any PDF rendering failure (missing Chromium, OOM
     // mid-render on low-memory hosts, etc.) so the client always gets a

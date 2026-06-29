@@ -3,6 +3,7 @@ import Invoice from "../models/Invoice.js";
 import Order from "../models/Order.js";
 import Payment from "../models/Payment.js";
 import User from "../models/User.js";
+import Project from "../models/Project.js";
 import { nextInvoiceNumber } from "./invoiceNumber.js";
 
 const BACKFILL_INTERVAL_MS = 5 * 60 * 1000;
@@ -57,10 +58,15 @@ export async function syncFinanceForOrder(orderInput) {
   const total = Number(pkg.total || pkg.price || 0);
   const taxableBase = total ? Math.round(total / 1.18) : 0;
   const gst = total ? total - taxableBase : 0;
+  
+  // Find project linked to this order
+  const projectDoc = await Project.findOne({ orderId: order._id }).select("_id name").catch(() => null);
 
   const shared = {
     sourceOrderId: order._id,
     orderId: String(order._id),
+    projectId: projectDoc?._id || null,
+    project: projectDoc?.name || "",
     companyId: company?._id || null,
     clientId: client?._id || company?.userId || null,
     company: company?.name || customer.customerCompany || "",

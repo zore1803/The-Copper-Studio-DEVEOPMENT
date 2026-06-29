@@ -26,10 +26,17 @@ async function getBrowser() {
     } catch {
       throw new PdfUnavailableError("puppeteer is not installed. Run `npm install` to enable PDF generation.");
     }
-    return puppeteer.launch({
+    
+    const launchPromise = puppeteer.launch({
       headless: "new",
       args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
     });
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Puppeteer browser launch timed out after 10s")), 10000)
+    );
+
+    return Promise.race([launchPromise, timeoutPromise]);
   })();
 
   try {

@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "dotenv/config"; // Reloaded with local DB config
 import cors from "cors";
 import crypto from "node:crypto";
 import dns from "node:dns";
@@ -74,7 +74,9 @@ async function emailInvoiceForOrder(order, invoice) {
 
     let pdfBuffer = null;
     try {
-      pdfBuffer = await htmlToPdfBuffer(html);
+      const pdfPromise = htmlToPdfBuffer(html);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("PDF generation timed out")), 15000));
+      pdfBuffer = await Promise.race([pdfPromise, timeoutPromise]);
     } catch (pdfError) {
       console.warn("Invoice PDF generation failed, emailing HTML invoice only:", pdfError.message);
     }
@@ -431,6 +433,10 @@ app.post("/api/razorpay/verify", async (req, res, next) => {
       return res.status(400).json({ message: "Invalid Razorpay payment signature." });
     }
 
+    if (!isVerified({ email: customer.customerEmail, channel: "phone" }) || !isVerified({ email: customer.customerEmail, channel: "email" })) {
+      return res.status(400).json({ message: "Phone or Email is not verified. Please verify OTP first." });
+    }
+
     const selectedPackage = packages.find((item) => item.id === selectedPackageId);
     if (!selectedPackage) return res.status(400).json({ message: "Invalid package selected." });
 
@@ -470,9 +476,100 @@ app.post("/api/razorpay/verify", async (req, res, next) => {
     await ensureContactForOrder(order, company);
     await ensureProjectForOrder(order, invite?.userId, company);
     const finance = await syncFinanceForOrder(order);
-    await emailInvoiceForOrder(order, finance?.invoice);
+    
+    // Send email without blocking the HTTP response indefinitely.
+    emailInvoiceForOrder(order, finance?.invoice).catch(err => {
+      console.error("Background invoice email failed:", err);
+    });
 
     res.status(201).json(order);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/invoices/manual", async (req, res, next) => {
+  try {
+    const {
+      companyId,
+      companyName,
+      customerEmail,
+      customerPhone,
+      customerName,
+      billingAddressLine1,
+      billingAddressLine2,
+      city,
+      state,
+      pincode,
+      companyGstin,
+      companyWebsite,
+      projectName,
+      packageName,
+      amount
+    } = req.body;
+
+    if (!amount || (!companyId && !companyName)) {
+      return res.status(400).json({ message: "Amount and Company details are required." });
+    }
+
+    let resolvedCompanyId = companyId;
+    let finalCompanyName = companyName;
+    let companyDoc = null;
+
+    if (companyId) {
+      companyDoc = await Company.findById(companyId);
+      if (!companyDoc) return res.status(404).json({ message: "Selected company not found." });
+      finalCompanyName = companyDoc.name;
+    }
+
+    // Mock an order object that the helper functions expect
+    const mockedOrder = new Order({
+      package: {
+        id: "manual",
+        name: packageName || "Custom Package",
+        price: Number(amount),
+        total: Number(amount)
+      },
+      customer: {
+        customerName: customerName || "Admin Created",
+        customerEmail: customerEmail || (companyDoc && companyDoc.email) || "manual@example.com",
+        customerPhone: customerPhone || (companyDoc && companyDoc.phone) || "0000000000",
+        customerCompany: finalCompanyName,
+        projectName: projectName || "Custom Project",
+        companyWebsite: companyWebsite || (companyDoc && companyDoc.website) || "",
+        companyGstin: companyGstin || (companyDoc && companyDoc.gstin) || "",
+        billingAddressLine1: billingAddressLine1 || (companyDoc && companyDoc.address) || "",
+        billingAddressLine2: billingAddressLine2 || "",
+        city: city || (companyDoc && companyDoc.city) || "",
+        state: state || (companyDoc && companyDoc.state) || "",
+        pincode: pincode || (companyDoc && companyDoc.pincode) || ""
+      },
+      payment: {
+        status: "paid",
+        provider: "manual",
+        invoiceId: `INV-${Date.now()}`,
+        paidAt: new Date()
+      }
+    });
+
+    await mockedOrder.save();
+
+    let company = companyDoc;
+    if (!company) {
+      company = await ensureCompanyForOrder(mockedOrder);
+    }
+    await ensureContactForOrder(mockedOrder, company);
+    
+    // Pass the company's primary client user ID if one is already registered/linked
+    const primaryClientId = company?.userIds?.[0] || company?.userId || null;
+    const project = await ensureProjectForOrder(mockedOrder, primaryClientId, company);
+    const finance = await syncFinanceForOrder(mockedOrder);
+    
+    emailInvoiceForOrder(mockedOrder, finance?.invoice).catch(err => {
+      console.error("Background invoice email failed:", err);
+    });
+
+    res.status(201).json({ order: mockedOrder, invoice: finance?.invoice, project, company });
   } catch (error) {
     next(error);
   }
@@ -560,7 +657,7 @@ app.post("/api/leads", async (req, res, next) => {
     if (companyGstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z][Z][0-9A-Z]$/i.test(companyGstin)) {
       return res.status(400).json({ message: "Company GSTIN is not a valid format." });
     }
-    if (!isVerified({ email: customerEmail, channel: "phone" }) || !isVerified({ email: customerEmail, channel: "email" })) {
+    if (!isVerified({ email: customer.customerEmail, channel: "phone" }) || !isVerified({ email: customer.customerEmail, channel: "email" })) {
       return res.status(400).json({ message: "Mobile and email must be OTP-verified before continuing." });
     }
 
@@ -607,7 +704,8 @@ app.get("/payment", (_req, res) => {
 
 app.use((error, _req, res, _next) => {
   console.error(error);
-  res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : "Server error." });
+  const message = error.error?.description || error.message || "Server error.";
+  res.status(error.statusCode || 500).json({ message });
 });
 
 function cleanSupabaseBootError(error) {

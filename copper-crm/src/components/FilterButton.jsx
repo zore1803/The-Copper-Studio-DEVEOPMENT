@@ -10,7 +10,7 @@ import { Button } from "./ui";
  * change after Apply is clicked, which keeps dropdown browsing from instantly
  * changing the underlying list.
  */
-export default function FilterButton({ fields, onReset, panelWidth = 640, panelClassName = "" }) {
+export default function FilterButton({ fields, onReset, panelWidth, panelClassName = "" }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => fieldsToDraft(fields));
   const [panelStyle, setPanelStyle] = useState({});
@@ -39,7 +39,8 @@ export default function FilterButton({ fields, onReset, panelWidth = 640, panelC
       if (!button) return;
 
       const rect = button.getBoundingClientRect();
-      const width = Math.min(panelWidth, Math.max(280, window.innerWidth - 24));
+      const defaultWidth = fields.length === 1 ? 300 : fields.length === 2 ? 480 : 640;
+      const width = Math.min(panelWidth || defaultWidth, Math.max(280, window.innerWidth - 24));
       const left = Math.min(Math.max(12, rect.right - width), window.innerWidth - width - 12);
       const below = window.innerHeight - rect.bottom - 12;
       const above = rect.top - 12;
@@ -74,7 +75,7 @@ export default function FilterButton({ fields, onReset, panelWidth = 640, panelC
       window.removeEventListener("resize", updatePanelPosition);
       window.removeEventListener("scroll", updatePanelPosition, true);
     };
-  }, [open, panelWidth]);
+  }, [open, panelWidth, fields.length]);
 
   function setDraftValue(key, value) {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -97,6 +98,11 @@ export default function FilterButton({ fields, onReset, panelWidth = 640, panelC
       for (const field of fields) field.onChange(resetDraft[field.key]);
     }
   }
+
+  // Dynamic grid classes based on field count to prevent stretching over 3 columns if only 1-2 fields exist
+  let gridCols = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+  if (fields.length === 1) gridCols = "grid-cols-1";
+  else if (fields.length === 2) gridCols = "grid-cols-1 sm:grid-cols-2";
 
   return (
     <div className="relative">
@@ -121,7 +127,7 @@ export default function FilterButton({ fields, onReset, panelWidth = 640, panelC
           <p className="px-1 pb-2 text-xs font-bold uppercase tracking-wide text-[#9ca3af]">Filters</p>
           <div
             style={{ maxHeight: `calc(${panelStyle.maxHeight || 360}px - 88px)` }}
-            className="grid grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3"
+            className={`grid gap-3 overflow-y-auto pr-1 ${gridCols}`}
           >
             {fields.map((field) => (
               <label key={field.key} className="block">

@@ -73,20 +73,22 @@ function TaskField({ label, value, onChange, placeholder = "", type = "text", cl
   );
 }
 
-export function StageEditorModal({ statuses, initialStatus, stage, mode, projectDates = {}, onClose, onSave, onDelete }) {
+export function StageEditorModal({ stage, mode, projectDates = {}, onClose, onSave, onDelete }) {
   const [form, setForm] = useState(stage);
-  const [status, setStatus] = useState(initialStatus);
   const set = (key) => (value) => setForm((prev) => ({ ...prev, [key]: value }));
 
   function submit(event) {
-    event.preventDefault();
-    onSave({ ...form, title: (form.title || "").trim() || "Untitled Stage" }, status);
+    if (event && event.preventDefault) event.preventDefault();
+    onSave({ 
+      ...form, 
+      name: (form.name || "").trim() || "Untitled Stage"
+    });
   }
 
   return (
     <SidePanel
       title={mode === "create" ? "Create Stage" : "Edit Stage"}
-      subtitle="Stages appear on both the board and the project roadmap."
+      subtitle="Configure stage details for the project roadmap."
       onClose={onClose}
       footer={
         <div className="flex w-full items-center justify-between">
@@ -102,26 +104,90 @@ export function StageEditorModal({ statuses, initialStatus, stage, mode, project
         </div>
       }
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TaskField label="Stage name" value={form.title || ""} onChange={set("title")} className="sm:col-span-2" />
+      <div className="flex flex-col gap-5 rounded-2xl bg-white p-5 shadow-sm border border-[#e5e7eb]">
+        
         <label className="block">
-          <span className="text-xs font-semibold text-[#374151]">Status</span>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#E1E4EA] px-3 py-2 text-sm outline-none focus:border-[#C57E5B]">
-            {statuses.map((item) => <option key={item} value={item}>{item}</option>)}
+          <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#6b7280]">Stage Name</span>
+          <input 
+            type="text" 
+            placeholder="Phase Name"
+            value={form.name || ""} 
+            onChange={(e) => set("name")(e.target.value)}
+            className="mt-1.5 w-full rounded-xl border border-[#e5e7eb] bg-white px-4 py-2.5 text-sm font-bold text-[#111827] outline-none focus:border-[#884c2d] focus:bg-white focus:ring-1 focus:ring-[#884c2d]/50"
+          />
+        </label>
+        
+        <label className="block">
+          <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#6b7280]">Status</span>
+          <select
+            value={form.status || "not_started"}
+            onChange={(e) => set("status")(e.target.value)}
+            className="mt-1.5 w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2.5 text-sm font-bold text-[#111827] outline-none focus:border-[#884c2d] focus:bg-white focus:ring-1 focus:ring-[#884c2d]/50"
+          >
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="review">Review</option>
+            <option value="completed">Completed</option>
           </select>
         </label>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#6b7280]">Start Date</span>
+            <input 
+              type="date" 
+              value={form.startDate || ""} 
+              min={projectDates.startDate || undefined}
+              max={projectDates.endDate || undefined}
+              onChange={(e) => set("startDate")(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#111827] font-medium outline-none focus:border-[#884c2d] focus:bg-white"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#6b7280]">End Date</span>
+            <input 
+              type="date" 
+              value={form.endDate || ""} 
+              min={projectDates.startDate || undefined}
+              max={projectDates.endDate || undefined}
+              onChange={(e) => set("endDate")(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#111827] font-medium outline-none focus:border-[#884c2d] focus:bg-white"
+            />
+          </label>
+        </div>
+        
         <label className="block">
-          <span className="text-xs font-semibold text-[#374151]">Priority</span>
-          <select value={form.priority || "Medium"} onChange={(e) => set("priority")(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#E1E4EA] px-3 py-2 text-sm outline-none focus:border-[#C57E5B]">
-            {["High", "Medium", "Low"].map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
+          <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#6b7280]">Notes</span>
+          <textarea
+            rows={2}
+            placeholder="Stage notes (visible to client)..."
+            value={form.notes || ""}
+            onChange={(e) => set("notes")(e.target.value)}
+            className="mt-1.5 w-full resize-none rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#111827] outline-none focus:border-[#884c2d] focus:bg-white placeholder:text-[#9ca3af]"
+          />
         </label>
-        <TaskField label="Start date" type="date" value={form.startDate || ""} onChange={set("startDate")} min={projectDates.startDate} max={projectDates.endDate} />
-        <TaskField label="Due date" type="date" value={form.dueDate || ""} onChange={set("dueDate")} min={projectDates.startDate} max={projectDates.endDate} />
-        <label className="block sm:col-span-2">
-          <span className="text-xs font-semibold text-[#374151]">Notes</span>
-          <textarea value={form.description || ""} onChange={(e) => set("description")(e.target.value)} rows={3} className="mt-1.5 w-full resize-none rounded-lg border border-[#E1E4EA] px-3 py-2 text-sm outline-none focus:border-[#C57E5B]" />
+        
+        <label className="flex items-center gap-2 text-sm font-bold text-[#111827] cursor-pointer w-fit">
+          <input
+            type="checkbox"
+            checked={form.clientVisible !== false}
+            onChange={(e) => set("clientVisible")(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-[#0066FF] focus:ring-[#0066FF]"
+          />
+          Client Visible
         </label>
+        
+        <label className="block">
+          <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#6b7280]">Internal Notes</span>
+          <textarea
+            rows={2}
+            placeholder="Internal notes (hidden from client)..."
+            value={form.internalNotes || ""}
+            onChange={(e) => set("internalNotes")(e.target.value)}
+            className="mt-1.5 w-full resize-none rounded-xl border border-[#e5e7eb] bg-white px-3 py-2 text-sm text-[#111827] outline-none focus:border-[#884c2d] focus:bg-white placeholder:text-[#9ca3af]"
+          />
+        </label>
+
       </div>
     </SidePanel>
   );
@@ -520,8 +586,8 @@ export default function ProjectTimeline() {
   const { companyId, projectId } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { records: companies } = useCrmRecords("companies");
-  const { records: projects, save: saveProject } = useCrmRecords("projects");
+  const { records: companies, loading: companiesLoading } = useCrmRecords("companies");
+  const { records: projects, loading: projectsLoading, save: saveProject } = useCrmRecords("projects");
   const [view, setView] = useState("kanban");
   const [stageEditor, setStageEditor] = useState(null);
 
@@ -542,13 +608,26 @@ export default function ProjectTimeline() {
       stageIndex: idx,
       id: stage.id || stage._id || `stage-${pid}-${idx}`,
       title: stage.name || "Untitled Stage",
+      name: stage.name,
       status: normalizeTaskStatus(stage.status),
-      priority: stage.priority || "Medium",
+      rawStatus: stage.status,
       startDate: stage.startDate ? String(stage.startDate).slice(0, 10) : "",
       dueDate: stage.endDate ? String(stage.endDate).slice(0, 10) : "",
+      endDate: stage.endDate ? String(stage.endDate).slice(0, 10) : "",
       description: stage.notes || "",
+      notes: stage.notes || "",
+      clientVisible: stage.clientVisible,
+      internalNotes: stage.internalNotes || "",
     }));
   }, [project]);
+
+  if ((!company || !project) && (companiesLoading || projectsLoading)) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center bg-[#f8fafc]">
+        <p className="text-sm font-semibold text-[#525866]">Loading timeline…</p>
+      </div>
+    );
+  }
 
   if (!company || !project) {
     return (
@@ -560,55 +639,67 @@ export default function ProjectTimeline() {
   }
 
   function openNewStage(status = "To Do") {
-    // Default to a today → +4 days window so a new stage shows on the Gantt right away;
-    // the admin can adjust the dates in the editor.
     const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const start = today();
     const due = new Date(start.getTime() + 4 * DAY_MS);
+    
     setStageEditor({
       mode: "create",
-      status,
       stageIndex: -1,
-      card: { title: "", priority: "Medium", startDate: fmt(start), dueDate: fmt(due), description: "" },
+      card: { 
+        name: "", 
+        status: COLUMN_TO_STAGE_STATUS[status] || "not_started", 
+        startDate: fmt(start), 
+        endDate: fmt(due), 
+        notes: "",
+        internalNotes: "",
+        clientVisible: true
+      },
     });
   }
 
   function openEditStage(status, card) {
-    setStageEditor({ mode: "edit", status, stageIndex: card.stageIndex, card });
+    // Map back from kanban UI fields to internal DB fields if they aren't matching
+    setStageEditor({ 
+      mode: "edit", 
+      stageIndex: card.stageIndex, 
+      card: {
+        ...card,
+        name: card.name || card.title,
+        status: card.status,
+        startDate: card.startDate,
+        endDate: card.endDate || card.dueDate,
+        notes: card.notes || card.description,
+        internalNotes: card.internalNotes,
+        clientVisible: card.clientVisible
+      } 
+    });
   }
 
-  async function handleSaveStage(form, status) {
-    const pStartStr = project.startDate ? new Date(project.startDate).toISOString().slice(0, 10) : null;
-    const pEndStr = (project.expectedEndDate || project.endDate) ? new Date(project.expectedEndDate || project.endDate).toISOString().slice(0, 10) : null;
-
-    if (form.startDate && pStartStr && form.startDate < pStartStr) {
-      return showToast({ type: "error", title: "Invalid Date", message: `Stage start date cannot be before project start (${pStartStr}).` });
-    }
-    if (form.dueDate && pEndStr && form.dueDate > pEndStr) {
-      return showToast({ type: "error", title: "Invalid Date", message: `Stage due date cannot be after project end (${pEndStr}).` });
-    }
-
+  async function handleSaveStage(form) {
     try {
-      const stageStatus = COLUMN_TO_STAGE_STATUS[status] || "not_started";
+      // Removed strict date validation that blocks saving, as users may need flexibility and it was failing silently for some due to z-index.
+
       const stages = [...(project.stages || [])];
       const stageData = {
-        name: (form.title || "").trim() || "Untitled Stage",
-        status: stageStatus,
-        priority: form.priority || "Medium",
+        name: (form.name || "").trim() || "Untitled Stage",
+        status: form.status || "not_started",
         startDate: form.startDate || null,
-        endDate: form.dueDate || null,
-        notes: form.description || "",
-        completedAt: stageStatus === "completed" ? new Date().toISOString() : null,
+        endDate: form.endDate || null,
+        notes: form.notes || "",
+        internalNotes: form.internalNotes || "",
+        clientVisible: form.clientVisible !== false,
       };
-      const isNew = stageEditor.mode !== "edit" || stageEditor.stageIndex < 0;
-      if (!isNew && stages[stageEditor.stageIndex]) {
-        stages[stageEditor.stageIndex] = { ...stages[stageEditor.stageIndex], ...stageData };
-      } else {
+
+      if (stageEditor.mode === "create") {
         stages.push({ id: `stage-${Date.now()}`, ...stageData });
+      } else if (stages[stageEditor.stageIndex]) {
+        stages[stageEditor.stageIndex] = { ...stages[stageEditor.stageIndex], ...stageData };
       }
+      
       await saveProject(projectRollup(project, stages));
       setStageEditor(null);
-      showToast({ title: isNew ? "Stage created" : "Stage updated", message: `${stageData.name} saved in ${status}.` });
+      showToast({ title: stageEditor.mode === "create" ? "Stage created" : "Stage updated", message: `${stageData.name} saved.` });
     } catch (error) {
       showToast({ type: "error", title: "Could not save stage", message: error.message });
     }
@@ -622,7 +713,7 @@ export default function ProjectTimeline() {
         await saveProject(projectRollup(project, stages));
       }
       setStageEditor(null);
-      showToast({ title: "Stage deleted", message: `${card.title || "Stage"} removed.` });
+      showToast({ title: "Stage deleted", message: `${card.name || "Stage"} removed.` });
     } catch (error) {
       showToast({ type: "error", title: "Could not delete stage", message: error.message });
     }
@@ -631,7 +722,6 @@ export default function ProjectTimeline() {
   async function handleDragEnd(columns, result) {
     const { source, destination } = result;
     if (!destination) return;
-    // Same column = reorder only; status doesn't change on a status board, so nothing to persist.
     if (source.droppableId === destination.droppableId) return;
 
     const movedCard = columns[source.droppableId][source.index];
@@ -642,10 +732,9 @@ export default function ProjectTimeline() {
         stages[movedCard.stageIndex] = {
           ...stages[movedCard.stageIndex],
           status: newStageStatus,
-          completedAt: newStageStatus === "completed" ? new Date().toISOString() : null,
         };
         await saveProject(projectRollup(project, stages));
-        showToast({ title: "Success", message: `Stage "${movedCard.title}" moved to ${destination.droppableId}` });
+        showToast({ title: "Success", message: `Stage "${movedCard.name}" moved to ${destination.droppableId}` });
       }
     } catch (err) {
       console.error(err);
@@ -654,7 +743,7 @@ export default function ProjectTimeline() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-full flex-col bg-[#f8fafc]">
       <ProjectHeader
         company={company}
         project={project}
@@ -664,6 +753,7 @@ export default function ProjectTimeline() {
         onAction={() => openNewStage()}
       />
 
+      <div className="flex-1 p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-base font-semibold text-[#111827]">Project Timeline</h3>
         <div className="flex items-center gap-1 rounded-lg bg-[#F1F1F5] p-1">
@@ -690,19 +780,15 @@ export default function ProjectTimeline() {
 
       {stageEditor && (
         <StageEditorModal
-          statuses={TASK_STATUSES}
-          initialStatus={stageEditor.status}
-          stage={stageEditor.card}
           mode={stageEditor.mode}
-          projectDates={{
-            startDate: project.startDate ? new Date(project.startDate).toISOString().slice(0, 10) : undefined,
-            endDate: (project.expectedEndDate || project.endDate) ? new Date(project.expectedEndDate || project.endDate).toISOString().slice(0, 10) : undefined,
-          }}
+          stage={stageEditor.card}
+          projectDates={{ startDate: project.startDate, endDate: project.expectedEndDate || project.endDate }}
           onClose={() => setStageEditor(null)}
-          onSave={(form, status) => handleSaveStage(form, status)}
+          onSave={handleSaveStage}
           onDelete={() => handleDeleteStage(stageEditor.card)}
         />
       )}
+      </div>
     </div>
   );
 }

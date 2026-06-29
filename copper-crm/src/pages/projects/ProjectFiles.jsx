@@ -52,6 +52,8 @@ export default function ProjectFiles() {
   const [docMenu, setDocMenu] = useState(null);
   const { records: companies } = useCrmRecords("companies");
   const { records: allProjects, loading: projectsLoading, save: saveProject } = useCrmRecords("projects");
+  const { records: allDocuments } = useCrmRecords("documents");
+  const { records: allInvoices } = useCrmRecords("invoices");
 
   const company = useMemo(
     () => companies.find((c) => String(c.id) === companyId || String(c._id) === companyId),
@@ -62,7 +64,44 @@ export default function ProjectFiles() {
     [allProjects, projectId]
   );
 
-  const documents = useMemo(() => project?.documents || [], [project]);
+  const documents = useMemo(() => {
+    // 1. Embedded documents from project
+    const embedded = project?.documents || [];
+
+    // 2. Documents from the documents collection matching this projectId
+    const collectionDocs = allDocuments
+      .filter((doc) => String(doc.projectId) === String(projectId))
+      .map((doc) => ({
+        _id: doc._id || doc.id,
+        name: doc.fileName || doc.name,
+        category: doc.category || "Files",
+        type: doc.fileType || "doc",
+        sizeMB: parseFloat(doc.fileSize) || 0.1,
+        date: doc.createdAt ? new Date(doc.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—",
+        uploadedBy: doc.uploadedByName || "Admin",
+        fileUrl: doc.fileUrl,
+      }));
+
+    // 3. Invoice PDFs matching this project
+    const projectInvoices = allInvoices
+      .filter(
+        (inv) =>
+          (inv.projectId && String(inv.projectId) === String(project._id || project.id)) ||
+          (inv.sourceOrderId && project?.orderId && String(inv.sourceOrderId) === String(project.orderId))
+      )
+      .map((inv) => ({
+        _id: inv._id || inv.id,
+        name: `Tax Invoice - ${inv.invoiceNumber || inv.id}.pdf`,
+        category: "Invoices",
+        type: "pdf",
+        sizeMB: 0.1,
+        date: inv.createdAt ? new Date(inv.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—",
+        uploadedBy: "The Copper Studio",
+        fileUrl: `/api/invoices/${inv._id || inv.id || inv.invoiceNumber}/pdf`,
+      }));
+
+    return [...collectionDocs, ...embedded, ...projectInvoices];
+  }, [project, allDocuments, allInvoices, projectId]);
   const customFolders = useMemo(() => (project?.customFolders || []).filter((name) => typeof name === "string"), [project]);
   const allFolderDefs = useMemo(() => {
     const docCategories = [...new Set(documents.map((doc) => doc.category).filter(Boolean))];
@@ -149,7 +188,7 @@ export default function ProjectFiles() {
   }
 
   return (
-    <div className="space-y-6" onClick={() => setDocMenu(null)}>
+    <div className="flex min-h-full flex-col bg-[#f8fafc]" onClick={() => setDocMenu(null)}>
       <ProjectHeader
         company={company}
         project={project}
@@ -159,6 +198,7 @@ export default function ProjectFiles() {
         onAction={() => fileInputRef.current?.click()}
       />
 
+      <div className="flex-1 p-6 space-y-6">
       {/* Upload folder selector */}
       <div className="flex items-center gap-3 rounded-xl border border-[#e5e7eb] bg-white px-4 py-3">
         <FilePlus2 size={15} className="text-[#884c2d] shrink-0" />
@@ -356,6 +396,7 @@ export default function ProjectFiles() {
           )}
         </div>
       </section>
+      </div>
     </div>
   );
 }

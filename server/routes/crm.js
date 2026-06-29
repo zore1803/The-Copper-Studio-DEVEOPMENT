@@ -110,7 +110,9 @@ async function cascadeClientLink(companyId, userIds) {
     Project.updateMany(filter, update),
     Document.updateMany(filter, update),
     Meeting.updateMany(filter, update),
-    Note.updateMany(filter, update)
+    Note.updateMany(filter, update),
+    Invoice.updateMany(filter, update),
+    Payment.updateMany(filter, update)
   ]);
 }
 

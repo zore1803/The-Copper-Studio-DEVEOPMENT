@@ -22,7 +22,7 @@ const PHASES = [
   { key: "Completed", label: "Deployment", icon: Rocket },
 ];
 
-const PACKAGE_OPTIONS = ["Starter", "Growth", "Enterprise", "Custom"];
+const PACKAGE_OPTIONS = ["Starter Studio", "Growth Studio", "Enterprise Studio", "Custom"];
 const PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
 const PAYMENT_STATUS_OPTIONS = ["Pending", "Partial", "Paid", "Overdue"];
 
@@ -251,9 +251,9 @@ function ManageProjectPanel({ project, invoices = [], onClose, onSave, onDelete 
           <PanelSelect label="Package purchased" value={form.packageName} onChange={(val) => {
             setForm(prev => {
               let autoBudget = prev.budget;
-              if (val === "Starter") autoBudget = 24999;
-              else if (val === "Growth") autoBudget = 49999;
-              else if (val === "Enterprise") autoBudget = 89999;
+              if (val === "Starter Studio") autoBudget = 24999;
+              else if (val === "Growth Studio") autoBudget = 49999;
+              else if (val === "Enterprise Studio") autoBudget = 89999;
               return { ...prev, packageName: val, budget: autoBudget };
             });
           }} options={PACKAGE_OPTIONS} />
@@ -529,7 +529,7 @@ export default function ProjectDetail() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-full flex-col bg-[#f8fafc]">
       <ProjectHeader
         company={currentCompany}
         project={project}
@@ -539,16 +539,9 @@ export default function ProjectDetail() {
         onAction={() => setManaging(true)}
       />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        <KpiChip label="Progress" value={`${liveProgress}%`} icon={Zap} />
-        <KpiChip label="Current Phase" value={displayPhases[phaseIndex]?.label || project.currentPhase || "—"} icon={ListChecks} />
-        <KpiChip label="Final Amount" value={formatINR(project.finalAmount || project.budget)} icon={ListChecks} />
-        <KpiChip label="Payment Status" value={project.paymentStatus || "Pending"} icon={ListChecks} />
-        <KpiChip label="Client Status" value={CLIENT_STATUSES.find(s => s.value === project.clientStatus)?.label || "In Progress"} icon={Settings2} />
-      </div>
-
-      <section className="grid grid-cols-12 gap-5">
-        <div className="col-span-12 space-y-5 lg:col-span-7 xl:col-span-8">
+      <div className="flex-1 p-6">
+        <section className="grid grid-cols-12 gap-5">
+          <div className="col-span-12 space-y-5 lg:col-span-7 xl:col-span-8">
           <div className="rounded-2xl border border-[#E1E4EA] bg-[#FAFAF8] p-6 lg:p-8">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
@@ -666,6 +659,8 @@ export default function ProjectDetail() {
           </Section>
         </div>
       </section>
+
+      </div>
 
       {managing && (
         <ManageProjectPanel

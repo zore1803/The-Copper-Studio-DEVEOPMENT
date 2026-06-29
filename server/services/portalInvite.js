@@ -1,5 +1,13 @@
 import crypto from "node:crypto";
 import User from "../models/User.js";
+import Contact from "../models/Contact.js";
+import Company from "../models/Company.js";
+import Project from "../models/Project.js";
+import Document from "../models/Document.js";
+import Meeting from "../models/Meeting.js";
+import Note from "../models/Note.js";
+import Invoice from "../models/Invoice.js";
+import Payment from "../models/Payment.js";
 import { sendPortalInviteEmail } from "./email.js";
 
 function sha256(value) {
@@ -60,7 +68,7 @@ export async function ensureClientAccount({
   if (nextCompany) next.company = nextCompany;
   if (nextJobTitle) next.jobTitle = nextJobTitle;
 
-  return User.findOneAndUpdate(
+  const user = await User.findOneAndUpdate(
     { email: normalizedEmail },
     {
       $set: next,
@@ -68,6 +76,52 @@ export async function ensureClientAccount({
     },
     { upsert: true, new: true }
   );
+
+  // Link Contact and Company and cascade client link
+  try {
+    const contact = await Contact.findOneAndUpdate(
+      { email: normalizedEmail },
+      { $set: { userId: user._id } },
+      { new: true }
+    );
+
+    if (contact && contact.companyId) {
+      const companyDoc = await Company.findById(contact.companyId);
+      if (companyDoc) {
+        let updated = false;
+        if (!companyDoc.userIds) {
+          companyDoc.userIds = [];
+        }
+        if (!companyDoc.userIds.map(String).includes(String(user._id))) {
+          companyDoc.userIds.push(user._id);
+          updated = true;
+        }
+        if (!companyDoc.userId) {
+          companyDoc.userId = user._id;
+          updated = true;
+        }
+        if (updated) {
+          await companyDoc.save();
+        }
+
+        // Cascade the client link to all company resources
+        const filter = { companyId: companyDoc._id };
+        const update = { $set: { clientId: user._id } };
+        await Promise.all([
+          Project.updateMany(filter, update),
+          Document.updateMany(filter, update),
+          Meeting.updateMany(filter, update),
+          Note.updateMany(filter, update),
+          Invoice.updateMany(filter, update),
+          Payment.updateMany(filter, update)
+        ]);
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to cascade client link setup:", err.message);
+  }
+
+  return user;
 }
 
 /**

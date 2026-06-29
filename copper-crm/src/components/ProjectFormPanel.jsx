@@ -7,7 +7,7 @@ import { generateProjectCode, generateDefaultProjectName, PROJECT_TEMPLATES } fr
 
 const PROJECT_STATUS = ["Pending", "Confirmed", "Requirement Gathering", "Design", "Development", "Testing", "Review", "Deployment", "Completed", "Cancelled", "On Hold"];
 const PROJECT_TEMPLATE_OPTIONS = Object.keys(PROJECT_TEMPLATES);
-const PACKAGE_OPTIONS = ["Starter", "Growth", "Enterprise", "Custom"];
+const PACKAGE_OPTIONS = ["Starter Studio", "Growth Studio", "Enterprise Studio", "Custom"];
 const PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"];
 const PAYMENT_STATUS_OPTIONS = ["Pending", "Partial", "Paid", "Overdue"];
 
@@ -206,7 +206,15 @@ export default function ProjectFormPanel({ company, companies = [], contacts = [
             options={scopedContacts.map((c) => ({ value: String(c.id || c._id), label: c.name || `${c.firstName || ""} ${c.lastName || ""}`.trim() || c.email }))} />
           <Select span label="Project manager" value={form.projectManager} onChange={set("projectManager")}
             options={scopedContacts.map((c) => ({ value: c.name || `${c.firstName || ""} ${c.lastName || ""}`.trim() || c.email, label: c.name || `${c.firstName || ""} ${c.lastName || ""}`.trim() || c.email }))} />
-          <Select label="Package purchased" value={form.packageName} onChange={set("packageName")} options={PACKAGE_OPTIONS} />
+          <Select 
+            label="Package purchased" 
+            value={form.packageName} 
+            onChange={(val) => {
+              set("packageName")(val);
+              if (PROJECT_TEMPLATE_OPTIONS.includes(val)) set("template")(val);
+            }} 
+            options={PACKAGE_OPTIONS} 
+          />
           {form.packageName === "Custom" && (
             <Input label="Custom package name" value={form.customPackageName} onChange={set("customPackageName")} error={errors.customPackageName} />
           )}
@@ -219,7 +227,6 @@ export default function ProjectFormPanel({ company, companies = [], contacts = [
         </FormSection>
 
         <FormSection title="Delivery Pipeline">
-          <Select label="Delivery stage" value={form.status} onChange={set("status")} options={PROJECT_STATUS} />
           <Select label="Project template" value={form.template} onChange={set("template")} options={PROJECT_TEMPLATE_OPTIONS}
             hint="Generates the editable project-stage roadmap" />
         </FormSection>

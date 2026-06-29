@@ -37,7 +37,7 @@ function Field({ label, value, onChange, type = "text", options }) {
       <span className="text-xs font-semibold text-[#374151]">{label}</span>
       {options ? (
         <select value={value || ""} onChange={(e) => onChange(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-          {options.map((opt) => <option key={opt}>{opt}</option>)}
+          {options.map((opt) => typeof opt === "string" ? <option key={opt} value={opt}>{opt}</option> : <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
       ) : (
         <input type={type} value={value || ""} onChange={(e) => onChange(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20" />
@@ -47,7 +47,24 @@ function Field({ label, value, onChange, type = "text", options }) {
 }
 
 function InvoiceModal({ companies, onClose, onSave }) {
-  const [form, setForm] = useState({ company: "", project: "", total: "", tax: "", issueDate: "", dueDate: "", status: "Draft" });
+  const [mode, setMode] = useState("existing");
+  const [form, setForm] = useState({ 
+    companyId: "", 
+    companyName: "", 
+    customerEmail: "",
+    customerPhone: "",
+    customerName: "",
+    billingAddressLine1: "",
+    billingAddressLine2: "",
+    city: "",
+    state: "",
+    pincode: "",
+    companyGstin: "",
+    projectName: "", 
+    packageName: "",
+    amount: ""
+  });
+  
   const [saving, setSaving] = useState(false);
   const set = (key) => (value) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -55,7 +72,18 @@ function InvoiceModal({ companies, onClose, onSave }) {
     if (saving) return;
     setSaving(true);
     try {
-      await onSave(form);
+      const base = import.meta.env.VITE_API_BASE_URL || "";
+      const res = await fetch(`${base}/api/invoices/manual`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to generate invoice");
+      
+      await onSave(data.invoice);
+    } catch (err) {
+      alert(err.message);
     } finally {
       setSaving(false);
     }
@@ -63,8 +91,8 @@ function InvoiceModal({ companies, onClose, onSave }) {
 
   return (
     <SidePanel
-      title="Generate Invoice"
-      subtitle="Create an invoice linked to a company and project."
+      title="Generate Invoice (Manual Payment)"
+      subtitle="Create an invoice linked to a company and project. A new project will be auto-generated."
       onClose={onClose}
       footer={
         <div className="flex justify-end gap-2">
@@ -73,14 +101,38 @@ function InvoiceModal({ companies, onClose, onSave }) {
         </div>
       }
     >
+      <div className="mb-6 flex rounded-lg bg-gray-100 p-1">
+        <button onClick={() => setMode("existing")} className={`flex-1 rounded-md py-1.5 text-sm font-semibold ${mode === "existing" ? "bg-white shadow" : "text-gray-500"}`}>Existing Company</button>
+        <button onClick={() => setMode("new")} className={`flex-1 rounded-md py-1.5 text-sm font-semibold ${mode === "new" ? "bg-white shadow" : "text-gray-500"}`}>New Company</button>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Company" value={form.company} onChange={set("company")} options={["", ...companies.map((c) => c.name)]} />
-        <Field label="Project" value={form.project} onChange={set("project")} />
-        <Field label="Amount" type="number" value={form.total} onChange={set("total")} />
-        <Field label="GST / Tax" type="number" value={form.tax} onChange={set("tax")} />
-        <Field label="Issue date" type="date" value={form.issueDate} onChange={set("issueDate")} />
-        <Field label="Due date" type="date" value={form.dueDate} onChange={set("dueDate")} />
-        <Field label="Status" value={form.status} onChange={set("status")} options={["Draft", "Generated", "Sent", "Paid", "Overdue", "Cancelled"]} />
+        {mode === "existing" ? (
+          <div className="sm:col-span-2">
+            <Field label="Select Company" value={form.companyId} onChange={set("companyId")} options={[{ id: "", name: "-- Select Company --" }, ...companies].map(c => c.name ? { value: c._id || c.id, label: c.name } : null).filter(Boolean)} />
+          </div>
+        ) : (
+          <>
+            <div className="sm:col-span-2"><Field label="Company Name" value={form.companyName} onChange={set("companyName")} /></div>
+            <Field label="Customer Full Name" value={form.customerName} onChange={set("customerName")} />
+            <Field label="Customer Email" value={form.customerEmail} onChange={set("customerEmail")} />
+            <Field label="Customer Phone" value={form.customerPhone} onChange={set("customerPhone")} />
+            <Field label="GSTIN (Optional)" value={form.companyGstin} onChange={set("companyGstin")} />
+            <div className="sm:col-span-2"><Field label="Address Line 1" value={form.billingAddressLine1} onChange={set("billingAddressLine1")} /></div>
+            <div className="sm:col-span-2"><Field label="Address Line 2" value={form.billingAddressLine2} onChange={set("billingAddressLine2")} /></div>
+            <Field label="City" value={form.city} onChange={set("city")} />
+            <Field label="State" value={form.state} onChange={set("state")} />
+            <Field label="Pincode" value={form.pincode} onChange={set("pincode")} />
+          </>
+        )}
+
+        <div className="sm:col-span-2 mt-4 border-t pt-4">
+          <h4 className="mb-3 text-sm font-bold text-gray-800">Project & Invoice Details</h4>
+        </div>
+        
+        <div className="sm:col-span-2"><Field label="Project Name" value={form.projectName} onChange={set("projectName")} /></div>
+        <Field label="Package / Service Name" value={form.packageName} onChange={set("packageName")} />
+        <Field label="Amount (INR)" type="number" value={form.amount} onChange={set("amount")} />
       </div>
     </SidePanel>
   );

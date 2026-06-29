@@ -46,13 +46,7 @@ const NAV_SECTIONS = [
           { icon: BarChart2, to: "/admin/timeline", label: "Timeline" },
         ],
       },
-      {
-        icon: FolderOpen, label: "Documents",
-        children: [
-          { icon: Building2, to: "/admin/documents/company-folders", label: "Company Folders" },
-          { icon: FolderOpen, to: "/admin/documents/project-folders", label: "Project Folders" },
-        ],
-      },
+      { icon: FolderOpen, to: "/admin/documents/company-folders", label: "Company Folders" },
     ],
   },
 ];
@@ -371,10 +365,10 @@ export default function AdminLayout() {
   const sidebarW = collapsed ? 66 : 264;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F1F1F5]">
+    <div className="flex h-screen overflow-hidden bg-[#F1F1F5] w-full">
       {/* Sidebar */}
       <aside
-        className="fixed inset-y-0 left-0 z-40 flex flex-col bg-[#FAFAFA] border-r border-[#ECECEC] transition-all duration-200"
+        className="relative z-40 flex flex-col bg-[#FAFAFA] border-r border-[#ECECEC] transition-all duration-200 shrink-0"
         style={{ width: sidebarW }}
       >
         {/* Logo */}
@@ -413,7 +407,15 @@ export default function AdminLayout() {
           ))}
         </nav>
 
-        <div className={`border-t border-[#ECECEC] ${collapsed ? "flex flex-col items-center py-3" : "p-3"}`}>
+        <div className={`border-t border-[#ECECEC] ${collapsed ? "flex flex-col items-center py-3 gap-2" : "p-3 space-y-2"}`}>
+          <button
+            onClick={() => { auth.logout(); navigate("/login", { replace: true }); }}
+            title="Log out"
+            className={`flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 text-sm font-semibold text-red-600 hover:bg-red-100 transition-colors ${collapsed ? "h-9 w-9 justify-center" : "w-full px-3 py-2"}`}
+          >
+            <LogOut size={15} />
+            {!collapsed && "Log out"}
+          </button>
           <button
             onClick={() => setCollapsed((v) => !v)}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -426,7 +428,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main */}
-      <div className="flex flex-1 flex-col min-w-0 overflow-hidden" style={{ marginLeft: sidebarW }}>
+      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-[#E1E4EA] bg-white px-6 gap-4">
           {/* Breadcrumbs */}

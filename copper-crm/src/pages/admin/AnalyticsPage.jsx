@@ -649,19 +649,61 @@ export function AnalyticsPage() {
     ].filter((item) => item.value > 0);
     const statusTotal = statusData.reduce((sum, item) => sum + item.value, 0) || 1;
 
-    const packageRevenueMap = filteredOrders.reduce((acc, order) => {
+    const packageOrdersList = [];
+    const packageRevenueMap = paidOrders.reduce((acc, order) => {
       const name = order.package?.name || order.packageName || order.projectType || "Unassigned";
       acc[name] = acc[name] || { name, revenue: 0, count: 0 };
       acc[name].revenue += moneyValue(order.amount ?? order.value ?? order.package?.total ?? order.total);
       acc[name].count += 1;
+      
+      packageOrdersList.push({
+        id: order._id || order.id || Math.random().toString(),
+        packageName: name,
+        clientName: order.customer?.customerName || order.client || 'Unknown Client',
+        companyName: order.customer?.customerCompany || order.company || 'Unknown Company',
+        amount: moneyValue(order.amount ?? order.value ?? order.package?.total ?? order.total),
+        date: order.createdAt || order.date || now,
+        type: 'Order'
+      });
       return acc;
     }, {});
     
-    filteredProjects.filter(p => !p.linkedInvoiceId && !p.orderId).forEach(p => {
+    paidProjects.forEach(p => {
       const name = p.packageName || p.template || "Unassigned";
       packageRevenueMap[name] = packageRevenueMap[name] || { name, revenue: 0, count: 0 };
       packageRevenueMap[name].revenue += moneyValue(p.finalAmount ?? p.budget);
       packageRevenueMap[name].count += 1;
+
+      packageOrdersList.push({
+        id: p._id || p.id || Math.random().toString(),
+        packageName: name,
+        clientName: p.name || 'Unknown Project',
+        companyName: p.client || p.companyName || p.company || p.clientCompany || 'Unknown Company',
+        amount: moneyValue(p.finalAmount ?? p.budget),
+        date: p.createdAt || p.date || now,
+        type: 'Project'
+      });
+    });
+
+    const paidOrderIds = new Set(paidOrders.map(o => String(o._id || o.id)));
+    paidPayments.forEach(p => {
+      const oId = String(p.orderId || p.sourceOrderId);
+      if ((!p.orderId && !p.sourceOrderId) || !paidOrderIds.has(oId)) {
+        const name = p.package?.name || p.packageName || p.package || "Unassigned";
+        packageRevenueMap[name] = packageRevenueMap[name] || { name, revenue: 0, count: 0 };
+        packageRevenueMap[name].revenue += moneyValue(p.amount ?? p.value ?? p.total);
+        packageRevenueMap[name].count += 1;
+
+        packageOrdersList.push({
+          id: p._id || p.id || Math.random().toString(),
+          packageName: name,
+          clientName: p.clientName || p.client || p.customerName || p.contactName || 'Unknown Client',
+          companyName: p.companyName || p.company || 'Unknown Company',
+          amount: moneyValue(p.amount ?? p.value ?? p.total),
+          date: p.date || p.createdAt || now,
+          type: 'Payment'
+        });
+      }
     });
     
     const packageRevenue = Object.values(packageRevenueMap).sort((a, b) => b.revenue - a.revenue);
@@ -819,6 +861,7 @@ export function AnalyticsPage() {
     return { 
       revenue, paymentRate, avgProjectValue, completedProjects, delayedProjects, onTrack, 
       statusData, statusTotal, packageRevenue, pendingPaymentsCount, finalChartData, allActivities,
+      packageOrdersList,
       filteredOrders,
       filteredPayments,
       filteredCompanies,
@@ -904,9 +947,9 @@ export function AnalyticsPage() {
         </div>
       }
     >
-      <div className="grid gap-5 2xl:grid-cols-[1fr_320px]">
-        <div className="flex flex-col gap-5">
-          <div className="relative group">
+      <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_320px] w-full">
+        <div className="flex flex-col gap-5 min-w-0">
+          <div className="relative group w-full min-w-0">
             <button 
               onClick={() => { document.getElementById('kpi-scroll-container').scrollBy({ left: -300, behavior: 'smooth' }) }} 
               className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-[#ffffff] border border-[#E1E4EA] rounded-full p-1.5 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#f9fafb] hidden md:block"
@@ -914,7 +957,7 @@ export function AnalyticsPage() {
               <ChevronLeft size={18} className="text-[#525866]" />
             </button>
             
-            <div id="kpi-scroll-container" className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <div id="kpi-scroll-container" className="flex w-full overflow-x-auto snap-x snap-mandatory gap-4 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {topMetrics.map((item) => (
                 <Card 
                   key={item.label} 
@@ -949,8 +992,8 @@ export function AnalyticsPage() {
             </button>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-            <Card>
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+            <Card className="min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#EAECF0] px-5 py-4 gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-[#1F2937]">{metricFilter} over time</h3>
@@ -1010,7 +1053,7 @@ export function AnalyticsPage() {
               </div>
             </Card>
 
-            <Card>
+            <Card className="min-w-0">
               <div className="border-b border-[#EAECF0] px-5 py-4">
                 <h3 className="text-sm font-bold text-[#1F2937]">Project status</h3>
               </div>
@@ -1162,19 +1205,22 @@ export function AnalyticsPage() {
             </div>
             <div className="flex-1 overflow-y-auto p-5 bg-[#F5F7FA]/50">
               <div className="space-y-3">
-                {data.filteredOrders
-                  .filter(o => (o.package?.name || o.packageName || o.projectType || "Unassigned") === selectedPackage)
-                  .sort((a, b) => new Date(b.createdAt || b.date || now) - new Date(a.createdAt || a.date || now))
-                  .map((o, i) => (
-                  <div key={o._id || i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#E1E4EA] bg-[#ffffff] p-4 shadow-sm transition-shadow hover:shadow">
+                {data.packageOrdersList
+                  .filter(o => o.packageName === selectedPackage)
+                  .sort((a, b) => new Date(b.date) - new Date(a.date))
+                  .map((o) => (
+                  <div key={o.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-[#E1E4EA] bg-[#ffffff] p-4 shadow-sm transition-shadow hover:shadow">
                     <div>
-                      <p className="text-sm font-bold text-[#1F2937]">{o.customer?.customerName || o.client || 'Unknown Client'}</p>
-                      <p className="mt-1 text-xs font-medium text-[#6B7280]">{o.customer?.customerCompany || o.company || 'Unknown Company'}</p>
+                      <p className="text-sm font-bold text-[#1F2937]">
+                        {o.clientName}
+                        <span className="ml-2 text-[10px] font-bold text-[#9CA3AF] bg-[#F1F1F5] px-2 py-0.5 rounded uppercase tracking-wider">{o.type}</span>
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-[#6B7280]">{o.companyName}</p>
                     </div>
                     <div className="sm:text-right">
-                      <p className="text-sm font-bold text-emerald-600">{formatMoney(o.amount ?? o.value ?? o.package?.total ?? o.total)}</p>
+                      <p className="text-sm font-bold text-emerald-600">{formatMoney(o.amount)}</p>
                       <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
-                        {new Date(o.createdAt || o.date || now).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        {new Date(o.date).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </div>
                   </div>

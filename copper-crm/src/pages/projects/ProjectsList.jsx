@@ -1,11 +1,38 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { CheckCircle2, Clock3, FolderKanban, AlertTriangle, Plus, Search, Trash2 } from "lucide-react";
+import {
+  ArrowUpDown, Building2, Check, ChevronLeft, ChevronRight, Download, Edit2, Eye, FolderOpen, FolderPlus,
+  Folder as FolderIcon, Globe, Grid2x2, List, MoreVertical, Plus, Save, Search,
+  Trash2, X, Briefcase, FolderKanban, Clock3, CheckCircle2, AlertTriangle
+} from "lucide-react";
 import { Button } from "../../components/ui";
+import SidePanel from "../../components/SidePanel";
+
 import { useCrmRecords } from "../../hooks/useCrmRecords";
 import { buildProjectPayload } from "../../lib/projectDefaults";
 import ProjectFormPanel from "../../components/ProjectFormPanel";
+import FilterButton from "../../components/FilterButton";
 import { useToast } from "../../components/useToast";
+
+function useClickOutside(refs, onOutside, active) {
+  useEffect(() => {
+    if (!active) return;
+    function onDocMouseDown(event) {
+      const list = Array.isArray(refs) ? refs : [refs];
+      if (list.some((ref) => ref.current && ref.current.contains(event.target))) return;
+      onOutside();
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [active, onOutside, refs]);
+}
+
+const SORT_OPTIONS = [
+  { value: "created_desc", label: "Newest first" },
+  { value: "created_asc", label: "Oldest first" },
+  { value: "name_asc", label: "Name (A–Z)" },
+  { value: "name_desc", label: "Name (Z–A)" }
+];
 
 function formatINR(value) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(value || 0);
@@ -56,6 +83,157 @@ const PROJECT_STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
+const FOLDER_PAGE_SIZE = 8;
+const FOLDERS_STORAGE_KEY = "cs-project-hotlist-folders";
+const DEFAULT_FOLDERS = ["High Priority", "At Risk", "Upcoming Deadlines", "Key Projects"];
+
+function loadStoredFolders() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FOLDERS_STORAGE_KEY));
+    if (Array.isArray(raw) && raw.length) return raw;
+  } catch {
+  }
+  return DEFAULT_FOLDERS;
+}
+
+function persistFolders(list) {
+  try {
+    localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(list));
+  } catch {
+  }
+}
+
+function FolderCard({ folder, count, active, onClick }) {
+  return (
+    <button onClick={onClick} className={`flex flex-col items-start gap-3 rounded-xl border p-4 text-left transition-colors ${active ? "border-[#C57E5B] bg-[#fff8f6]" : "border-[#E1E4EA] bg-white hover:bg-[#fafafa]"}`}>
+      <div className={`flex h-10 w-10 items-center justify-center rounded-lg border ${active ? "border-[#C57E5B] text-[#C57E5B]" : "border-[#E1E4EA] text-[#525866]"}`}>
+        <FolderIcon size={18} />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-[#0E121B]">{folder}</p>
+        <p className="text-xs text-[#525866] mt-0.5">{count} projects</p>
+      </div>
+    </button>
+  );
+}
+
+function FolderRow({ folder, count, onClick }) {
+  return (
+    <button onClick={onClick} className="flex items-center justify-between rounded-xl border border-[#E1E4EA] bg-white px-4 py-3 text-left transition-colors hover:bg-[#fafafa]">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E1E4EA] text-[#525866]">
+          <FolderIcon size={16} />
+        </div>
+        <p className="text-sm font-semibold text-[#0E121B]">{folder}</p>
+      </div>
+      <span className="text-xs text-[#525866]">{count} projects</span>
+    </button>
+  );
+}
+
+function FolderDetail({ folder, projects, onBack, onAdd, onOpenProject, onRemove }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E1E4EA] text-[#525866] transition-colors hover:bg-[#f9fafb]" title="Back to all folders">
+            <ChevronLeft size={16} />
+          </button>
+          <div className="flex items-center gap-2">
+            <FolderOpen size={18} className="text-[#C57E5B]" />
+            <div>
+              <p className="text-base font-medium text-[#0E121B]">{folder}</p>
+              <p className="text-xs text-[#525866]">{projects.length} {projects.length === 1 ? "project" : "projects"}</p>
+            </div>
+          </div>
+        </div>
+        <button onClick={onAdd} className="flex h-[42px] items-center gap-1.5 self-start rounded-full bg-[#C57E5B] px-3.5 text-xs font-medium text-white transition-colors hover:bg-[#b06a48] sm:self-auto">
+          <Plus size={15} /> Add projects
+        </button>
+      </div>
+
+      {projects.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[#E1E4EA] bg-white py-12 text-center">
+          <p className="text-sm text-[#6b7280]">No projects in this folder yet.</p>
+          <button onClick={onAdd} className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#C57E5B] px-3.5 py-2 text-xs font-medium text-[#C57E5B] transition-colors hover:bg-[#fff8f6]">
+            <Plus size={14} /> Add projects
+          </button>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {projects.map((p) => (
+            <div key={p._id || p.id} className="group relative flex flex-col gap-2 rounded-xl border border-[#E1E4EA] bg-white p-4">
+              <button onClick={() => onRemove(p)} className="absolute right-2 top-2 hidden h-7 w-7 items-center justify-center rounded-lg text-[#9ca3af] transition-colors hover:bg-red-50 hover:text-red-600 group-hover:flex" title="Remove from folder">
+                <X size={14} />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e5e7eb] bg-[#f3f4f6]">
+                  <FolderIcon size={15} className="text-[#9ca3af]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-[#111827]">{p.name}</p>
+                  <p className="truncate text-xs text-[#525866]">{p.computedCompanyName || "—"}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end mt-2">
+                <button onClick={() => onOpenProject(p)} className="inline-flex items-center gap-1 text-xs font-medium text-[#884c2d] hover:underline">
+                  <Eye size={13} /> Open
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FolderModal({ onClose, onCreate }) {
+  const [name, setName] = useState("");
+  return (
+    <SidePanel title="New Folder" subtitle="Create a custom hotlist folder to group projects." onClose={onClose} footer={<div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={() => onCreate(name)}><Save size={14} /> Create Folder</Button></div>}>
+      <label className="block">
+        <span className="text-xs font-semibold text-[#374151]">Folder name</span>
+        <input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onCreate(name); }} placeholder="e.g. Q3 Deliverables" className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none transition-all focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20" />
+      </label>
+    </SidePanel>
+  );
+}
+
+function AssignProjectsModal({ folder, projects, onClose, onSave }) {
+  const idOf = (c) => c._id || c.id;
+  const [selected, setSelected] = useState(() => new Set(projects.filter((c) => (c.folder || "") === folder).map(idOf)));
+  const [query, setQuery] = useState("");
+
+  const toggle = (id) => setSelected((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const list = projects.filter((c) => `${c.name} ${c.computedCompanyName}`.toLowerCase().includes(query.toLowerCase()));
+
+  return (
+    <SidePanel title={`Add projects to ${folder}`} subtitle="Select the projects that belong in this hotlist folder." onClose={onClose} footer={<div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={() => onSave([...selected])}><Save size={14} /> Save ({selected.size})</Button></div>}>
+      <div className="mb-3 flex h-11 items-center gap-2 rounded-full border border-[#1F2937]/10 px-3.5">
+        <Search size={15} className="text-[#1F2937]/50 shrink-0" />
+        <input className="w-full bg-transparent text-sm outline-none placeholder:text-[#1F2937]/50" placeholder="Search projects…" value={query} onChange={(e) => setQuery(e.target.value)} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {list.map((c) => {
+          const id = idOf(c);
+          const checked = selected.has(id);
+          return (
+            <label key={id} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors ${checked ? "border-[#C57E5B] bg-[#fff8f6]" : "border-[#e5e7eb] hover:bg-[#f9fafb]"}`}>
+              <input type="checkbox" checked={checked} onChange={() => toggle(id)} className="rounded border-[#d1d5db] accent-[#884c2d]" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#111827]">{c.name}</p>
+                <p className="truncate text-xs text-[#525866]">{c.computedCompanyName || "—"}{c.folder && c.folder !== folder ? ` · in ${c.folder}` : ""}</p>
+              </div>
+            </label>
+          );
+        })}
+        {list.length === 0 && <p className="py-8 text-center text-sm text-[#6b7280]">No projects found.</p>}
+      </div>
+    </SidePanel>
+  );
+}
+
 export default function ProjectsList() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -68,6 +246,15 @@ export default function ProjectsList() {
   const { records: invoices } = useCrmRecords("invoices");
   const { save: saveTask } = useCrmRecords("tasks");
 
+  const [view, setView] = useState("table");
+  const [folders, setFolders] = useState(loadStoredFolders);
+  const [folderSearch, setFolderSearch] = useState("");
+  const [openedFolder, setOpenedFolder] = useState(null);
+  const [folderView, setFolderView] = useState("grid");
+  const [folderPage, setFolderPage] = useState(1);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
+
   useEffect(() => {
     if (location.state?.openCreate) {
       navigate(location.pathname, { replace: true, state: {} });
@@ -76,6 +263,19 @@ export default function ProjectsList() {
   }, []);
 
   const [statusFilter, setStatusFilter] = useState("All");
+  const [priorityFilter, setPriorityFilter] = useState("All");
+  const [paymentFilter, setPaymentFilter] = useState("All");
+  const [packageFilter, setPackageFilter] = useState("All");
+  const [dateFilter, setDateFilter] = useState("All");
+  const [pmFilter, setPmFilter] = useState("All");
+
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sortBy, setSortBy] = useState("created_desc");
+  const actionsRef = useRef(null);
+  const sortRef = useRef(null);
+  useClickOutside(actionsRef, () => setActionsOpen(false), actionsOpen);
+  useClickOutside(sortRef, () => setSortOpen(false), sortOpen);
 
   const computedProjects = useMemo(() => {
     return projects.map((p) => {
@@ -98,7 +298,9 @@ export default function ProjectsList() {
       // for projects that have no stages defined at all.
       let effectiveStatus;
       if (totalStages > 0) {
+        const hasReview = stages.some(s => s.status === "review");
         if (progress === 100) effectiveStatus = "completed";
+        else if (hasReview) effectiveStatus = "review";
         else if (progress > 0) effectiveStatus = "in_progress";
         else effectiveStatus = "not_started";
       } else {
@@ -112,14 +314,51 @@ export default function ProjectsList() {
     });
   }, [projects, companies]);
 
+  const pmOptions = useMemo(() => {
+    const pms = new Set(computedProjects.map(p => p.projectManager).filter(Boolean));
+    return ["All", ...Array.from(pms).sort()];
+  }, [computedProjects]);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return computedProjects.filter((project) => {
+    const arr = computedProjects.filter((project) => {
       const matchesQuery = !query || `${project.name} ${project.client} ${project.template}`.toLowerCase().includes(query);
-      const matchesStatus = statusFilter === "All" || project.effectiveStatus === statusFilter;
-      return matchesQuery && matchesStatus;
-    }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }, [computedProjects, search, statusFilter]);
+      const matchesStatus = statusFilter === "All" || project.effectiveStatus === statusFilter || project.status === statusFilter;
+      const matchesPriority = priorityFilter === "All" || (project.priority || "Medium") === priorityFilter;
+      const matchesPayment = paymentFilter === "All" || (project.paymentStatus || "Pending") === paymentFilter;
+      const matchesPackage = packageFilter === "All" || (project.packageName === packageFilter || project.template === packageFilter);
+      const matchesPm = pmFilter === "All" || project.projectManager === pmFilter;
+
+      let matchesDate = true;
+      if (dateFilter !== "All") {
+        const d = project.expectedEndDate || project.endDate;
+        if (!d) {
+          matchesDate = false;
+        } else {
+          const due = new Date(d).getTime();
+          const now = Date.now();
+          const oneWeek = now + 7 * 24 * 60 * 60 * 1000;
+          const oneMonth = now + 30 * 24 * 60 * 60 * 1000;
+          if (dateFilter === "Overdue") matchesDate = due < now;
+          else if (dateFilter === "Due This Week") matchesDate = due >= now && due <= oneWeek;
+          else if (dateFilter === "Due This Month") matchesDate = due >= now && due <= oneMonth;
+        }
+      }
+
+      return matchesQuery && matchesStatus && matchesPriority && matchesPayment && matchesPackage && matchesDate && matchesPm;
+    });
+
+    const byStr = (a, b, key) => String(a[key] || "").localeCompare(String(b[key] || ""), undefined, { sensitivity: "base" });
+    const byCreated = (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+
+    switch (sortBy) {
+      case "name_desc": return arr.sort((a, b) => byStr(b, a, "name"));
+      case "created_asc": return arr.sort(byCreated);
+      case "name_asc": return arr.sort((a, b) => byStr(a, b, "name"));
+      case "created_desc":
+      default: return arr.sort((a, b) => byCreated(b, a));
+    }
+  }, [computedProjects, search, statusFilter, priorityFilter, paymentFilter, packageFilter, dateFilter, pmFilter, sortBy]);
 
   const kpis = useMemo(() => {
     const completed = computedProjects.filter((p) => p.effectiveStatus === "completed").length;
@@ -149,6 +388,61 @@ export default function ProjectsList() {
     showToast({ title: "Project deleted", message: `${project.name || "Project"} removed.` });
   }
 
+
+  const allFolders = useMemo(() => {
+    const fromProjects = computedProjects.map((p) => p.folder).filter(Boolean);
+    return Array.from(new Set([...folders, ...fromProjects]));
+  }, [folders, computedProjects]);
+
+  const visibleFolders = useMemo(
+    () => allFolders.filter((f) => f.toLowerCase().includes(folderSearch.toLowerCase())),
+    [allFolders, folderSearch]
+  );
+  const folderTotalPages = Math.max(1, Math.ceil(visibleFolders.length / FOLDER_PAGE_SIZE));
+  const pagedFolders = visibleFolders.slice((folderPage - 1) * FOLDER_PAGE_SIZE, folderPage * FOLDER_PAGE_SIZE);
+
+  useEffect(() => {
+    if (folderPage > folderTotalPages) setFolderPage(1);
+  }, [folderPage, folderTotalPages]);
+
+  const openedProjects = useMemo(
+    () => (openedFolder ? computedProjects.filter((p) => (p.folder || "") === openedFolder) : []),
+    [computedProjects, openedFolder]
+  );
+
+  function folderCount(folder) {
+    return computedProjects.filter((p) => (p.folder || "") === folder).length;
+  }
+
+  function createFolder(name) {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) { showToast({ type: "error", title: "Folder name required", message: "Enter a name for the folder." }); return; }
+    if (allFolders.some((f) => f.toLowerCase() === trimmed.toLowerCase())) { showToast({ type: "error", title: "Folder already exists", message: `"${trimmed}" is already a folder.` }); return; }
+    const next = [...folders, trimmed];
+    setFolders(next);
+    persistFolders(next);
+    setCreatingFolder(false);
+    showToast({ title: "Folder created", message: `"${trimmed}" added to your hotlists.` });
+  }
+
+  async function assignProjectsToFolder(selectedIds) {
+    const idOf = (c) => c._id || c.id;
+    const selected = new Set(selectedIds);
+    const changed = computedProjects.filter((c) => ((c.folder || "") === openedFolder) !== selected.has(idOf(c)));
+    await Promise.all(changed.map((c) => update(idOf(c), { folder: selected.has(idOf(c)) ? openedFolder : "" })));
+    setAssignOpen(false);
+    showToast({ title: "Folder updated", message: `"${openedFolder}" now has ${selected.size} ${selected.size === 1 ? "project" : "projects"}.` });
+  }
+
+  async function removeFromFolder(project) {
+    await update(project.id || project._id, { folder: "" });
+    showToast({ title: "Removed from folder", message: `${project.name || "Project"} removed from "${openedFolder}".` });
+  }
+
+  function openProject(project) {
+    navigate(`/admin/companies/${project.companyId}/projects/${project.id || project._id}`);
+  }
+
   const statusFilters = [
     { label: "All", value: "All" },
     { label: "Not Started", value: "not_started" },
@@ -159,27 +453,162 @@ export default function ProjectsList() {
   ];
 
   return (
-    <div className="min-h-full bg-[#F1F1F5] p-6 space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col h-full bg-white">
+      {/* Sub-header */}
+      <div className="flex flex-col gap-4 border-b border-[#E1E4EA] px-6 py-3 lg:h-14 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:py-0">
         <div>
-          <h2 className="font-display text-2xl font-bold tracking-tight text-[#111827]">All Projects</h2>
-          <p className="mt-1 text-sm text-[#6b7280]">{filtered.length} of {projects.length} projects across every company</p>
+          <h1 className="text-base font-medium text-[#0E121B]">Projects</h1>
+          <p className="text-xs text-[#525866] mt-0.5">Manage your active projects and workflows</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-full items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white px-3 sm:w-72 shadow-sm">
-            <Search size={14} className="text-[#9ca3af]" />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search */}
+          <div className="flex h-11 w-full items-center gap-2 rounded-full border border-[#1F2937]/10 px-3.5 sm:w-72 bg-white">
+            <Search size={16} className="text-[#1F2937]/50 shrink-0" />
             <input
+              className="w-full bg-transparent text-sm outline-none placeholder:text-[#1F2937]/50"
+              placeholder="Search projects or clients…"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search projects or clients"
-              className="w-full bg-transparent text-sm text-[#111827] outline-none placeholder:text-[#9ca3af]"
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Button onClick={() => setCreating(true)}><Plus size={14} /> New Project</Button>
+
+          <div className="relative" ref={actionsRef}>
+            {/* View toggle */}
+            <button
+              onClick={() => setView((v) => (v === "table" ? "hotlist" : "table"))}
+              className={`flex items-center gap-1.5 rounded-full p-1 transition-colors mr-2 ${view === "hotlist" ? "bg-[#0085FF]/20" : "bg-[#F1F1F5]"}`}
+            >
+              <span className="flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-sm font-medium shadow-[0_0_6px_rgba(0,0,0,0.1)]">
+                <Grid2x2 size={16} className={view === "hotlist" ? "text-[#C57E5B]" : "text-[#1F2937]"} />
+                <span className={view === "hotlist" ? "text-[#C57E5B]" : "text-[#1F2937]"}>Hotlist</span>
+              </span>
+            </button>
+          </div>
+
+          <div className="relative" ref={actionsRef}>
+            <button onClick={() => setActionsOpen((value) => !value)} className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E1E4EA] bg-white text-[#1F2937] hover:bg-[#f9fafb] transition-colors">
+              <MoreVertical size={16} />
+            </button>
+            {actionsOpen && (
+              <div className="absolute right-0 z-20 mt-2 w-48 rounded-xl border border-[#e5e7eb] bg-white p-1 shadow-lg">
+                <button onClick={() => { 
+                  setSearch(""); 
+                  setStatusFilter("All"); 
+                  setPriorityFilter("All");
+                  setPaymentFilter("All");
+                  setPackageFilter("All");
+                  setDateFilter("All");
+                  setPmFilter("All");
+                  setActionsOpen(false); 
+                }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[#374151] hover:bg-[#f9fafb]">
+                  <X size={14} /> Clear filters
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Sort */}
+          <div className="relative" ref={sortRef}>
+            <button
+              onClick={() => setSortOpen((value) => !value)}
+              className={`flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors ${sortOpen ? "border-[#884c2d] bg-[#fff8f6] text-[#884c2d]" : "border-[#E1E4EA] bg-white text-[#1F2937] hover:bg-[#f9fafb]"}`}
+            >
+              <ArrowUpDown size={15} />
+              <span className="hidden sm:inline">{SORT_OPTIONS.find((o) => o.value === sortBy)?.label || "Sort"}</span>
+            </button>
+            {sortOpen && (
+              <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-[#e5e7eb] bg-white p-1 shadow-lg">
+                {SORT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setSortBy(opt.value); setSortOpen(false); }}
+                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-[#f9fafb] ${sortBy === opt.value ? "font-semibold text-[#884c2d]" : "text-[#374151]"}`}
+                  >
+                    {opt.label}
+                    {sortBy === opt.value && <Check size={14} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <FilterButton
+            onReset={() => { 
+              setSearch(""); 
+              setStatusFilter("All");
+              setPriorityFilter("All");
+              setPaymentFilter("All");
+              setPackageFilter("All");
+              setDateFilter("All");
+              setPmFilter("All");
+            }}
+            fields={[
+              { 
+                key: "status", 
+                label: "Status", 
+                type: "select", 
+                value: statusFilter, 
+                onChange: setStatusFilter, 
+                options: ["All", "Not Started", "In Progress", "Review", "Completed", "Delayed", "Cancelled"] 
+              },
+              { 
+                key: "priority", 
+                label: "Priority", 
+                type: "select", 
+                value: priorityFilter, 
+                onChange: setPriorityFilter, 
+                options: ["All", "High", "Medium", "Low"] 
+              },
+              { 
+                key: "payment", 
+                label: "Payment Status", 
+                type: "select", 
+                value: paymentFilter, 
+                onChange: setPaymentFilter, 
+                options: ["All", "Pending", "Partially Paid", "Paid"] 
+              },
+              { 
+                key: "package", 
+                label: "Package / Template", 
+                type: "select", 
+                value: packageFilter, 
+                onChange: setPackageFilter, 
+                options: ["All", "Starter Studio", "Growth Studio", "Enterprise Studio", "Custom"] 
+              },
+              { 
+                key: "date", 
+                label: "Completion Date", 
+                type: "select", 
+                value: dateFilter, 
+                onChange: setDateFilter, 
+                options: ["All", "Due This Week", "Due This Month", "Overdue"] 
+              },
+              { 
+                key: "pm", 
+                label: "Project Manager", 
+                type: "select", 
+                value: pmFilter, 
+                onChange: setPmFilter, 
+                options: pmOptions 
+              }
+            ]}
+          />
+
+          <button
+            onClick={() => setCreating(true)}
+            className="flex h-11 items-center gap-1.5 rounded-full bg-[#C57E5B] px-4 text-sm font-medium text-white hover:bg-[#b06a48] transition-colors shadow-sm"
+          >
+            <Plus size={16} />
+            Add Project
+          </button>
         </div>
       </div>
 
-      {!loading && (
+      <div className="flex-1 overflow-auto bg-[#F1F1F5] p-6 space-y-6">
+
+      {view === "table" ? (
+        <>
+          {!loading && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <KpiChip label="Total Projects" value={kpis.total} icon={FolderKanban} />
           <KpiChip label="In Progress" value={kpis.inProgress} icon={Clock3} tone="default" />
@@ -191,21 +620,6 @@ export default function ProjectsList() {
       <Section
         title="Project Portfolio"
         subtitle="Manage all active projects and workflows."
-        action={
-          <div className="flex gap-1.5 overflow-x-auto">
-            {statusFilters.map((item) => (
-              <button
-                key={item.value}
-                onClick={() => setStatusFilter(item.value)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
-                  statusFilter === item.value ? "bg-[#884c2d] text-white" : "bg-[#f3f4f6] text-[#6b7280] hover:bg-[#e5e7eb]"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        }
       >
         <table className="w-full text-left text-sm text-[#6b7280]">
           <thead className="bg-[#fff1ec] text-xs uppercase text-[#9ca3af]">
@@ -307,6 +721,81 @@ export default function ProjectsList() {
           </tbody>
         </table>
       </Section>
+        </>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 rounded-lg border border-[#E1E4EA] bg-white p-6 shadow-[0_4px_4px_rgba(0,0,0,0.05)] sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-base font-medium text-[#0E121B]">Project Hotlists</p>
+              <p className="text-xs text-[#525866] mt-0.5">Organise your projects into custom folders</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex h-[42px] w-full items-center gap-2 rounded-full border border-[#1F2937]/10 px-3.5 sm:w-72">
+                <Search size={15} className="text-[#1F2937]/50 shrink-0" />
+                <input
+                  className="w-full bg-transparent text-xs outline-none placeholder:text-[#1F2937]/50"
+                  placeholder="Search folders…"
+                  value={folderSearch}
+                  onChange={(e) => { setFolderSearch(e.target.value); setFolderPage(1); }}
+                />
+              </div>
+              <button onClick={() => setCreatingFolder(true)} className="flex h-[42px] items-center gap-1.5 whitespace-nowrap rounded-full bg-[#C57E5B] px-3.5 text-xs font-medium text-white hover:bg-[#b06a48] transition-colors">
+                <FolderPlus size={15} /> New Folder
+              </button>
+            </div>
+          </div>
+
+          {openedFolder ? (
+            <FolderDetail folder={openedFolder} projects={openedProjects} onBack={() => setOpenedFolder(null)} onAdd={() => setAssignOpen(true)} onOpenProject={openProject} onRemove={removeFromFolder} />
+          ) : (
+            <>
+              <div className="flex items-center justify-between px-1">
+                <p className="text-sm text-[#525866]">{visibleFolders.length} folders</p>
+                <div className="flex items-center gap-1.5">
+                  <div className="inline-flex h-9 items-center rounded-full border border-[#EAECF0] bg-white p-1">
+                    <button onClick={() => setFolderView("list")} title="List view" className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${folderView === "list" ? "bg-[#C57E5B] text-white" : "text-[#525866] hover:bg-[#f9fafb]"}`}>
+                      <List size={15} />
+                    </button>
+                    <button onClick={() => setFolderView("grid")} title="Icon view" className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${folderView === "grid" ? "bg-[#C57E5B] text-white" : "text-[#525866] hover:bg-[#f9fafb]"}`}>
+                      <Grid2x2 size={15} />
+                    </button>
+                  </div>
+                  <button onClick={() => setFolderPage((p) => Math.max(1, p - 1))} disabled={folderPage === 1} className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#EAECF0] text-[#525866] hover:bg-[#f9fafb] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    <ChevronLeft size={16} />
+                  </button>
+                  {Array.from({ length: folderTotalPages }, (_, i) => i + 1).slice(0, 5).map((p) => (
+                    <button key={p} onClick={() => setFolderPage(p)} className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${p === folderPage ? "bg-[#C57E5B] text-white" : "border border-[#EAECF0] text-[#525866] hover:bg-[#f9fafb]"}`}>{p}</button>
+                  ))}
+                  <button onClick={() => setFolderPage((p) => Math.min(folderTotalPages, p + 1))} disabled={folderPage === folderTotalPages} className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#EAECF0] text-[#525866] hover:bg-[#f9fafb] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {visibleFolders.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[#E1E4EA] py-12 text-center">
+                  <p className="text-sm text-[#6b7280]">No folders found.</p>
+                </div>
+              ) : folderView === "grid" ? (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {pagedFolders.map((f) => (
+                    <FolderCard key={f} folder={f} count={folderCount(f)} active={openedFolder === f} onClick={() => setOpenedFolder(f)} />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {pagedFolders.map((f) => (
+                    <FolderRow key={f} folder={f} count={folderCount(f)} onClick={() => setOpenedFolder(f)} />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {creatingFolder && <FolderModal onClose={() => setCreatingFolder(false)} onCreate={createFolder} />}
+      {assignOpen && <AssignProjectsModal folder={openedFolder} projects={computedProjects} onClose={() => setAssignOpen(false)} onSave={assignProjectsToFolder} />}
 
       {creating && (
         <ProjectFormPanel
@@ -317,6 +806,7 @@ export default function ProjectsList() {
           onSave={handleCreate}
         />
       )}
+      </div>
     </div>
   );
 }

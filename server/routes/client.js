@@ -7,6 +7,7 @@ import Document from "../models/Document.js";
 import Meeting from "../models/Meeting.js";
 import Task from "../models/Task.js";
 import Contact from "../models/Contact.js";
+import Invoice from "../models/Invoice.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -145,9 +146,91 @@ router.get("/projects/:id/tasks", async (req, res, next) => {
 
 router.get("/documents", async (req, res, next) => {
   try {
+    const user = await User.findById(req.auth.sub);
+    if (!user) return res.status(404).json({ message: "User not found." });
+
     const filter = await projectScopedVisibilityFilter(req.auth.sub);
-    const docs = await Document.find({ $and: [filter, { scope: { $ne: "internal" } }] }).sort({ createdAt: -1 });
-    res.json(docs);
+    const projFilter = await projectsVisibilityFilter(req.auth.sub);
+
+    // 1. Fetch from the documents collection
+    const docsCollection = await Document.find({
+      $and: [filter, { scope: { $ne: "internal" } }]
+    }).sort({ createdAt: -1 });
+
+    // Fetch projects to map info and extract embedded docs
+    const projects = await Project.find(projFilter).lean();
+
+    const collectionDocs = docsCollection.map((doc) => {
+      const project = projects.find((p) => String(p._id || p.id) === String(doc.projectId));
+      return {
+        ...doc.toObject(),
+        id: doc._id || doc.id,
+        projectId: doc.projectId,
+        companyId: doc.companyId || project?.companyId,
+        projectName: project?.name || project?.projectName || "Project",
+        visibility: doc.visibility || (doc.scope === "internal" ? "internal" : "client"),
+        folderPath: `${project?.name || "Project"} / ${doc.category || "Files"}`,
+        fileName: doc.fileName || doc.name,
+        fileUrl: doc.fileUrl,
+      };
+    });
+
+    // 2. Fetch from the embedded project.documents
+    const embeddedDocs = projects.flatMap((project) =>
+      (project.documents || [])
+        .filter(doc => doc.visibility !== "internal" && doc.category !== "Internal" && doc.scope !== "internal")
+        .map((doc) => ({
+          ...doc,
+          id: doc._id || doc.id,
+          projectId: project.id || project._id,
+          companyId: project.companyId,
+          projectName: project.name || project.projectName,
+          visibility: doc.visibility || "client",
+          folderPath: `${project.name || "Project"} / ${doc.category || "Files"}`,
+          fileName: doc.fileName || doc.name,
+          fileUrl: doc.fileUrl,
+        }))
+    );
+
+    // 3. Fetch from invoices (represented as PDF documents)
+    const userInvoices = await Invoice.find({
+      $or: [{ clientId: user._id }, { customerEmail: user.email }]
+    }).sort({ createdAt: -1 }).lean();
+
+    const invoiceDocs = userInvoices.map((inv) => {
+      const project = projects.find(
+        (p) =>
+          (inv.projectId && String(p._id || p.id) === String(inv.projectId)) ||
+          (inv.sourceOrderId && p.orderId && String(p.orderId) === String(inv.sourceOrderId))
+      );
+
+      const pName = project?.name || project?.projectName || "Project";
+      const pId = project?._id || project?.id;
+
+      return {
+        _id: inv._id || inv.id,
+        id: inv._id || inv.id,
+        name: `Tax Invoice - ${inv.invoiceNumber || inv.id}.pdf`,
+        fileName: `Tax Invoice - ${inv.invoiceNumber || inv.id}.pdf`,
+        fileType: "pdf",
+        category: "Invoices",
+        tags: ["Invoice", "Receipt"],
+        projectId: pId,
+        companyId: inv.companyId || project?.companyId,
+        projectName: pName,
+        visibility: "client",
+        status: "final_delivery",
+        folderPath: `${pName} / Invoices`,
+        fileUrl: `/api/invoices/${inv._id || inv.id || inv.invoiceNumber}/pdf`,
+        createdAt: inv.createdAt || inv.date || inv.paidAt,
+      };
+    });
+
+    const allDocs = [...collectionDocs, ...embeddedDocs, ...invoiceDocs];
+    // Sort combined list by createdAt descending
+    allDocs.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+    res.json(allDocs);
   } catch (error) {
     next(error);
   }
