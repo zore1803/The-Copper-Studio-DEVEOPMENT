@@ -33,6 +33,7 @@ async function loadByInvoiceId(invoiceId) {
   let invoice = null;
   if (isObjectId(invoiceId)) invoice = await Invoice.findById(invoiceId);
   if (!invoice) invoice = await Invoice.findOne({ invoiceNumber: invoiceId });
+  if (!invoice) invoice = await Invoice.findOne({ id: invoiceId });
   if (!invoice) return null;
   const order = invoice.sourceOrderId ? await Order.findById(invoice.sourceOrderId) : null;
   return { order, invoice };

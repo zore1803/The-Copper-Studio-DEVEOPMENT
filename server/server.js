@@ -488,6 +488,93 @@ app.post("/api/razorpay/verify", async (req, res, next) => {
   }
 });
 
+app.post("/api/invoices/manual", async (req, res, next) => {
+  try {
+    const {
+      companyId,
+      companyName,
+      customerEmail,
+      customerPhone,
+      customerName,
+      billingAddressLine1,
+      billingAddressLine2,
+      city,
+      state,
+      pincode,
+      companyGstin,
+      companyWebsite,
+      projectName,
+      packageName,
+      amount
+    } = req.body;
+
+    const total = Number(amount);
+    if (!total || total <= 0) {
+      return res.status(400).json({ message: "A valid invoice amount is required." });
+    }
+    if (!companyId && !String(companyName || "").trim()) {
+      return res.status(400).json({ message: "Select an existing company or enter a company name." });
+    }
+
+    let company = null;
+    let resolvedCompanyName = String(companyName || "").trim();
+
+    if (companyId) {
+      company = await Company.findById(companyId).catch(() => null);
+      if (!company) return res.status(404).json({ message: "Selected company not found." });
+      resolvedCompanyName = company.name;
+    }
+
+    const order = await Order.create({
+      package: {
+        id: "manual",
+        name: packageName || "Custom Package",
+        price: total,
+        total
+      },
+      customer: {
+        customerName: customerName || "Admin Created",
+        customerEmail: customerEmail || company?.email || "manual@example.com",
+        customerPhone: customerPhone || company?.phone || "0000000000",
+        customerCompany: resolvedCompanyName,
+        projectName: projectName || "Custom Project",
+        companyWebsite: companyWebsite || company?.website || "",
+        companyGstin: companyGstin || company?.gstin || "",
+        billingAddressLine1: billingAddressLine1 || company?.address || "",
+        billingAddressLine2: billingAddressLine2 || "",
+        city: city || company?.city || "",
+        state: state || company?.state || "",
+        pincode: pincode || company?.pincode || ""
+      },
+      verification: {
+        phoneVerified: true,
+        emailVerified: true
+      },
+      payment: {
+        status: "paid",
+        provider: "manual",
+        invoiceId: `INV-${Date.now().toString().slice(-6)}`,
+        paidAt: new Date()
+      }
+    });
+
+    if (!company) company = await ensureCompanyForOrder(order);
+    await ensureContactForOrder(order, company);
+
+    const primaryClientId = company?.userIds?.[0] || company?.userId || null;
+    const project = await ensureProjectForOrder(order, primaryClientId, company);
+    const finance = await syncFinanceForOrder(order);
+
+    emailInvoiceForOrder(order, finance?.invoice).catch((error) => {
+      console.error("Background invoice email failed:", error.message);
+    });
+
+    res.status(201).json({ order, company, project, invoice: finance?.invoice, payment: finance?.payment });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/orders", async (req, res, next) => {
   try {
     const { selectedPackageId, customer, verified, paymentStatus, paidAt, invoiceId, couponCode } = req.body;

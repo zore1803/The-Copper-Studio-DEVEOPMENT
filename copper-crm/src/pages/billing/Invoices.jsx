@@ -62,7 +62,11 @@ function Field({ label, value, onChange, type = "text", options }) {
       <span className="text-xs font-semibold text-[#374151]">{label}</span>
       {options ? (
         <select value={value || ""} onChange={(e) => onChange(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-          {options.map((opt) => <option key={opt}>{opt}</option>)}
+          {options.map((opt) => (
+            typeof opt === "string"
+              ? <option key={opt} value={opt}>{opt}</option>
+              : <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
         </select>
       ) : (
         <input type={type} value={value || ""} onChange={(e) => onChange(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20" />
@@ -72,15 +76,44 @@ function Field({ label, value, onChange, type = "text", options }) {
 }
 
 function InvoiceModal({ companies, onClose, onSave }) {
-  const [form, setForm] = useState({ company: "", project: "", total: "", tax: "", issueDate: "", dueDate: "", status: "Draft" });
+  const [mode, setMode] = useState("existing");
+  const [form, setForm] = useState({
+    companyId: "",
+    companyName: "",
+    customerEmail: "",
+    customerPhone: "",
+    customerName: "",
+    billingAddressLine1: "",
+    billingAddressLine2: "",
+    city: "",
+    state: "",
+    pincode: "",
+    companyGstin: "",
+    companyWebsite: "",
+    projectName: "",
+    packageName: "",
+    amount: ""
+  });
   const [saving, setSaving] = useState(false);
   const set = (key) => (value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const companyOptions = [
+    { value: "", label: "Select company" },
+    ...companies.map((company) => ({
+      value: company._id || company.id,
+      label: company.name || company.companyName || "Unnamed company"
+    }))
+  ];
 
   async function handleSave() {
     if (saving) return;
     setSaving(true);
     try {
-      await onSave(form);
+      const payload = mode === "existing"
+        ? { ...form, companyName: "" }
+        : { ...form, companyId: "" };
+      await onSave(payload);
+    } catch (error) {
+      alert(error.message || "Could not generate invoice.");
     } finally {
       setSaving(false);
     }
@@ -89,7 +122,7 @@ function InvoiceModal({ companies, onClose, onSave }) {
   return (
     <SidePanel
       title="Generate Invoice"
-      subtitle="Create an invoice linked to a company and project."
+      subtitle="Create a paid manual invoice and link it to a company and project."
       onClose={onClose}
       footer={
         <div className="flex justify-end gap-2">
@@ -98,14 +131,50 @@ function InvoiceModal({ companies, onClose, onSave }) {
         </div>
       }
     >
+      <div className="mb-6 grid grid-cols-2 rounded-lg bg-[#f3f4f6] p-1">
+        <button
+          type="button"
+          onClick={() => setMode("existing")}
+          className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${mode === "existing" ? "bg-white text-[#111827] shadow-sm" : "text-[#6b7280] hover:text-[#111827]"}`}
+        >
+          Existing Company
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("new")}
+          className={`rounded-md px-3 py-1.5 text-sm font-semibold transition-colors ${mode === "new" ? "bg-white text-[#111827] shadow-sm" : "text-[#6b7280] hover:text-[#111827]"}`}
+        >
+          New Company
+        </button>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Company" value={form.company} onChange={set("company")} options={["", ...companies.map((c) => c.name)]} />
-        <Field label="Project" value={form.project} onChange={set("project")} />
-        <Field label="Amount" type="number" value={form.total} onChange={set("total")} />
-        <Field label="GST / Tax" type="number" value={form.tax} onChange={set("tax")} />
-        <Field label="Issue date" type="date" value={form.issueDate} onChange={set("issueDate")} />
-        <Field label="Due date" type="date" value={form.dueDate} onChange={set("dueDate")} />
-        <Field label="Status" value={form.status} onChange={set("status")} options={INVOICE_STATUSES} />
+        {mode === "existing" ? (
+          <div className="sm:col-span-2">
+            <Field label="Select Company" value={form.companyId} onChange={set("companyId")} options={companyOptions} />
+          </div>
+        ) : (
+          <>
+            <div className="sm:col-span-2"><Field label="Company Name" value={form.companyName} onChange={set("companyName")} /></div>
+            <Field label="Customer Full Name" value={form.customerName} onChange={set("customerName")} />
+            <Field label="Customer Email" type="email" value={form.customerEmail} onChange={set("customerEmail")} />
+            <Field label="Customer Phone" value={form.customerPhone} onChange={set("customerPhone")} />
+            <Field label="GSTIN" value={form.companyGstin} onChange={set("companyGstin")} />
+            <Field label="Website" value={form.companyWebsite} onChange={set("companyWebsite")} />
+            <div className="sm:col-span-2"><Field label="Address Line 1" value={form.billingAddressLine1} onChange={set("billingAddressLine1")} /></div>
+            <div className="sm:col-span-2"><Field label="Address Line 2" value={form.billingAddressLine2} onChange={set("billingAddressLine2")} /></div>
+            <Field label="City" value={form.city} onChange={set("city")} />
+            <Field label="State" value={form.state} onChange={set("state")} />
+            <Field label="Pincode" value={form.pincode} onChange={set("pincode")} />
+          </>
+        )}
+
+        <div className="sm:col-span-2 mt-2 border-t border-[#f3f4f6] pt-4">
+          <p className="text-sm font-bold text-[#111827]">Project & Invoice Details</p>
+        </div>
+        <div className="sm:col-span-2"><Field label="Project Name" value={form.projectName} onChange={set("projectName")} /></div>
+        <Field label="Package / Service Name" value={form.packageName} onChange={set("packageName")} />
+        <Field label="Amount (INR)" type="number" value={form.amount} onChange={set("amount")} />
       </div>
     </SidePanel>
   );
@@ -146,10 +215,24 @@ export default function Invoices() {
   }, [invoices]);
 
   async function handleCreate(form) {
-    const invoiceNumber = generateInvoiceNumber(invoices, form.issueDate || new Date());
-    const created = await saveInvoice({ ...form, id: `invoice-${Date.now()}`, invoiceNumber, createdAt: new Date().toISOString() });
+    const base = import.meta.env.VITE_API_BASE_URL || "";
+    const response = await fetch(`${base}/api/invoices/manual`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "Could not generate invoice.");
+    const created = data.invoice
+      ? await saveInvoice(data.invoice)
+      : await saveInvoice({
+          ...form,
+          id: `invoice-${Date.now()}`,
+          invoiceNumber: generateInvoiceNumber(invoices, new Date()),
+          createdAt: new Date().toISOString()
+        });
     setCreating(false);
-    showToast({ title: "Invoice generated", message: `${created.invoiceNumber || invoiceNumber} saved.` });
+    showToast({ title: "Invoice generated", message: `${created.invoiceNumber || created.id || "Invoice"} saved.` });
   }
 
   async function handleStatusChange(invoice, nextStatus) {

@@ -73,15 +73,18 @@ export async function syncFinanceForOrder(orderInput) {
   const total = Number(pkg.total || pkg.price || 0);
   const taxableBase = total ? Math.round(total / 1.18) : 0;
   const gst = total ? total - taxableBase : 0;
+  const project = await Project.findOne({ orderId: order._id }).select("_id name projectName").catch(() => null);
 
   const shared = {
     sourceOrderId: order._id,
     orderId: String(order._id),
+    projectId: project?._id || null,
     companyId: company?._id || null,
     clientId: client?._id || company?.userId || null,
     company: company?.name || customer.customerCompany || "",
     client: customer.customerName || client?.name || "",
     customerEmail: customer.customerEmail || "",
+    project: project?.name || project?.projectName || customer.projectName || "",
     package: pkg.name || "",
     amount: total,
     currency: "INR",

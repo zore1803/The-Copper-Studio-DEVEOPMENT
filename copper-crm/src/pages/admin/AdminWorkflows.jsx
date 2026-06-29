@@ -808,12 +808,12 @@ export function SettingsPage() {
   const showGate = isSecureSection && !unlocked;
 
   return (
-    <div className="space-y-6">
-      <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <div>
+    <div className="flex min-h-full flex-col bg-[#F1F1F5]">
+      <div className="flex flex-col gap-4 border-b border-[#E1E4EA] bg-white px-6 py-3 lg:min-h-14 xl:flex-row xl:items-center xl:justify-between xl:gap-4">
+        <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#7b6f63]">Workspace administration</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[#211a17]">Account Settings</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6c6355]">
+          <h1 className="text-base font-medium text-[#0E121B]">Account Settings</h1>
+          <p className="mt-0.5 max-w-3xl text-xs text-[#525866]">
             Manage the super admin identity, change your password, and edit the email and WhatsApp message templates.
           </p>
         </div>
@@ -830,9 +830,9 @@ export function SettingsPage() {
             </Button>
           )}
         </div>
-      </section>
+      </div>
 
-      <section className="grid gap-6 xl:grid-cols-[290px_minmax(0,1fr)]">
+      <section className="grid gap-6 p-5 xl:grid-cols-[290px_minmax(0,1fr)] xl:p-6">
         <Card className="p-3 shadow-[0_18px_40px_rgba(79,39,16,0.06)]">
           <SettingsSidebarGroup label="General" sections={GENERAL_SECTIONS} activeSection={activeSection} locked={false} onSelect={selectSection} />
         </Card>
@@ -1083,4 +1083,3 @@ export function SettingsPage() {
     </div>
   );
 }
-
