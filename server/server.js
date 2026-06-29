@@ -94,6 +94,39 @@ async function emailInvoiceForOrder(order, invoice) {
   }
 }
 
+// Drops a link to the paid order's invoice PDF into the project's Files tab,
+// using the same project.documents shape ProjectFiles.jsx's manual uploads use.
+async function attachInvoiceToProjectFiles(order, invoice) {
+  try {
+    if (!order || order.payment?.status !== "paid") return;
+    const project = await Project.findOne({ orderId: order._id });
+    if (!project) return;
+
+    const docId = `inv-${order._id}`;
+    if ((project.documents || []).some((doc) => doc._id === docId)) return;
+
+    const invoiceNumber = invoice?.invoiceNumber || order.payment?.invoiceId || String(order._id);
+    const base = process.env.RENDER_EXTERNAL_URL || process.env.API_PUBLIC_URL || "";
+    const fileUrl = `${base}/api/invoices/by-order/${order._id}/pdf`;
+
+    const newDoc = {
+      _id: docId,
+      name: `Tax Invoice - ${invoiceNumber}.pdf`,
+      category: "Invoices",
+      type: "pdf",
+      sizeMB: 0,
+      date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+      uploadedBy: "System",
+      fileUrl
+    };
+
+    project.documents = [newDoc, ...(project.documents || [])];
+    await project.save();
+  } catch (error) {
+    console.error("Failed to attach invoice to project files:", error.message);
+  }
+}
+
 async function createPortalInvite(order) {
   if (order.payment.status !== "paid") return null;
 
@@ -485,7 +518,12 @@ app.post("/api/razorpay/verify", async (req, res, next) => {
     await ensureContactForOrder(order, company);
     await ensureProjectForOrder(order, invite?.userId, company);
     const finance = await syncFinanceForOrder(order);
-    await emailInvoiceForOrder(order, finance?.invoice);
+
+    // PDF generation (headless Chromium) can be slow/flaky on the free-tier host —
+    // never let it block or risk the payment-success response. Both helpers already
+    // catch and log their own failures internally.
+    emailInvoiceForOrder(order, finance?.invoice);
+    attachInvoiceToProjectFiles(order, finance?.invoice);
 
     res.status(201).json(order);
   } catch (error) {

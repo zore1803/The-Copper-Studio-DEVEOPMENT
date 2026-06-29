@@ -34,7 +34,11 @@ async function launchProductionBrowser() {
     throw new PdfUnavailableError("puppeteer-core / @sparticuz/chromium are not installed. Run `npm install` to enable PDF generation.");
   }
   return puppeteer.launch({
-    headless: chromium.headless,
+    // chromium.headless defaults to "shell" (chrome-headless-shell) — a stripped-down
+    // binary built for fast text-only rendering that does NOT reliably rasterize full
+    // CSS/backgrounds, producing blank PDFs from page.pdf(). Force the full "new"
+    // headless mode, which the same statically-linked binary also supports.
+    headless: true,
     args: chromium.args,
     defaultViewport: chromium.defaultViewport,
     executablePath: await chromium.executablePath()
@@ -54,10 +58,19 @@ async function launchDevBrowser() {
   });
 }
 
+function withLaunchTimeout(promise, ms = 25000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`Browser launch timed out after ${ms}ms`)), ms))
+  ]);
+}
+
 async function getBrowser() {
   if (browserPromise) return browserPromise;
 
-  browserPromise = process.env.NODE_ENV === "production" ? launchProductionBrowser() : launchDevBrowser();
+  browserPromise = withLaunchTimeout(
+    process.env.NODE_ENV === "production" ? launchProductionBrowser() : launchDevBrowser()
+  );
 
   try {
     const browser = await browserPromise;
