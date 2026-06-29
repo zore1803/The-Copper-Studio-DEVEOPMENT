@@ -129,6 +129,37 @@ export async function sendInvoiceEmail({ to, name, invoiceNumber, packageName, t
   });
 }
 
+export async function sendPaymentCancelledEmail({ to, name, packageName, amount, reason, razorpayOrderId, razorpayPaymentId }) {
+  const formattedAmount = typeof amount === "number" && Number.isFinite(amount)
+    ? new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(amount)
+    : amount;
+  const referenceRows = [
+    packageName && `<strong>Package:</strong> ${packageName}`,
+    formattedAmount && `<strong>Amount attempted:</strong> ${formattedAmount}`,
+    razorpayOrderId && `<strong>Razorpay order:</strong> ${razorpayOrderId}`,
+    razorpayPaymentId && `<strong>Payment reference:</strong> ${razorpayPaymentId}`,
+    reason && `<strong>Reason:</strong> ${reason}`,
+  ].filter(Boolean);
+
+  return sendMail({
+    to,
+    subject: "Payment not completed | The Copper Studio",
+    html: `
+      <div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#111827;max-width:560px">
+        <h2 style="margin:0 0 12px">Payment Not Completed${name ? `, ${name}` : ""}</h2>
+        <p>Your payment${packageName ? ` for <strong>${packageName}</strong>` : ""} was cancelled or could not be completed successfully.</p>
+        <p>No successful order has been created from this payment attempt.</p>
+        <div style="margin:16px 0;padding:14px 16px;border:1px solid #fde2d6;background:#fff8f6;border-radius:12px">
+          <p style="margin:0;font-weight:700;color:#884c2d">If money was deducted</p>
+          <p style="margin:6px 0 0;font-size:14px;color:#525866">Any deducted amount is usually reversed by Razorpay or your bank within a few working days. Please do not make a duplicate payment if your bank shows a debit and contact support with the payment reference.</p>
+        </div>
+        ${referenceRows.length ? `<p style="font-size:13px;color:#6b7280">${referenceRows.join("<br/>")}</p>` : ""}
+        ${signatureHtml()}
+      </div>
+    `
+  });
+}
+
 export async function sendOtpEmail({ to, code, label }) {
   return sendMail({
     to,

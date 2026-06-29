@@ -24,7 +24,7 @@ import settingsRoutes from "./routes/settings.js";
 import calendlyRoutes from "./routes/calendly.js";
 import invoiceRoutes from "./routes/invoices.js";
 import { packages } from "./data/packages.js";
-import { sendInvoiceEmail } from "./services/email.js";
+import { sendInvoiceEmail, sendPaymentCancelledEmail } from "./services/email.js";
 import { sendPortalInvite } from "./services/portalInvite.js";
 import { sendOtp, verifyOtp, isVerified } from "./services/otp.js";
 import { syncFinanceForOrder } from "./services/finance.js";
@@ -459,6 +459,46 @@ app.post("/api/razorpay/order", async (req, res, next) => {
       gst: Math.round(couponResult.subtotal * 0.18),
       total
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/razorpay/payment-cancelled", async (req, res, next) => {
+  try {
+    const {
+      selectedPackageId,
+      customer = {},
+      reason = "Payment was cancelled or failed.",
+      razorpayOrderId = "",
+      razorpayPaymentId = "",
+      errorDescription = "",
+      amount
+    } = req.body || {};
+
+    const email = String(customer.customerEmail || "").trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: "A valid customer email is required." });
+    }
+
+    const selectedPackage = packages.find((item) => item.id === selectedPackageId);
+    const attemptedAmount = Number.isFinite(Number(amount))
+      ? Number(amount)
+      : selectedPackage?.price
+        ? Math.round(Number(selectedPackage.price) * 1.18)
+        : undefined;
+
+    await sendPaymentCancelledEmail({
+      to: email,
+      name: customer.customerName,
+      packageName: selectedPackage?.name || customer.packageName || "",
+      amount: attemptedAmount,
+      reason: errorDescription || reason,
+      razorpayOrderId,
+      razorpayPaymentId
+    });
+
+    res.status(202).json({ ok: true });
   } catch (error) {
     next(error);
   }

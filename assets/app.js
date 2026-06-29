@@ -94,6 +94,29 @@ async function apiRequest(path, options = {}) {
   return response.json();
 }
 
+function notifyPaymentNotCompleted({ reason, razorpayOrderId = "", razorpayPaymentId = "", errorDescription = "", amount } = {}) {
+  const customerEmail = order.customer?.customerEmail;
+  if (!customerEmail) return Promise.resolve({ skipped: true });
+  const key = `payment-mail:${reason || "not-completed"}:${razorpayOrderId || "no-order"}:${razorpayPaymentId || "no-payment"}`;
+  if (sessionStorage.getItem(key)) return Promise.resolve({ skipped: true });
+  sessionStorage.setItem(key, "1");
+
+  return apiRequest("/razorpay/payment-cancelled", {
+    method: "POST",
+    body: JSON.stringify({
+      selectedPackageId: order.selectedPackageId,
+      customer: order.customer,
+      reason,
+      razorpayOrderId,
+      razorpayPaymentId,
+      errorDescription,
+      amount
+    })
+  }).catch((error) => {
+    console.warn("Payment cancellation email could not be sent:", error.message);
+  });
+}
+
 function formatCurrency(value) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -829,6 +852,13 @@ function renderPaymentPage() {
             window.location.href = "success.html";
           } catch (error) {
             console.error("Payment verification failed:", error);
+            notifyPaymentNotCompleted({
+              reason: "Payment was captured but order verification could not be completed.",
+              razorpayOrderId: response.razorpay_order_id || razorpayOrder.id,
+              razorpayPaymentId: response.razorpay_payment_id || "",
+              errorDescription: error.message,
+              amount: razorpayOrder.total || (razorpayOrder.amount ? Math.round(razorpayOrder.amount / 100) : undefined)
+            });
             button.disabled = false;
             button.innerHTML = idleLabel;
             if (gatewayNote) {
@@ -839,6 +869,11 @@ function renderPaymentPage() {
         },
         modal: {
           ondismiss: () => {
+            notifyPaymentNotCompleted({
+              reason: "Payment checkout was cancelled before completion.",
+              razorpayOrderId: razorpayOrder.id,
+              amount: razorpayOrder.total || (razorpayOrder.amount ? Math.round(razorpayOrder.amount / 100) : undefined)
+            });
             button.disabled = false;
             button.innerHTML = idleLabel;
             if (gatewayNote) gatewayNote.innerHTML = '<span class="material-symbols-outlined">info</span> Payment was cancelled. You can try again.';
@@ -848,6 +883,13 @@ function renderPaymentPage() {
 
       const checkout = new window.Razorpay(options);
       checkout.on("payment.failed", (response) => {
+        notifyPaymentNotCompleted({
+          reason: "Payment failed before completion.",
+          razorpayOrderId: response.error?.metadata?.order_id || razorpayOrder.id,
+          razorpayPaymentId: response.error?.metadata?.payment_id || "",
+          errorDescription: response.error?.description || response.error?.reason || "Payment failed.",
+          amount: razorpayOrder.total || (razorpayOrder.amount ? Math.round(razorpayOrder.amount / 100) : undefined)
+        });
         button.disabled = false;
         button.innerHTML = idleLabel;
         if (gatewayNote) {
@@ -857,6 +899,11 @@ function renderPaymentPage() {
       checkout.open();
     } catch (error) {
       console.error(error);
+      notifyPaymentNotCompleted({
+        reason: "Payment could not be started or completed.",
+        errorDescription: error.message,
+        amount: packageTotal(pkg)
+      });
       button.disabled = false;
       button.innerHTML = idleLabel;
       if (gatewayNote) gatewayNote.innerHTML = `<span class="material-symbols-outlined">error</span> ${escapeHtml(error.message)}`;
