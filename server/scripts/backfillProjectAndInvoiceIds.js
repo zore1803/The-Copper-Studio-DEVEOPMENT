@@ -13,9 +13,7 @@
  * (per product decision: custom names belong in the project description, not
  * the name field). It does not touch the description field.
  *
- * Uses the app's normal model layer, so it follows whichever DB_DRIVER is
- * active (defaults to MongoDB in this project; set DB_DRIVER=supabase +
- * SUPABASE_* env vars to target Supabase instead).
+ * Uses the app's normal Mongoose model layer.
  *
  * Usage:
  *   node server/scripts/backfillProjectAndInvoiceIds.js          # dry run, prints a diff, writes nothing
@@ -23,7 +21,6 @@
  */
 import "dotenv/config";
 import mongoose from "mongoose";
-import { dbDriver } from "../db/defineModel.js";
 import Company from "../models/Company.js";
 import Project from "../models/Project.js";
 import Invoice from "../models/Invoice.js";
@@ -57,8 +54,7 @@ function projectNameFor(companyName, num, date) {
 }
 
 async function connectIfNeeded() {
-  if (dbDriver !== "mongo") return;
-  if (!process.env.MONGO_URI) throw new Error("DB_DRIVER=mongo but MONGO_URI is missing.");
+  if (!process.env.MONGO_URI) throw new Error("MONGO_URI is missing.");
   await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 20000 });
 }
 
@@ -134,10 +130,10 @@ async function backfillInvoices() {
 
 async function main() {
   await connectIfNeeded();
-  console.log(`DB driver: ${dbDriver}${COMMIT ? " — COMMIT MODE" : " — dry run"}`);
+  console.log(`DB: mongo${COMMIT ? " — COMMIT MODE" : " — dry run"}`);
   await backfillProjects();
   await backfillInvoices();
-  if (dbDriver === "mongo") await mongoose.disconnect();
+  await mongoose.disconnect();
 }
 
 main().catch((err) => {

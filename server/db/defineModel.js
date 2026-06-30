@@ -1,25 +1,15 @@
 import mongoose from "mongoose";
-import { createModel as createSupabaseModel } from "./model.js";
 
 /**
- * Storage backend switch.
- *
- * Defaults to MongoDB. Set DB_DRIVER=supabase (with SUPABASE_* env vars) to run
- * on Supabase instead. Every model file carries BOTH a Supabase `defaults` map
- * and a Mongoose `schema`, so flipping this one env var swaps the entire data
- * layer with no other code changes. The routes and services are written against
- * the Mongoose-style API that both backends expose.
+ * Registers a Mongoose model. The `table` and `defaults` fields are accepted
+ * and ignored — they remain in the model files only so the call sites don't
+ * need editing.
  */
-export const dbDriver = (process.env.DB_DRIVER || "mongo").toLowerCase();
-
-export function defineModel({ name, table, defaults = {}, schema }) {
-  if (dbDriver === "mongo") {
-    if (!schema) throw new Error(`Model "${name}" has no Mongoose schema (needed for DB_DRIVER=mongo).`);
-    // Reuse an already-registered model so `node --watch` reloads don't throw
-    // Mongoose's OverwriteModelError.
-    return mongoose.models[name] || mongoose.model(name, schema);
-  }
-  return createSupabaseModel(table, { defaults });
+export function defineModel({ name, schema }) {
+  if (!schema) throw new Error(`Model "${name}" has no Mongoose schema.`);
+  // Reuse an already-registered model so `node --watch` reloads don't throw
+  // Mongoose's OverwriteModelError.
+  return mongoose.models[name] || mongoose.model(name, schema);
 }
 
 export default defineModel;

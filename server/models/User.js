@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import { defineModel } from "../db/defineModel.js";
 
-// Mongoose schema (used when DB_DRIVER=mongo).
 const schema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -38,7 +37,6 @@ const schema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Supabase defaults (used when DB_DRIVER=supabase).
 export default defineModel({
   name: "User",
   table: "users",

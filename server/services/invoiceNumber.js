@@ -13,9 +13,6 @@ export function legalYearLabel(date = new Date()) {
 export async function nextInvoiceNumber(date = new Date()) {
   const fy = legalYearLabel(date);
   const prefix = `CS/INV/${fy}/`;
-  // Use a plain RegExp (not a Mongo $regex operator) — this also has to work
-  // against the Supabase compatibility shim in db/model.js, which only
-  // understands RegExp instances, not Mongo query operators.
   const matches = await Invoice.find({ invoiceNumber: new RegExp(`^${prefix.replace(/[/]/g, "\\/")}`) }).select("invoiceNumber");
   return `${prefix}${String(matches.length + 1).padStart(2, "0")}`;
 }
