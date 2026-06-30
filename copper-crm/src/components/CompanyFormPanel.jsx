@@ -47,6 +47,7 @@ function matchesSocialDomain(value, key) {
 
 const EMPLOYEE_RANGES = ["1–10", "11–50", "51–200", "201–500", "501–1000", "1001–5000", "5000+"];
 const COMPANY_STATUS_OPTIONS = ["Active", "Prospect", "Inactive"];
+const DOCUMENT_SIGNED_OPTIONS = ["Pending", "Accepted", "Rejected"];
 
 function Field({ label, value, onChange, placeholder = "", type = "text", error = "", span = false }) {
   return (
@@ -187,6 +188,7 @@ export default function CompanyFormPanel({ company, onClose, onSave }) {
         <Field label="Primary contact" value={form.contact} onChange={set("contact")} />
         <Field label="Projects" type="number" value={form.projects} onChange={set("projects")} />
         <SelectField label="Status" value={form.status} onChange={set("status")} options={COMPANY_STATUS_OPTIONS} placeholder="Select status…" />
+        <SelectField label="Document signed" value={form.documentSigned} onChange={set("documentSigned")} options={DOCUMENT_SIGNED_OPTIONS} placeholder="Select status…" />
         <Field label="Website" value={form.website} onChange={set("website")} error={errors.website} />
         <SearchableSelectField label="Company owner" value={form.owner} onChange={set("owner")} options={companyOwners} allowCustom placeholder="Select company owner…" />
         <SearchableSelectField label="Lead source" value={form.leadSource} onChange={set("leadSource")} options={LEAD_SOURCES} allowCustom placeholder="Select or type…" />
