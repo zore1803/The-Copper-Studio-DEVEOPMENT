@@ -631,10 +631,9 @@ function SecurityGate({ onUnlock }) {
 }
 
 const GENERAL_SECTIONS = [
-  { key: "profile", title: "Super Admin", description: "Super admin details and primary identity.", icon: UserPlus },
-  { key: "password", title: "Password", description: "Change your account password.", icon: LockKeyhole },
-  { key: "activity", title: "Activity", description: "Manage email and WhatsApp message templates.", icon: Mail },
-  { key: "companyOwners", title: "Company Owners", description: "Manage the list of company owners shown in the company form.", icon: Building2 },
+  { key: "profile", title: "Profile", description: "Your details, mobile number, and password.", icon: UserPlus },
+  { key: "triggerTemplate", title: "Trigger Template", description: "Manage email and WhatsApp message templates.", icon: MessageCircle },
+  { key: "dataFields", title: "Data Fields", description: "Configure custom data fields used across the CRM.", icon: SlidersHorizontal },
 ];
 
 const SECURE_SECTIONS = [];
@@ -684,7 +683,7 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [profile, setProfile] = useState({ fullName: "", email: "", title: "", timezone: "Asia/Kolkata", publicUrl: "" });
+  const [profile, setProfile] = useState({ fullName: "", email: "", phone: "", title: "", timezone: "Asia/Kolkata", publicUrl: "" });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [company, setCompany] = useState({ studioName: "The Copper Studio", legalName: "", gstin: "", billingEmail: "", website: "", billingAddress: "" });
   const [billing, setBilling] = useState({ gateway: "Razorpay", apiBase: "", invoicePrefix: "INV", defaultRole: "user", autoInviteAfterPayment: true, allowCouponAtCheckout: true });
@@ -719,9 +718,7 @@ export function SettingsPage() {
   function validateSection(key) {
     const e = {};
     if (key === "profile") {
-      if (profile.publicUrl && !URL_RE.test(profile.publicUrl.trim())) e.publicUrl = "Enter a valid URL.";
-    }
-    if (key === "password") {
+      if (profile.phone && !/^\d{10}$/.test(profile.phone.trim())) e.phone = "Enter a valid 10-digit mobile number.";
       const touched = passwordForm.currentPassword || passwordForm.newPassword || passwordForm.confirmPassword;
       if (touched) {
         if (!passwordForm.currentPassword) e.currentPassword = "Enter your current password.";
@@ -751,17 +748,12 @@ export function SettingsPage() {
     setSaving(true);
     try {
       if (key === "profile") {
-        await Promise.all([
-          apiPut("/api/client/profile", { name: profile.fullName, jobTitle: profile.title, preferences: { timezone: profile.timezone } }, token),
-          apiPut("/api/admin/settings/workspace", { publicUrl: profile.publicUrl }, token),
-        ]);
-      } else if (key === "password") {
+        await apiPut("/api/client/profile", { name: profile.fullName, phone: profile.phone }, token);
         const touched = passwordForm.currentPassword || passwordForm.newPassword || passwordForm.confirmPassword;
         if (touched) {
           await apiPut("/api/client/change-password", { currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword }, token);
           setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
         }
-        await apiPut("/api/admin/settings/security", security, token);
       } else if (key === "company") {
         await apiPut("/api/admin/settings/company", company, token);
       } else if (key === "billing") {
@@ -823,7 +815,7 @@ export function SettingsPage() {
             <Globe2 size={15} />
             Live workspace
           </Button>
-          {!showGate && !loading && activeSection !== "activity" && (
+          {!showGate && !loading && activeSection === "profile" && (
             <Button size="lg" disabled={saving} onClick={() => saveSection(activeSection, activeMeta?.title || "Settings")}>
               <Save size={15} />
               {saving ? "Saving…" : "Save Changes"}
@@ -847,48 +839,41 @@ export function SettingsPage() {
               {activeSection === "profile" && (
                 <div>
                   <div className="mb-6 flex items-center gap-3">
-                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#211a17] text-white"><SettingsIcon size={18} /></div>
+                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#211a17] text-white"><UserPlus size={18} /></div>
                     <div>
-                      <h3 className="text-lg font-semibold text-[#211a17]">Personal Profile</h3>
-                      <p className="text-sm text-[#6c6355]">Update the primary super admin identity shown across the CRM.</p>
+                      <h3 className="text-lg font-semibold text-[#211a17]">Profile</h3>
+                      <p className="text-sm text-[#6c6355]">Update your details and the password for your account.</p>
                     </div>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <SettingsField label="Full Name" value={profile.fullName} onChange={(value) => setProfile((prev) => ({ ...prev, fullName: value }))} />
                     <SettingsField label="Email Address" type="email" value={profile.email} disabled hint="Contact support to change your login email." />
-                    <SettingsField label="Job Title" value={profile.title} onChange={(value) => setProfile((prev) => ({ ...prev, title: value }))} />
-                    <SettingsSelect label="Timezone" value={profile.timezone} onChange={(value) => setProfile((prev) => ({ ...prev, timezone: value }))} options={["Asia/Kolkata", "Europe/London", "America/New_York"]} />
                     <div className="sm:col-span-2">
-                      <SettingsField label="CRM Public URL" value={profile.publicUrl} error={errors.publicUrl} onChange={(value) => setProfile((prev) => ({ ...prev, publicUrl: value }))} />
+                      <SettingsField label="Mobile Number" type="tel" value={profile.phone} error={errors.phone} onChange={(value) => setProfile((prev) => ({ ...prev, phone: value }))} hint="Used by WhatsApp message templates." />
                     </div>
                   </div>
+
+                  <div className="mt-8 border-t border-[#ead8d1] pt-6">
+                    <h4 className="text-sm font-bold text-[#211a17]">Password</h4>
+                    <p className="mt-1 text-xs text-[#6c6355]">Leave blank to keep your current password.</p>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <SettingsField label="Current Password" type="password" value={passwordForm.currentPassword} error={errors.currentPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, currentPassword: value }))} />
+                      <div className="hidden sm:block" />
+                      <SettingsField label="New Password" type="password" value={passwordForm.newPassword} error={errors.newPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, newPassword: value }))} />
+                      <SettingsField label="Confirm Password" type="password" value={passwordForm.confirmPassword} error={errors.confirmPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, confirmPassword: value }))} />
+                    </div>
+                  </div>
+
                   <div className="mt-6 flex justify-end">
                     <Button onClick={() => saveSection("profile", "Profile")}><Save size={14} /> Save Profile</Button>
                   </div>
                 </div>
               )}
 
-              {activeSection === "password" && (
+              {activeSection === "triggerTemplate" && (
                 <div>
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#211a17]">Password</h3>
-                    <p className="mt-1 text-sm text-[#6c6355]">Change the password for your super admin account.</p>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <SettingsField label="Current Password" type="password" value={passwordForm.currentPassword} error={errors.currentPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, currentPassword: value }))} />
-                    <SettingsField label="New Password" type="password" value={passwordForm.newPassword} error={errors.newPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, newPassword: value }))} />
-                    <SettingsField label="Confirm Password" type="password" value={passwordForm.confirmPassword} error={errors.confirmPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, confirmPassword: value }))} />
-                  </div>
-                  <div className="mt-6 flex justify-end">
-                    <Button onClick={() => saveSection("password", "Password")}><Save size={14} /> Update Password</Button>
-                  </div>
-                </div>
-              )}
-
-              {activeSection === "activity" && (
-                <div>
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#211a17]">Activity</h3>
+                    <h3 className="text-lg font-semibold text-[#211a17]">Trigger Template</h3>
                     <p className="mt-1 text-sm text-[#6c6355]">Manage the message templates used across the CRM.</p>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -918,34 +903,16 @@ export function SettingsPage() {
                 </div>
               )}
 
-              {activeSection === "companyOwners" && (
+              {activeSection === "dataFields" && (
                 <div>
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#211a17]">Company Owners</h3>
-                    <p className="mt-1 text-sm text-[#6c6355]">Manage the names that show up in the "Company owner" dropdown on the company form.</p>
+                    <h3 className="text-lg font-semibold text-[#211a17]">Data Fields</h3>
+                    <p className="mt-1 text-sm text-[#6c6355]">Configure the custom data fields used across the CRM.</p>
                   </div>
-                  <div className="flex flex-wrap items-end gap-3">
-                    <div className="flex-1 min-w-[220px]">
-                      <SettingsField
-                        label="Add owner"
-                        value={newOwnerName}
-                        placeholder="e.g. Rohit Zore"
-                        onChange={setNewOwnerName}
-                      />
-                    </div>
-                    <Button onClick={addCompanyOwner}><Plus size={14} /> Add</Button>
-                  </div>
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    {companyOwners.length ? companyOwners.map((owner) => (
-                      <span key={owner} className="flex items-center gap-2 rounded-full border border-[#ead8d1] bg-[#fffdfc] px-3 py-1.5 text-sm font-semibold text-[#211a17]">
-                        {owner}
-                        <button type="button" onClick={() => removeCompanyOwner(owner)} className="text-[#9c8c80] hover:text-red-500">
-                          <Trash2 size={13} />
-                        </button>
-                      </span>
-                    )) : (
-                      <p className="text-sm text-[#6c6355]">No company owners added yet.</p>
-                    )}
+                  <div className="rounded-2xl border border-dashed border-[#d8c2b9] bg-[#fffdfc] px-6 py-12 text-center">
+                    <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d]"><SlidersHorizontal size={20} /></div>
+                    <p className="mt-3 text-sm font-semibold text-[#211a17]">Coming soon</p>
+                    <p className="mt-1 text-xs text-[#6c6355]">Data field configuration will be available here.</p>
                   </div>
                 </div>
               )}

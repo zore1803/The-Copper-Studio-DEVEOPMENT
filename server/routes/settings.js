@@ -28,6 +28,7 @@ router.get("/", async (req, res, next) => {
       profile: {
         fullName: user.name,
         email: user.email,
+        phone: user.phone || "",
         title: user.jobTitle || "",
         timezone: user.preferences?.timezone || "Asia/Kolkata",
         publicUrl: settings.workspace?.publicUrl || ""
