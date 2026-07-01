@@ -136,10 +136,49 @@ function TemplatePreview({ subject, body, type }) {
   );
 }
 
+// Convert plain text to minimal HTML
+function textToHtml(text = "") {
+  const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return escaped
+    .split(/\n\n+/)
+    .map((para) => `<p>${para.replace(/\n/g, "<br/>")}</p>`)
+    .join("\n");
+}
+
+// Strip HTML tags back to plain text
+function htmlToText(html = "") {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function isHtmlBody(body = "") {
+  return /<[a-z][\s\S]*>/i.test(body);
+}
+
 function TemplateModal({ type, categories, template, onClose, onSave }) {
   const [form, setForm] = useState(template);
   const set = (key) => (value) => setForm((prev) => ({ ...prev, [key]: value }));
   const isEmail = type === "email";
+
+  // bodyMode: "text" or "html" — auto-detect from initial body
+  const [bodyMode, setBodyMode] = useState(() => isHtmlBody(template.body || "") ? "html" : "text");
+
+  function switchMode(nextMode) {
+    if (nextMode === bodyMode) return;
+    if (nextMode === "html") {
+      // text → html: convert only if not already HTML
+      set("body")(isHtmlBody(form.body || "") ? form.body : textToHtml(form.body || ""));
+    } else {
+      // html → text: strip tags
+      set("body")(htmlToText(form.body || ""));
+    }
+    setBodyMode(nextMode);
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-gray-950/40">
@@ -180,16 +219,34 @@ function TemplateModal({ type, categories, template, onClose, onSave }) {
                 <input value={form.subject || ""} onChange={(e) => set("subject")(e.target.value)} placeholder="e.g. Invoice {{invoice_id}} for {{company_name}}" className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20" />
               </label>
             )}
-            <label className="block flex-1">
-              <span className="text-xs font-semibold text-[#374151]">Body <span className="font-normal text-[#9ca3af]">(plain text or HTML)</span></span>
+            <div className="block flex-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#374151]">Body</span>
+                {/* Text / HTML toggle */}
+                <div className="flex rounded-lg border border-[#e5e7eb] p-0.5 text-[11px] font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => switchMode("text")}
+                    className={`rounded-md px-2.5 py-1 transition-colors ${bodyMode === "text" ? "bg-[#884c2d] text-white" : "text-[#6b7280] hover:text-[#374151]"}`}
+                  >Text</button>
+                  <button
+                    type="button"
+                    onClick={() => switchMode("html")}
+                    className={`rounded-md px-2.5 py-1 transition-colors ${bodyMode === "html" ? "bg-[#884c2d] text-white" : "text-[#6b7280] hover:text-[#374151]"}`}
+                  >HTML</button>
+                </div>
+              </div>
               <textarea
+                key={bodyMode}
                 value={form.body || ""}
                 onChange={(e) => set("body")(e.target.value)}
                 rows={16}
-                placeholder={"Hi {{client_name}},\n\nYour invoice {{invoice_id}} is attached.\n\nThanks,\nThe Copper Studio Team\n\n— or paste HTML directly —"}
-                className="mt-1.5 w-full resize-none rounded-lg border border-[#e5e7eb] px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20"
+                placeholder={bodyMode === "html"
+                  ? "<div>\n  <h2>Hello {{client_name}}</h2>\n  <p>Your invoice {{invoice_id}} is attached.</p>\n</div>"
+                  : "Hi {{client_name}},\n\nYour invoice {{invoice_id}} is attached.\n\nThanks,\nThe Copper Studio Team"}
+                className={`mt-1.5 w-full resize-none rounded-lg border border-[#e5e7eb] px-3 py-2 text-xs leading-relaxed outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20 ${bodyMode === "html" ? "font-mono" : "font-sans"}`}
               />
-            </label>
+            </div>
             <label className="block">
               <span className="text-xs font-semibold text-[#374151]">Status</span>
               <select value={form.status || "Draft"} onChange={(e) => set("status")(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
