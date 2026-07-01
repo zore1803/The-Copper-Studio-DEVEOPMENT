@@ -163,8 +163,8 @@ function NavLeaf({ item, collapsed, active, onNavigate, indent = false }) {
 }
 
 function NavGroup({ item, collapsed, active, onNavigate, location }) {
-  const [userOpen, setUserOpen] = useState(null);
-  const open = userOpen === null ? active : userOpen;
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const open = hoverOpen || active;
   const [flyoutOpen, setFlyoutOpen] = useState(false);
   const [flyoutPos, setFlyoutPos] = useState({ top: 0, left: 0 });
   const triggerRef = useRef(null);
@@ -220,9 +220,8 @@ function NavGroup({ item, collapsed, active, onNavigate, location }) {
   }
 
   return (
-    <div>
+    <div onMouseEnter={() => setHoverOpen(true)} onMouseLeave={() => setHoverOpen(false)}>
       <button
-        onClick={() => setUserOpen(!open)}
         className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 transition-colors ${active ? "text-[#C57E5B]" : "text-[#374151] hover:bg-white/70"}`}
       >
         <span className="flex items-center gap-3">
@@ -252,9 +251,9 @@ export default function AdminLayout() {
   const { records: tasks } = useCrmRecords("tasks");
   const { records: invoices } = useCrmRecords("invoices");
   const { notifHistory, unreadCount, markAllRead, clearHistory } = useToast();
-  // Always start collapsed on every load/reload; the sidebar only expands when
-  // the user explicitly clicks the collapse/expand toggle.
-  const [collapsed, setCollapsed] = useState(true);
+  const [pinnedOpen, setPinnedOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const collapsed = !pinnedOpen && !hovered;
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -376,6 +375,8 @@ export default function AdminLayout() {
       <aside
         className="fixed inset-y-0 left-0 z-40 flex flex-col bg-[#FAFAFA] border-r border-[#ECECEC] transition-all duration-200"
         style={{ width: sidebarW }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
         {/* Logo */}
         <div className={`flex items-center justify-center border-b border-[#ECECEC] ${collapsed ? "px-1 py-3" : "px-4 py-5"}`}>
@@ -415,12 +416,12 @@ export default function AdminLayout() {
 
         <div className={`border-t border-[#ECECEC] ${collapsed ? "flex flex-col items-center py-3" : "p-3"}`}>
           <button
-            onClick={() => setCollapsed((v) => !v)}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onClick={() => setPinnedOpen((v) => !v)}
+            title={pinnedOpen ? "Unpin sidebar" : "Pin sidebar open"}
             className={`flex items-center gap-2 rounded-lg border border-[#E5E5E5] bg-white text-sm font-semibold text-[#525252] hover:bg-[#f9fafb] transition-colors ${collapsed ? "h-9 w-9 justify-center" : "w-full px-3 py-2"}`}
           >
-            {collapsed ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}
-            {!collapsed && "Collapse"}
+            {pinnedOpen ? <ChevronsLeft size={15} /> : <ChevronsRight size={15} />}
+            {!collapsed && (pinnedOpen ? "Unpin" : "Pin open")}
           </button>
         </div>
       </aside>
