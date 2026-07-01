@@ -1621,7 +1621,7 @@ body[data-page="packages"] .package-card .btn-secondary:hover {
   transform: translateY(0);
 }
 
-/* Two-button pill */
+/* Two-symbol pill */
 .discount-pill {
   display: flex;
   align-items: center;
@@ -1632,19 +1632,19 @@ body[data-page="packages"] .package-card .btn-secondary:hover {
   gap: 2px;
 }
 .discount-icon-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+  width: 38px;
+  height: 38px;
   border-radius: 100px;
   border: none;
   background: transparent;
   color: #d4bfb5;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 800;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background 0.15s, color 0.15s;
-  letter-spacing: 0.02em;
 }
 .discount-icon-btn:hover {
   background: #884c2d;
@@ -1659,10 +1659,10 @@ body[data-page="packages"] .package-card .btn-secondary:hover {
 .discount-input-popup {
   display: none;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: #fff;
   border-radius: 14px;
-  padding: 10px 14px;
+  padding: 8px 10px;
   box-shadow: 0 8px 28px rgba(0,0,0,0.16);
   border: 1px solid #f0e6e0;
 }
@@ -1670,16 +1670,16 @@ body[data-page="packages"] .package-card .btn-secondary:hover {
   display: flex;
 }
 .discount-popup-symbol {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   color: #884c2d;
-  min-width: 14px;
+  min-width: 12px;
 }
 .discount-input-popup input {
-  width: 80px;
+  width: 76px;
   border: 1.5px solid #e5d8d1;
   border-radius: 8px;
-  padding: 6px 10px;
+  padding: 6px 8px;
   font-size: 14px;
   font-weight: 600;
   color: #111827;
@@ -1692,29 +1692,39 @@ body[data-page="packages"] .package-card .btn-secondary:hover {
   background: #fff;
 }
 #discountApplyBtn {
-  padding: 6px 14px;
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   border: none;
   background: #884c2d;
   color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background 0.15s;
+  flex-shrink: 0;
 }
 #discountApplyBtn:hover {
   background: #6f381a;
 }
 #discountClearBtn {
-  padding: 6px 10px;
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   border: 1.5px solid #e5d8d1;
   background: transparent;
   color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
 }
 #discountClearBtn:hover {
   border-color: #cc3333;

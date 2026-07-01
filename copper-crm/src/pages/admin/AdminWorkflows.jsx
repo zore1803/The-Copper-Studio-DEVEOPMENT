@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Building2, Calendar, CheckCircle2, ChevronRight, Edit3, Eye, EyeOff,
+  ArrowLeft, Building2, Calendar, ChevronRight, Edit3, Eye, EyeOff,
   LayoutGrid, List, LockKeyhole, Mail, MessageCircle,
   Plus, Save, Search,
   Settings as SettingsIcon, ShieldCheck, SlidersHorizontal, Tag,
@@ -1148,46 +1148,77 @@ function money(n) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(n) || 0);
 }
 
-function PricingPreviewCards({ visible, edits }) {
-  const featuredId = visible.find((p) => /most|popular|advance/i.test(`${edits[p.id]?.label ?? p.label} ${p.name}`))?.id || visible[1]?.id;
+function PricingPreviewCards({ visible, edits, activeCategory }) {
+  const featuredId =
+    visible.find((p) => /most|popular|advance/i.test(`${edits[p.id]?.label ?? p.label} ${p.name}`))?.id ||
+    visible[1]?.id;
+
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      {visible.map((pkg) => {
-        const e = edits[pkg.id] || {};
-        const featured = pkg.id === featuredId;
-        const inclusions = (e.includes || "").split("\n").map((s) => s.trim()).filter(Boolean);
-        return (
-          <div
-            key={pkg.id}
-            className={`flex flex-col rounded-xl border bg-white p-5 shadow-sm ${featured ? "border-[#884c2d] ring-2 ring-[#884c2d]/10" : "border-[#e5d8d1]"}`}
-          >
-            <div className="mb-4 flex items-start justify-between gap-2">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-[#884c2d]">{pkg.category}</p>
-                <h3 className="mt-0.5 text-base font-bold text-[#111827]">{pkg.name}</h3>
+    <div style={{ background: "#f9f6f3", padding: "20px 4px 4px", fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 18 }}>
+        {visible.map((pkg) => {
+          const e = edits[pkg.id] || {};
+          const featured = pkg.id === featuredId;
+          const inclusions = (e.includes || "").split("\n").map((s) => s.trim()).filter(Boolean);
+          return (
+            <div
+              key={pkg.id}
+              style={{
+                display: "flex", flexDirection: "column", gap: 12,
+                padding: "24px 22px",
+                border: featured ? "1px solid #964d0a" : "1px solid #ececec",
+                borderRadius: 14, background: "#fff",
+                boxShadow: featured
+                  ? "0 0 0 1px #964d0a inset, 0 18px 40px rgba(150,77,10,0.12)"
+                  : "0 14px 34px rgba(0,0,0,0.04)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                <div>
+                  <p style={{ margin: "0 0 4px", color: "#8f8f8f", fontSize: "0.65rem", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                    {activeCategory}
+                  </p>
+                  <h3 style={{ margin: 0, fontFamily: "Georgia,'Times New Roman',serif", fontSize: "1.15rem", fontWeight: 500, letterSpacing: "-0.01em", color: "#111" }}>
+                    {pkg.name}
+                  </h3>
+                </div>
+                {featured && (
+                  <span style={{ flexShrink: 0, background: "#fff1ec", color: "#964d0a", fontSize: "0.6rem", fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 999 }}>
+                    Popular
+                  </span>
+                )}
               </div>
-              {featured && (
-                <span className="shrink-0 rounded-full bg-[#fff1ec] px-2 py-0.5 text-[10px] font-bold text-[#884c2d]">Popular</span>
-              )}
+              <div>
+                <p style={{ margin: 0, fontFamily: "Georgia,'Times New Roman',serif", fontSize: "1.8rem", fontWeight: 500, color: "#111" }}>
+                  {money(e.price ?? pkg.price)}
+                </p>
+                <p style={{ margin: "3px 0 0", color: "#646464", fontSize: "0.8rem" }}>
+                  {e.duration || pkg.duration}
+                </p>
+              </div>
+              <ul style={{ listStyle: "none", margin: "4px 0 0", padding: "12px 0 4px", borderTop: "1px solid #f1f1f1", display: "grid", gap: 9, flex: 1 }}>
+                {inclusions.map((item) => (
+                  <li key={item} style={{ display: "flex", gap: 8, color: "#444", fontSize: "0.82rem", lineHeight: 1.4 }}>
+                    <span style={{ color: "#964d0a", fontWeight: 700, flexShrink: 0 }}>\u2713</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <div style={{
+                marginTop: "auto", width: "100%", minHeight: 44,
+                borderRadius: 10, fontSize: "0.7rem", fontWeight: 800,
+                letterSpacing: "0.1em", textTransform: "uppercase",
+                textAlign: "center", lineHeight: "44px",
+                border: featured ? "none" : "1px solid #dcdcdc",
+                background: featured ? "#964d0a" : "#fff",
+                color: featured ? "#fff" : "#111",
+              }}>
+                Continue to Checkout \u2192
+              </div>
             </div>
-            <div className="mb-4">
-              <p className="text-2xl font-bold text-[#111827]">{money(e.price ?? pkg.price)}</p>
-              <p className="mt-0.5 text-xs text-[#6c6355]">{e.duration || pkg.duration}</p>
-            </div>
-            <ul className="mb-5 flex-1 space-y-2">
-              {inclusions.map((item) => (
-                <li key={item} className="flex items-start gap-2 text-xs text-[#374151]">
-                  <CheckCircle2 size={13} className="mt-0.5 shrink-0 text-emerald-500" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-            <div className={`rounded-lg px-4 py-2.5 text-center text-xs font-bold ${featured ? "bg-[#884c2d] text-white" : "border border-[#d8c2b9] text-[#6f381a]"}`}>
-              Continue to Checkout →
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1265,7 +1296,7 @@ function PricingSection({ onSave, saving }) {
         {mode === "preview" ? (
           <div className="flex-1 overflow-y-auto rounded-xl border border-[#f0e6e0] bg-[#f7f2ef] p-5">
             <p className="mb-4 text-center text-xs font-medium text-[#9ca3af]">Preview — reflects your unsaved edits</p>
-            <PricingPreviewCards visible={visible} edits={edits} />
+            <PricingPreviewCards visible={visible} edits={edits} activeCategory={activeCategory} />
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto space-y-6 pr-1">

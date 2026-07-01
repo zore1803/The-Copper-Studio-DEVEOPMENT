@@ -1307,16 +1307,22 @@ if (page === "packages") {
   const applyBtn = document.getElementById("discountApplyBtn");
   const clearBtn = document.getElementById("discountClearBtn");
 
-  // Ctrl+Z toggles the toolbar
+  function showToolbar() {
+    discountToolbarVisible = true;
+    toolbar.classList.add("is-visible");
+  }
+
+  function hideToolbar() {
+    discountToolbarVisible = false;
+    toolbar.classList.remove("is-visible");
+    popup.classList.remove("is-visible");
+  }
+
+  // Ctrl+Z: toggle toolbar — discount state is preserved when hiding
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey && e.key === "z") {
       e.preventDefault();
-      discountToolbarVisible = !discountToolbarVisible;
-      toolbar.classList.toggle("is-visible", discountToolbarVisible);
-      if (!discountToolbarVisible) {
-        popup.classList.remove("is-visible");
-        clearDiscount();
-      }
+      if (discountToolbarVisible) { hideToolbar(); } else { showToolbar(); }
     }
   });
 
@@ -1336,17 +1342,23 @@ if (page === "packages") {
   applyBtn.addEventListener("click", applyDiscount);
   valueInput.addEventListener("keydown", (e) => { if (e.key === "Enter") applyDiscount(); });
 
+  // ✕ — clear discount AND hide toolbar completely
   clearBtn.addEventListener("click", () => {
     valueInput.value = "";
-    clearDiscount();
-    // keep popup open so user can type a new value immediately
+    discountAmount = 0;
+    discountMode = null;
+    rsBtn.classList.remove("active");
+    pctBtn.classList.remove("active");
+    renderDiscountedPrices();
+    hideToolbar();
   });
 
   function applyDiscount() {
     const val = parseFloat(valueInput.value) || 0;
     discountAmount = val;
-    // keep popup open — don't hide after apply
     renderDiscountedPrices();
+    // hide toolbar after applying — discount stays on cards
+    hideToolbar();
   }
 
   function clearDiscount() {
