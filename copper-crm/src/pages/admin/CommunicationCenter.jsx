@@ -6,7 +6,7 @@ import { useToast } from "../../components/useToast";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 
 const EMAIL_CATEGORIES = [
-  "Welcome", "Consultation Booked", "Proposal Sent", "Proposal Reminder",
+  "Welcome", "OTP", "Consultation Booked", "Proposal Sent", "Proposal Reminder",
   "Coupon Issued", "Payment Success", "Payment Cancelled", "Invoice Generated", "Project Started",
   "Project Update", "Testing Started", "Project Delivered", "Support Follow-up",
 ];
@@ -560,4 +560,5 @@ export default function CommunicationCenter({ mode = "email" }) {
     </div>
   );
 }
+
 

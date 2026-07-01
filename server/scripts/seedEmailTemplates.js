@@ -1,4 +1,4 @@
-import EmailTemplate from "../models/EmailTemplate.js";
+﻿import EmailTemplate from "../models/EmailTemplate.js";
 
 const DEFAULT_EMAIL_TEMPLATES = [
   {
@@ -14,6 +14,17 @@ const DEFAULT_EMAIL_TEMPLATES = [
     </a>
   </p>
   <p style="font-size:13px;color:#6b7280">This secure link expires in 48 hours.</p>
+</div>`,
+  },
+  {
+    category: "OTP",
+    name: "OTP Verification",
+    subject: "Your {{label}} code — The Copper Studio",
+    body: `<div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#111827;max-width:560px">
+  <h2 style="margin:0 0 12px">Verify your {{label}}</h2>
+  <p>Use this code to complete your request on The Copper Studio:</p>
+  <p style="font-size:28px;font-weight:800;letter-spacing:6px;margin:18px 0;color:#2563eb">{{coupon_code}}</p>
+  <p style="font-size:13px;color:#6b7280">This code expires in 10 minutes. Ignore this email if you did not request it.</p>
 </div>`,
   },
   {
@@ -131,3 +142,4 @@ export async function seedEmailTemplates() {
     console.log(`Email templates: ${inserted} inserted, ${upgraded} upgraded.`);
   }
 }
+
