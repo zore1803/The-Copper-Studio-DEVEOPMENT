@@ -5,7 +5,16 @@ const DEFAULT_EMAIL_TEMPLATES = [
     category: "Welcome",
     name: "Welcome to The Copper Studio",
     subject: "Welcome aboard, {{client_name}}!",
-    body: "Hi {{client_name}},\n\nWelcome to The Copper Studio! We're thrilled to have {{company_name}} on board.\n\nOur team will be in touch shortly to kick things off. If you have any questions in the meantime, just reply to this email.\n\nWarm regards,\nThe Copper Studio Team",
+    body: `<div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#111827;max-width:560px">
+  <h2 style="margin:0 0 12px">Welcome, {{client_name}}</h2>
+  <p>Your payment for <strong>{{company_name}}</strong> is complete. Please set your password to access your client portal.</p>
+  <p>
+    <a href="{{portal_link}}" style="display:inline-block;background:#2563eb;color:#fff;padding:11px 16px;border-radius:10px;text-decoration:none;font-weight:700">
+      Set password
+    </a>
+  </p>
+  <p style="font-size:13px;color:#6b7280">This secure link expires in 48 hours.</p>
+</div>`,
   },
   {
     category: "Consultation Booked",
@@ -41,13 +50,26 @@ const DEFAULT_EMAIL_TEMPLATES = [
     category: "Payment Cancelled",
     name: "Payment Not Completed",
     subject: "Payment not completed | The Copper Studio",
-    body: "Hi {{client_name}},\n\nYour payment for {{company_name}} was cancelled or could not be completed successfully.\n\nNo successful order has been created from this payment attempt. If any amount was deducted, it is usually reversed by your payment provider within a few working days. Please do not make a duplicate payment — contact us with your payment reference if needed.\n\nBest,\nThe Copper Studio Team",
+    body: `<div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#111827;max-width:560px">
+  <h2 style="margin:0 0 12px">Payment Not Completed, {{client_name}}</h2>
+  <p>Your payment for <strong>{{company_name}}</strong> was cancelled or could not be completed successfully.</p>
+  <p>No successful order has been created from this payment attempt.</p>
+  <div style="margin:16px 0;padding:14px 16px;border:1px solid #fde2d6;background:#fff8f6;border-radius:12px">
+    <p style="margin:0;font-weight:700;color:#884c2d">If money was deducted</p>
+    <p style="margin:6px 0 0;font-size:14px;color:#525866">Any deducted amount is usually reversed by Razorpay or your bank within a few working days. Please do not make a duplicate payment if your bank shows a debit — contact support with the payment reference.</p>
+  </div>
+</div>`,
   },
   {
     category: "Invoice Generated",
-    name: "New Invoice",
-    subject: "Invoice {{invoice_id}} for {{company_name}}",
-    body: "Hi {{client_name}},\n\nPlease find invoice {{invoice_id}} attached for {{company_name}}. Let us know if you have any questions about the charges.\n\nThanks,\nThe Copper Studio Team",
+    name: "Payment Successful — Invoice",
+    subject: "Payment successful — Invoice {{invoice_id}} | The Copper Studio",
+    body: `<div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#111827;max-width:560px">
+  <h2 style="margin:0 0 12px">Payment Successful, {{client_name}} 🎉</h2>
+  <p>Your payment for <strong>{{company_name}}</strong> has been received successfully.</p>
+  <p>Please find your tax invoice <strong>{{invoice_id}}</strong> for <strong>{{payment_amount}}</strong> attached to this email as a PDF.</p>
+  <p style="font-size:13px;color:#6b7280">This is a computer-generated invoice. No further amount is due against it.</p>
+</div>`,
   },
   {
     category: "Project Started",
@@ -81,22 +103,31 @@ const DEFAULT_EMAIL_TEMPLATES = [
   },
 ];
 
-// Inserts any missing default email templates (by category) without touching
-// ones that already exist — safe to call on every server start.
+// Inserts missing default email templates and upgrades any that were previously
+// seeded with plain-text bodies but now have a proper HTML body in the defaults.
+// Never overwrites a template the admin has manually edited (body won't match seed).
 export async function seedEmailTemplates() {
-  const existing = await EmailTemplate.find({}, { category: 1 }).lean();
-  const existingCategories = new Set(existing.map((t) => t.category));
+  const existing = await EmailTemplate.find({}).lean();
+  const existingByCategory = Object.fromEntries(existing.map((t) => [t.category, t]));
 
-  const missing = DEFAULT_EMAIL_TEMPLATES.filter((t) => !existingCategories.has(t.category));
-  if (!missing.length) return;
+  let inserted = 0;
+  let upgraded = 0;
 
-  await EmailTemplate.insertMany(
-    missing.map((t) => ({
-      ...t,
-      id: `email-template-seed-${t.category.replace(/\s+/g, "-").toLowerCase()}`,
-      status: "Active",
-    }))
-  );
+  for (const tpl of DEFAULT_EMAIL_TEMPLATES) {
+    const seedId = `email-template-seed-${tpl.category.replace(/\s+/g, "-").toLowerCase()}`;
+    const existing = existingByCategory[tpl.category];
 
-  console.log(`Seeded ${missing.length} email template(s): ${missing.map((t) => t.category).join(", ")}`);
+    if (!existing) {
+      await EmailTemplate.create({ ...tpl, id: seedId, status: "Active" });
+      inserted++;
+    } else if (existing.id === seedId && existing.body !== tpl.body) {
+      // Only upgrade if this record was originally seeded by us (same id prefix)
+      await EmailTemplate.updateOne({ _id: existing._id }, { $set: { body: tpl.body, subject: tpl.subject, name: tpl.name } });
+      upgraded++;
+    }
+  }
+
+  if (inserted || upgraded) {
+    console.log(`Email templates: ${inserted} inserted, ${upgraded} upgraded.`);
+  }
 }

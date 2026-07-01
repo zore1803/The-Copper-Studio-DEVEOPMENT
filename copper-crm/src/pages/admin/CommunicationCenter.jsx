@@ -3,7 +3,6 @@ import { ChevronDown, Copy, Mail, MessageCircle, Pencil, Plus, Save, Search, Set
 import { Button } from "../../components/ui";
 import { useCrmRecords } from "../../hooks/useCrmRecords";
 import { useToast } from "../../components/useToast";
-import SidePanel from "../../components/SidePanel";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 
 const EMAIL_CATEGORIES = [
@@ -101,52 +100,125 @@ function EmptyState({ title, text, action }) {
   );
 }
 
+// Render a live preview of the template body — HTML is rendered directly,
+// plain text is wrapped in simple paragraph styling.
+function TemplatePreview({ subject, body, type }) {
+  const isHtml = /<[a-z][\s\S]*>/i.test(body || "");
+  const previewHtml = isHtml
+    ? body
+    : (body || "")
+        .split(/\n\n+/)
+        .map((p) => `<p style="margin:0 0 12px">${p.replace(/\n/g, "<br/>")}</p>`)
+        .join("");
+
+  return (
+    <div className="flex h-full flex-col">
+      {subject && (
+        <div className="mb-3 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-[#9ca3af]">Subject</span>
+          <p className="mt-0.5 text-sm font-medium text-[#111827]">{subject || <span className="text-[#9ca3af]">No subject</span>}</p>
+        </div>
+      )}
+      <div className="flex-1 overflow-auto rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-inner">
+        <div
+          style={{ fontFamily: "Inter,Arial,sans-serif", lineHeight: 1.6, color: "#111827", maxWidth: "100%" }}
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: previewHtml || `<p style="color:#9ca3af">Preview will appear here…</p>` }}
+        />
+        {type === "email" && (
+          <div style={{ marginTop: 26, borderTop: "1px solid #e5e7eb", paddingTop: 14, fontFamily: "Inter,Arial,sans-serif", color: "#111827" }}>
+            <p style={{ margin: 0, fontWeight: 700 }}>The Copper Studio Team</p>
+            <p style={{ margin: "2px 0 0", fontSize: 13, color: "#6b7280" }}>contact@thecopperstudio.com</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TemplateModal({ type, categories, template, onClose, onSave }) {
   const [form, setForm] = useState(template);
   const set = (key) => (value) => setForm((prev) => ({ ...prev, [key]: value }));
+  const isEmail = type === "email";
 
   return (
-    <SidePanel
-      title={template._id || template.id ? "Edit Template" : `New ${type} Template`}
-      subtitle="Use variables like {{client_name}} for dynamic content."
-      onClose={onClose}
-      footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => onSave(form)}><Save size={14} /> Save Template</Button>
+    <div className="fixed inset-0 z-50 bg-gray-950/40">
+      <div className="ml-auto flex h-full w-full max-w-[75vw] animate-[panel-in_180ms_ease-out] flex-col border-l border-gray-200 bg-white shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-6 py-4">
+          <div>
+            <h2 className="text-base font-bold text-gray-950">
+              {template._id || template.id ? `Edit Template` : `New ${type === "email" ? "Email" : "WhatsApp"} Template`}
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-500">Use <code className="rounded bg-gray-100 px-1 py-0.5 font-mono">{"{{variable}}"}</code> tokens for dynamic content. Body accepts plain text or HTML.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button onClick={() => onSave(form)}><Save size={14} /> Save</Button>
+            <button onClick={onClose} className="ml-2 grid h-8 w-8 place-items-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"><X size={16} /></button>
+          </div>
         </div>
-      }
-    >
-      <div className="space-y-4">
-        <label className="block">
-          <span className="text-xs font-semibold text-[#374151]">Template name</span>
-          <input value={form.name || ""} onChange={(e) => set("name")(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20" />
-        </label>
-        <label className="block">
-          <span className="text-xs font-semibold text-[#374151]">Category</span>
-          <select value={form.category || ""} onChange={(e) => set("category")(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-            <option value="">Select...</option>
-            {categories.map((category) => <option key={category}>{category}</option>)}
-          </select>
-        </label>
-        {type === "email" && (
-          <label className="block">
-            <span className="text-xs font-semibold text-[#374151]">Subject</span>
-            <input value={form.subject || ""} onChange={(e) => set("subject")(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20" />
-          </label>
-        )}
-        <label className="block">
-          <span className="text-xs font-semibold text-[#374151]">Message body</span>
-          <textarea value={form.body || ""} onChange={(e) => set("body")(e.target.value)} rows={6} placeholder="Hello {{client_name}}, ..." className="mt-1.5 w-full resize-none rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20" />
-        </label>
-        <label className="block">
-          <span className="text-xs font-semibold text-[#374151]">Status</span>
-          <select value={form.status || "Draft"} onChange={(e) => set("status")(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
-            {["Draft", "Active", "Archived"].map((status) => <option key={status}>{status}</option>)}
-          </select>
-        </label>
+
+        {/* Body: form left, preview right */}
+        <div className="flex min-h-0 flex-1 divide-x divide-[#f3f4f6]">
+          {/* Left — form */}
+          <div className="flex w-[380px] shrink-0 flex-col gap-4 overflow-y-auto p-6">
+            <label className="block">
+              <span className="text-xs font-semibold text-[#374151]">Template name</span>
+              <input value={form.name || ""} onChange={(e) => set("name")(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20" />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-[#374151]">Category</span>
+              <select value={form.category || ""} onChange={(e) => set("category")(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
+                <option value="">Select…</option>
+                {categories.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </label>
+            {isEmail && (
+              <label className="block">
+                <span className="text-xs font-semibold text-[#374151]">Subject line</span>
+                <input value={form.subject || ""} onChange={(e) => set("subject")(e.target.value)} placeholder="e.g. Invoice {{invoice_id}} for {{company_name}}" className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20" />
+              </label>
+            )}
+            <label className="block flex-1">
+              <span className="text-xs font-semibold text-[#374151]">Body <span className="font-normal text-[#9ca3af]">(plain text or HTML)</span></span>
+              <textarea
+                value={form.body || ""}
+                onChange={(e) => set("body")(e.target.value)}
+                rows={16}
+                placeholder={"Hi {{client_name}},\n\nYour invoice {{invoice_id}} is attached.\n\nThanks,\nThe Copper Studio Team\n\n— or paste HTML directly —"}
+                className="mt-1.5 w-full resize-none rounded-lg border border-[#e5e7eb] px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-[#374151]">Status</span>
+              <select value={form.status || "Draft"} onChange={(e) => set("status")(e.target.value)} className="mt-1.5 w-full rounded-lg border border-[#e5e7eb] px-3 py-2 text-sm outline-none focus:border-[#884c2d]">
+                {["Draft", "Active"].map((s) => <option key={s}>{s}</option>)}
+              </select>
+            </label>
+            <div className="rounded-xl bg-[#f9fafb] p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-[#9ca3af]">Available variables</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {VARIABLES.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => set("body")((form.body || "") + `{{${v}}}`)}
+                    className="rounded bg-white border border-[#e5e7eb] px-1.5 py-0.5 font-mono text-[11px] text-[#374151] hover:border-[#884c2d] hover:text-[#884c2d]"
+                  >{`{{${v}}}`}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right — live preview */}
+          <div className="flex flex-1 flex-col overflow-y-auto bg-[#f8f8fb] p-6">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wide text-[#9ca3af]">Live Preview</p>
+            <TemplatePreview subject={isEmail ? form.subject : null} body={form.body} type={type} />
+          </div>
+        </div>
       </div>
-    </SidePanel>
+    </div>
   );
 }
 

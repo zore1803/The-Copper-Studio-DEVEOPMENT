@@ -84,8 +84,10 @@ function interpolate(text = "", vars = {}) {
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
 }
 
-// Convert a plain-text template body (newlines) to simple HTML paragraphs.
+// Convert a plain-text body (newlines) to HTML paragraphs.
+// If the body already contains HTML tags, return it as-is.
 function bodyToHtml(text = "") {
+  if (/<[a-z][\s\S]*>/i.test(text)) return text;
   return text
     .split(/\n\n+/)
     .map((para) => `<p style="margin:0 0 12px">${para.replace(/\n/g, "<br/>")}</p>`)
@@ -99,14 +101,14 @@ async function resolveEmailTemplate(category, vars = {}) {
     const tpl = await EmailTemplate.findOne({ category, status: "Active" })
       || await EmailTemplate.findOne({ category });
     if (!tpl || !tpl.body) return null;
+    const bodyHtml = bodyToHtml(interpolate(tpl.body, vars));
+    // HTML bodies already contain their own wrapper — only wrap plain-text ones.
+    const isHtml = /<[a-z][\s\S]*>/i.test(tpl.body);
     return {
       subject: interpolate(tpl.subject || category, vars),
-      html: `
-        <div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#111827;max-width:560px">
-          ${bodyToHtml(interpolate(tpl.body, vars))}
-          ${signatureHtml()}
-        </div>
-      `,
+      html: isHtml
+        ? `${bodyHtml}${signatureHtml()}`
+        : `<div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#111827;max-width:560px">${bodyHtml}${signatureHtml()}</div>`,
     };
   } catch {
     return null;
