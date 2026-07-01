@@ -38,6 +38,7 @@ const SettingsPage = lazy(() => import("./pages/admin/AdminWorkflows").then((m) 
 const SettingsProfilePage = lazy(() => import("./pages/admin/AdminWorkflows").then((m) => ({ default: m.SettingsProfilePage })));
 const SettingsTriggerTemplatePage = lazy(() => import("./pages/admin/AdminWorkflows").then((m) => ({ default: m.SettingsTriggerTemplatePage })));
 const SettingsDataFieldsPage = lazy(() => import("./pages/admin/AdminWorkflows").then((m) => ({ default: m.SettingsDataFieldsPage })));
+const SettingsPricingPage = lazy(() => import("./pages/admin/AdminWorkflows").then((m) => ({ default: m.SettingsPricingPage })));
 const TasksPage = lazy(() => import("./pages/admin/AdminWorkflows").then((m) => ({ default: m.TasksPage })));
 const DatabaseTablesPage = lazy(() => import("./pages/admin/AdminTabs").then((m) => ({ default: m.DatabaseTablesPage })));
 const ProposalGeneratorPage = lazy(() => import("./pages/admin/AdminTabs").then((m) => ({ default: m.ProposalGeneratorPage })));
@@ -94,6 +95,7 @@ export default function App() {
               <Route path="settings/profile" element={<SettingsProfilePage />} />
               <Route path="settings/trigger-template" element={<SettingsTriggerTemplatePage />} />
               <Route path="settings/data-fields" element={<SettingsDataFieldsPage />} />
+              <Route path="settings/pricing" element={<SettingsPricingPage />} />
             </Route>
           </Route>
 

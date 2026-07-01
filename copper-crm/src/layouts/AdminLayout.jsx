@@ -77,6 +77,7 @@ const pageNames = {
   "/admin/settings/profile": "Profile",
   "/admin/settings/trigger-template": "Trigger Template",
   "/admin/settings/data-fields": "Data Fields",
+  "/admin/settings/pricing": "Pricing",
 };
 
 const searchablePages = [

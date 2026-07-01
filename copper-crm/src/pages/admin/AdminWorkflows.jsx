@@ -4,7 +4,7 @@ import {
   ArrowLeft, Building2, Calendar, ChevronRight, Edit3, Eye, EyeOff,
   LayoutGrid, List, LockKeyhole, Mail, MessageCircle,
   Plus, Save, Search,
-  Settings as SettingsIcon, ShieldCheck, SlidersHorizontal,
+  Settings as SettingsIcon, ShieldCheck, SlidersHorizontal, Tag,
   Trash2, UploadCloud, UserPlus
 } from "lucide-react";
 import { Button } from "../../components/ui";
@@ -783,12 +783,13 @@ function DataFieldsSection() {
 }
 
 const SETTINGS_TILES = [
-  { key: "profile", title: "Profile", description: "Your details, mobile number, and password.", icon: UserPlus, to: "/admin/settings/profile" },
-  { key: "triggerTemplate", title: "Trigger Template", description: "Email and WhatsApp message templates.", icon: MessageCircle, to: "/admin/settings/trigger-template" },
-  { key: "dataFields", title: "Data Fields", description: "Configurable dropdown options across the CRM.", icon: SlidersHorizontal, to: "/admin/settings/data-fields" },
+  { key: "profile", title: "Profile", icon: UserPlus, to: "/admin/settings/profile" },
+  { key: "templates", title: "Templates", icon: MessageCircle, to: "/admin/settings/trigger-template" },
+  { key: "dataFields", title: "Data Fields", icon: SlidersHorizontal, to: "/admin/settings/data-fields" },
+  { key: "pricing", title: "Pricing", icon: Tag, to: "/admin/settings/pricing" },
 ];
 
-// Settings landing: a grid of icon tiles, each opening its own dedicated page.
+// Settings landing: plain icons with a label underneath, like a folder grid.
 export function SettingsPage() {
   const navigate = useNavigate();
   return (
@@ -800,25 +801,19 @@ export function SettingsPage() {
         </div>
       </div>
 
-      <section className="p-5 xl:p-6">
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="p-6 xl:p-8">
+        <div className="grid grid-cols-3 gap-6 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
           {SETTINGS_TILES.map((tile) => (
             <button
               key={tile.key}
               type="button"
               onClick={() => navigate(tile.to)}
-              className="group flex flex-col items-start gap-4 rounded-2xl border border-[#E1E4EA] bg-white p-6 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#d8c2b9] hover:shadow-[0_18px_40px_rgba(79,39,16,0.10)]"
+              className="group flex flex-col items-center gap-2.5 text-center"
             >
-              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d] transition-colors group-hover:bg-[#884c2d] group-hover:text-white">
-                <tile.icon size={24} />
+              <div className="grid h-20 w-20 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d] transition-all group-hover:-translate-y-0.5 group-hover:bg-[#884c2d] group-hover:text-white">
+                <tile.icon size={30} strokeWidth={1.8} />
               </div>
-              <div>
-                <p className="flex items-center gap-1 text-base font-bold text-[#211a17]">
-                  {tile.title}
-                  <ChevronRight size={16} className="-translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
-                </p>
-                <p className="mt-1 text-sm text-[#6c6355]">{tile.description}</p>
-              </div>
+              <span className="text-sm font-semibold text-[#211a17]">{tile.title}</span>
             </button>
           ))}
         </div>
@@ -986,6 +981,20 @@ export function SettingsDataFieldsPage() {
   return (
     <SettingsSubPage title="Data Fields" description="Configurable dropdown options across the CRM." icon={SlidersHorizontal}>
       <DataFieldsSection />
+    </SettingsSubPage>
+  );
+}
+
+// Settings > Pricing — package plan details used across pricing, projects,
+// coupons and proposals.
+export function SettingsPricingPage() {
+  return (
+    <SettingsSubPage title="Pricing" description="Package plans and their pricing." icon={Tag}>
+      <div className="rounded-2xl border border-dashed border-[#d8c2b9] bg-[#fffdfc] px-6 py-12 text-center">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d]"><Tag size={20} /></div>
+        <p className="mt-3 text-sm font-semibold text-[#211a17]">Coming soon</p>
+        <p className="mt-1 text-xs text-[#6c6355]">Package plan management (name, price, and inclusions) will live here.</p>
+      </div>
     </SettingsSubPage>
   );
 }
