@@ -83,8 +83,7 @@ function validateCoupon(coupon) {
   else if (amount <= 0) errors.discount = "Must be greater than 0.";
   else if (coupon.amountType === "percentage" && amount > 100) errors.discount = "Percentage can't exceed 100.";
 
-  // package is required only when a category is selected
-  if (coupon.category && !String(coupon.packageName || "").trim()) errors.packageName = "Select a package for the chosen category.";
+  // package is optional — if category set but no package, coupon applies to all packages in that category
 
   if (!coupon.validFrom) errors.validFrom = "Start date & time is required.";
 
@@ -375,7 +374,7 @@ function CouponFormPanel({ onClose, onCreate }) {
         <div>
           <label className="block">
             <span className="text-xs font-semibold text-[#374151]">
-              Package {coupon.category ? <span className="text-red-500">*</span> : <span className="text-[#9ca3af] font-normal">(optional)</span>}
+              Package <span className="text-[#9ca3af] font-normal">(optional)</span>
             </span>
             <select
               value={coupon.packageName}
