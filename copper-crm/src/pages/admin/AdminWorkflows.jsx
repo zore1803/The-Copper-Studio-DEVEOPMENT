@@ -1045,25 +1045,12 @@ export function SettingsProfilePage() {
     }
   }
 
-  const initials = (profile.fullName || "A").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-
   return (
     <SettingsSubPage title="Profile" description="Your details and account password." icon={UserPlus}>
       {loading ? (
         <div className="py-16 text-center text-sm text-[#9ca3af]">Loading…</div>
       ) : (
         <div className="flex gap-8">
-          {/* Avatar column */}
-          <div className="flex shrink-0 flex-col items-center gap-3 pt-1">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#f3dfd7] text-xl font-bold text-[#884c2d]">
-              {initials}
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-semibold text-[#111827]">{profile.fullName || "Admin"}</p>
-              <p className="text-xs text-[#9ca3af]">Super Admin</p>
-            </div>
-          </div>
-
           {/* Form column */}
           <div className="flex-1 min-w-0">
             {/* Personal info */}
