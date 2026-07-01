@@ -35,6 +35,9 @@ const LoginPage = lazy(() => import("./pages/auth/AuthPages").then((m) => ({ def
 const ForgotPasswordPage = lazy(() => import("./pages/auth/AuthPages").then((m) => ({ default: m.ForgotPasswordPage })));
 const SetPasswordPage = lazy(() => import("./pages/auth/AuthPages").then((m) => ({ default: m.SetPasswordPage })));
 const SettingsPage = lazy(() => import("./pages/admin/AdminWorkflows").then((m) => ({ default: m.SettingsPage })));
+const SettingsProfilePage = lazy(() => import("./pages/admin/AdminWorkflows").then((m) => ({ default: m.SettingsProfilePage })));
+const SettingsTriggerTemplatePage = lazy(() => import("./pages/admin/AdminWorkflows").then((m) => ({ default: m.SettingsTriggerTemplatePage })));
+const SettingsDataFieldsPage = lazy(() => import("./pages/admin/AdminWorkflows").then((m) => ({ default: m.SettingsDataFieldsPage })));
 const TasksPage = lazy(() => import("./pages/admin/AdminWorkflows").then((m) => ({ default: m.TasksPage })));
 const DatabaseTablesPage = lazy(() => import("./pages/admin/AdminTabs").then((m) => ({ default: m.DatabaseTablesPage })));
 const ProposalGeneratorPage = lazy(() => import("./pages/admin/AdminTabs").then((m) => ({ default: m.ProposalGeneratorPage })));
@@ -88,6 +91,9 @@ export default function App() {
               <Route path="proposal-generator" element={<Navigate to="/admin/services/proposal-generator" replace />} />
               <Route path="database" element={<DatabaseTablesPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings/profile" element={<SettingsProfilePage />} />
+              <Route path="settings/trigger-template" element={<SettingsTriggerTemplatePage />} />
+              <Route path="settings/data-fields" element={<SettingsDataFieldsPage />} />
             </Route>
           </Route>
 

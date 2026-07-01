@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Building2, Calendar, Edit3, Eye, EyeOff,
+  ArrowLeft, Building2, Calendar, ChevronRight, Edit3, Eye, EyeOff,
   LayoutGrid, List, LockKeyhole, Mail, MessageCircle,
   Plus, Save, Search,
   Settings as SettingsIcon, ShieldCheck, SlidersHorizontal,
@@ -757,10 +757,7 @@ function DataFieldsSection() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-[#211a17]">Data Fields</h3>
-          <p className="mt-1 text-sm text-[#6c6355]">Manage the dropdown options used across the CRM. Changes apply everywhere the field is used.</p>
-        </div>
+        <p className="text-sm text-[#6c6355]">Manage the dropdown options used across the CRM. Changes apply everywhere the field is used.</p>
         <Button disabled={saving} onClick={handleSave}><Save size={14} /> {saving ? "Saving…" : "Save Changes"}</Button>
       </div>
       <div className="space-y-8">
@@ -785,41 +782,101 @@ function DataFieldsSection() {
   );
 }
 
+const SETTINGS_TILES = [
+  { key: "profile", title: "Profile", description: "Your details, mobile number, and password.", icon: UserPlus, to: "/admin/settings/profile" },
+  { key: "triggerTemplate", title: "Trigger Template", description: "Email and WhatsApp message templates.", icon: MessageCircle, to: "/admin/settings/trigger-template" },
+  { key: "dataFields", title: "Data Fields", description: "Configurable dropdown options across the CRM.", icon: SlidersHorizontal, to: "/admin/settings/data-fields" },
+];
+
+// Settings landing: a grid of icon tiles, each opening its own dedicated page.
 export function SettingsPage() {
+  const navigate = useNavigate();
+  return (
+    <div className="flex min-h-full flex-col bg-[#F1F1F5]">
+      <div className="flex flex-col gap-4 border-b border-[#E1E4EA] bg-white px-6 py-3 lg:h-14 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:py-0">
+        <div className="min-w-0">
+          <h1 className="text-base font-medium text-[#0E121B]">Settings</h1>
+          <p className="mt-0.5 text-xs text-[#525866]">Choose an area to manage.</p>
+        </div>
+      </div>
+
+      <section className="p-5 xl:p-6">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          {SETTINGS_TILES.map((tile) => (
+            <button
+              key={tile.key}
+              type="button"
+              onClick={() => navigate(tile.to)}
+              className="group flex flex-col items-start gap-4 rounded-2xl border border-[#E1E4EA] bg-white p-6 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#d8c2b9] hover:shadow-[0_18px_40px_rgba(79,39,16,0.10)]"
+            >
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d] transition-colors group-hover:bg-[#884c2d] group-hover:text-white">
+                <tile.icon size={24} />
+              </div>
+              <div>
+                <p className="flex items-center gap-1 text-base font-bold text-[#211a17]">
+                  {tile.title}
+                  <ChevronRight size={16} className="-translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+                </p>
+                <p className="mt-1 text-sm text-[#6c6355]">{tile.description}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// Shared chrome for a single settings sub-page: a header strip with a back
+// button, plus a card body.
+function SettingsSubPage({ title, description, icon: Icon, actions, children }) {
+  const navigate = useNavigate();
+  return (
+    <div className="flex min-h-full flex-col bg-[#F1F1F5]">
+      <div className="flex flex-col gap-4 border-b border-[#E1E4EA] bg-white px-6 py-3 lg:h-14 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:py-0">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate("/admin/settings")}
+            title="Back to Settings"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#E1E4EA] text-[#525866] transition-colors hover:bg-[#f9fafb]"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#f3dfd7] text-[#884c2d]"><Icon size={17} /></div>
+          <div className="min-w-0">
+            <h1 className="text-base font-medium text-[#0E121B]">{title}</h1>
+            {description && <p className="mt-0.5 truncate text-xs text-[#525866]">{description}</p>}
+          </div>
+        </div>
+        {actions}
+      </div>
+
+      <section className="p-5 xl:p-6">
+        <Card className="p-6 shadow-[0_18px_40px_rgba(79,39,16,0.06)]">{children}</Card>
+      </section>
+    </div>
+  );
+}
+
+// Settings > Profile — the admin's own details and password.
+export function SettingsProfilePage() {
   const { showToast } = useToast();
   const { token } = useAuth();
-  const navigate = useNavigate();
-
-  const [activeSection, setActiveSection] = useState("profile");
-  const [unlocked, setUnlocked] = useState(false);
+  const [profile, setProfile] = useState({ fullName: "", email: "", phone: "" });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  const [profile, setProfile] = useState({ fullName: "", email: "", phone: "", title: "", timezone: "Asia/Kolkata", publicUrl: "" });
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
-  const [company, setCompany] = useState({ studioName: "The Copper Studio", legalName: "", gstin: "", billingEmail: "", website: "", billingAddress: "" });
-  const [billing, setBilling] = useState({ gateway: "Razorpay", apiBase: "", invoicePrefix: "INV", defaultRole: "user", autoInviteAfterPayment: true, allowCouponAtCheckout: true });
-  const [email, setEmail] = useState({ senderName: "The Copper Studio", senderEmail: "", onboardingPath: "/client-secure-onboarding/access-setup" });
-  const [notifications, setNotifications] = useState({ paymentSuccess: true, failedPayments: true, portalInviteSent: true, overdueInvoices: true });
-  const [security, setSecurity] = useState({ inviteExpiry: "48 hours", otpExpiry: "10 minutes" });
-  const [errors, setErrors] = useState({});
-  const [companyOwners, setCompanyOwners] = useState(loadCompanyOwners);
-  const [newOwnerName, setNewOwnerName] = useState("");
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const data = await apiGet("/api/admin/settings", token);
-        if (!alive) return;
-        setProfile((prev) => ({ ...prev, ...data.profile }));
-        setCompany((prev) => ({ ...prev, ...data.company }));
-        setBilling((prev) => ({ ...prev, ...data.billing }));
-        setEmail((prev) => ({ ...prev, ...data.email }));
-        setNotifications((prev) => ({ ...prev, ...data.notifications }));
-        setSecurity((prev) => ({ ...prev, ...data.security }));
+        if (alive) setProfile((prev) => ({ ...prev, ...data.profile }));
       } catch (err) {
-        if (alive) showToast({ type: "error", title: "Settings unavailable", message: err.message || "Could not load workspace settings." });
+        if (alive) showToast({ type: "error", title: "Settings unavailable", message: err.message || "Could not load your profile." });
       } finally {
         if (alive) setLoading(false);
       }
@@ -827,55 +884,29 @@ export function SettingsPage() {
     return () => { alive = false; };
   }, [token, showToast]);
 
-  function validateSection(key) {
+  async function saveProfile() {
     const e = {};
-    if (key === "profile") {
-      if (profile.phone && !/^\d{10}$/.test(profile.phone.trim())) e.phone = "Enter a valid 10-digit mobile number.";
-      const touched = passwordForm.currentPassword || passwordForm.newPassword || passwordForm.confirmPassword;
-      if (touched) {
-        if (!passwordForm.currentPassword) e.currentPassword = "Enter your current password.";
-        if (passwordForm.newPassword.length < 8) e.newPassword = "Use at least 8 characters.";
-        if (passwordForm.newPassword !== passwordForm.confirmPassword) e.confirmPassword = "Passwords do not match.";
-      }
+    if (profile.phone && !/^\d{10}$/.test(profile.phone.trim())) e.phone = "Enter a valid 10-digit mobile number.";
+    const touched = passwordForm.currentPassword || passwordForm.newPassword || passwordForm.confirmPassword;
+    if (touched) {
+      if (!passwordForm.currentPassword) e.currentPassword = "Enter your current password.";
+      if (passwordForm.newPassword.length < 8) e.newPassword = "Use at least 8 characters.";
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) e.confirmPassword = "Passwords do not match.";
     }
-    if (key === "company") {
-      if (company.gstin && !isGstin(company.gstin)) e.gstin = "Enter a valid 15-character GSTIN.";
-      if (company.billingEmail && !isEmail(company.billingEmail)) e.billingEmail = "Enter a valid email.";
-      if (company.website && !URL_RE.test(company.website.trim())) e.website = "Enter a valid website URL.";
-    }
-    if (key === "email") {
-      if (email.senderEmail && !isEmail(email.senderEmail)) e.senderEmail = "Enter a valid email.";
-    }
-    return e;
-  }
-
-  async function saveSection(key, label) {
-    const nextErrors = validateSection(key);
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length) {
+    setErrors(e);
+    if (Object.keys(e).length) {
       showToast({ type: "error", title: "Check the form", message: "Please fix the highlighted fields." });
       return;
     }
 
     setSaving(true);
     try {
-      if (key === "profile") {
-        await apiPut("/api/client/profile", { name: profile.fullName, phone: profile.phone }, token);
-        const touched = passwordForm.currentPassword || passwordForm.newPassword || passwordForm.confirmPassword;
-        if (touched) {
-          await apiPut("/api/client/change-password", { currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword }, token);
-          setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-        }
-      } else if (key === "company") {
-        await apiPut("/api/admin/settings/company", company, token);
-      } else if (key === "billing") {
-        await apiPut("/api/admin/settings/billing", billing, token);
-      } else if (key === "email") {
-        await apiPut("/api/admin/settings/email", email, token);
-      } else if (key === "notifications") {
-        await apiPut("/api/admin/settings/notifications", notifications, token);
+      await apiPut("/api/client/profile", { name: profile.fullName, phone: profile.phone }, token);
+      if (touched) {
+        await apiPut("/api/client/change-password", { currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword }, token);
+        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       }
-      showToast({ title: `${label} updated`, message: "Your settings have been saved successfully." });
+      showToast({ title: "Profile updated", message: "Your changes have been saved successfully." });
     } catch (err) {
       showToast({ type: "error", title: "Couldn't save", message: err.message || "Something went wrong." });
     } finally {
@@ -883,265 +914,78 @@ export function SettingsPage() {
     }
   }
 
-  function selectSection(key) {
-    setActiveSection(key);
-    setErrors({});
-  }
-
-  function addCompanyOwner() {
-    const trimmed = newOwnerName.trim();
-    if (!trimmed) return;
-    if (companyOwners.some((owner) => owner.toLowerCase() === trimmed.toLowerCase())) {
-      showToast({ type: "error", title: "Already in the list", message: `"${trimmed}" is already a company owner.` });
-      return;
-    }
-    const next = [...companyOwners, trimmed];
-    setCompanyOwners(next);
-    persistCompanyOwners(next);
-    setNewOwnerName("");
-  }
-
-  function removeCompanyOwner(name) {
-    const next = companyOwners.filter((owner) => owner !== name);
-    setCompanyOwners(next);
-    persistCompanyOwners(next);
-  }
-
-  const activeMeta = ALL_SECTIONS.find((s) => s.key === activeSection);
-  const isSecureSection = SECURE_SECTIONS.some((s) => s.key === activeSection);
-  const showGate = isSecureSection && !unlocked;
-
   return (
-    <div className="flex min-h-full flex-col bg-[#F1F1F5]">
-      <div className="flex flex-col gap-4 border-b border-[#E1E4EA] bg-white px-6 py-3 lg:h-14 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:py-0">
-        <div className="min-w-0">
-          <h1 className="text-base font-medium text-[#0E121B]">Account Settings</h1>
-          <p className="mt-0.5 max-w-3xl text-xs text-[#525866]">
-            Manage the super admin identity, change your password, and edit the email and WhatsApp message templates.
-          </p>
-        </div>
+    <SettingsSubPage title="Profile" description="Your details and account password." icon={UserPlus}>
+      {loading ? (
+        <div className="py-16 text-center text-sm text-[#6c6355]">Loading profile…</div>
+      ) : (
+        <div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SettingsField label="Full Name" value={profile.fullName} onChange={(value) => setProfile((prev) => ({ ...prev, fullName: value }))} />
+            <SettingsField label="Email Address" type="email" value={profile.email} disabled hint="Contact support to change your login email." />
+            <div className="sm:col-span-2">
+              <SettingsField label="Mobile Number" type="tel" value={profile.phone} error={errors.phone} onChange={(value) => setProfile((prev) => ({ ...prev, phone: value }))} hint="Used by WhatsApp message templates." />
+            </div>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {!showGate && !loading && activeSection === "profile" && (
-            <Button size="lg" disabled={saving} onClick={() => saveSection(activeSection, activeMeta?.title || "Settings")}>
-              <Save size={15} />
-              {saving ? "Saving…" : "Save Changes"}
-            </Button>
-          )}
+          <div className="mt-8 border-t border-[#ead8d1] pt-6">
+            <h4 className="text-sm font-bold text-[#211a17]">Password</h4>
+            <p className="mt-1 text-xs text-[#6c6355]">Leave blank to keep your current password.</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <SettingsField label="Current Password" type="password" value={passwordForm.currentPassword} error={errors.currentPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, currentPassword: value }))} />
+              <div className="hidden sm:block" />
+              <SettingsField label="New Password" type="password" value={passwordForm.newPassword} error={errors.newPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, newPassword: value }))} />
+              <SettingsField label="Confirm Password" type="password" value={passwordForm.confirmPassword} error={errors.confirmPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, confirmPassword: value }))} />
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <Button disabled={saving} onClick={saveProfile}><Save size={14} /> {saving ? "Saving…" : "Save Profile"}</Button>
+          </div>
         </div>
+      )}
+    </SettingsSubPage>
+  );
+}
+
+// Settings > Trigger Template — links to the email/WhatsApp template editors.
+export function SettingsTriggerTemplatePage() {
+  const navigate = useNavigate();
+  return (
+    <SettingsSubPage title="Trigger Template" description="Email and WhatsApp message templates." icon={MessageCircle}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => navigate("/admin/communication/email-templates")}
+          className="flex items-start gap-3 rounded-2xl border border-[#ead8d1] bg-white p-5 text-left transition-colors hover:bg-[#fff8f6]"
+        >
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d]"><Mail size={18} /></div>
+          <div>
+            <p className="text-sm font-bold text-[#211a17]">Email Templates</p>
+            <p className="mt-1 text-xs leading-5 text-[#6c6355]">Create and edit the email templates sent to clients.</p>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate("/admin/communication/whatsapp-templates")}
+          className="flex items-start gap-3 rounded-2xl border border-[#ead8d1] bg-white p-5 text-left transition-colors hover:bg-[#fff8f6]"
+        >
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d]"><MessageCircle size={18} /></div>
+          <div>
+            <p className="text-sm font-bold text-[#211a17]">WhatsApp Templates</p>
+            <p className="mt-1 text-xs leading-5 text-[#6c6355]">Create and edit the WhatsApp message templates.</p>
+          </div>
+        </button>
       </div>
+    </SettingsSubPage>
+  );
+}
 
-      <section className="grid gap-6 p-5 xl:grid-cols-[290px_minmax(0,1fr)] xl:p-6">
-        <Card className="p-3 shadow-[0_18px_40px_rgba(79,39,16,0.06)]">
-          <SettingsSidebarGroup label="General" sections={GENERAL_SECTIONS} activeSection={activeSection} locked={false} onSelect={selectSection} />
-        </Card>
-
-        <Card className="p-6 shadow-[0_18px_40px_rgba(79,39,16,0.06)]">
-          {loading ? (
-            <div className="py-16 text-center text-sm text-[#6c6355]">Loading settings…</div>
-          ) : showGate ? (
-            <SecurityGate onUnlock={() => setUnlocked(true)} />
-          ) : (
-            <>
-              {activeSection === "profile" && (
-                <div>
-                  <div className="mb-6 flex items-center gap-3">
-                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#211a17] text-white"><UserPlus size={18} /></div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-[#211a17]">Profile</h3>
-                      <p className="text-sm text-[#6c6355]">Update your details and the password for your account.</p>
-                    </div>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <SettingsField label="Full Name" value={profile.fullName} onChange={(value) => setProfile((prev) => ({ ...prev, fullName: value }))} />
-                    <SettingsField label="Email Address" type="email" value={profile.email} disabled hint="Contact support to change your login email." />
-                    <div className="sm:col-span-2">
-                      <SettingsField label="Mobile Number" type="tel" value={profile.phone} error={errors.phone} onChange={(value) => setProfile((prev) => ({ ...prev, phone: value }))} hint="Used by WhatsApp message templates." />
-                    </div>
-                  </div>
-
-                  <div className="mt-8 border-t border-[#ead8d1] pt-6">
-                    <h4 className="text-sm font-bold text-[#211a17]">Password</h4>
-                    <p className="mt-1 text-xs text-[#6c6355]">Leave blank to keep your current password.</p>
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <SettingsField label="Current Password" type="password" value={passwordForm.currentPassword} error={errors.currentPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, currentPassword: value }))} />
-                      <div className="hidden sm:block" />
-                      <SettingsField label="New Password" type="password" value={passwordForm.newPassword} error={errors.newPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, newPassword: value }))} />
-                      <SettingsField label="Confirm Password" type="password" value={passwordForm.confirmPassword} error={errors.confirmPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, confirmPassword: value }))} />
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex justify-end">
-                    <Button onClick={() => saveSection("profile", "Profile")}><Save size={14} /> Save Profile</Button>
-                  </div>
-                </div>
-              )}
-
-              {activeSection === "triggerTemplate" && (
-                <div>
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#211a17]">Trigger Template</h3>
-                    <p className="mt-1 text-sm text-[#6c6355]">Manage the message templates used across the CRM.</p>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => navigate("/admin/communication/email-templates")}
-                      className="flex items-start gap-3 rounded-2xl border border-[#ead8d1] bg-white p-5 text-left transition-colors hover:bg-[#fff8f6]"
-                    >
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d]"><Mail size={18} /></div>
-                      <div>
-                        <p className="text-sm font-bold text-[#211a17]">Email Templates</p>
-                        <p className="mt-1 text-xs leading-5 text-[#6c6355]">Create and edit the email templates sent to clients.</p>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => navigate("/admin/communication/whatsapp-templates")}
-                      className="flex items-start gap-3 rounded-2xl border border-[#ead8d1] bg-white p-5 text-left transition-colors hover:bg-[#fff8f6]"
-                    >
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d]"><MessageCircle size={18} /></div>
-                      <div>
-                        <p className="text-sm font-bold text-[#211a17]">WhatsApp Templates</p>
-                        <p className="mt-1 text-xs leading-5 text-[#6c6355]">Create and edit the WhatsApp message templates.</p>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {activeSection === "dataFields" && <DataFieldsSection />}
-
-              {activeSection === "company" && (
-                <div>
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#211a17]">Company Information</h3>
-                    <p className="mt-1 text-sm text-[#6c6355]">Use these values for invoices, proposals, and client-facing mail content.</p>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <SettingsField label="Studio Name" value={company.studioName} onChange={(value) => setCompany((prev) => ({ ...prev, studioName: value }))} />
-                    <SettingsField label="Legal Name" value={company.legalName} onChange={(value) => setCompany((prev) => ({ ...prev, legalName: value }))} />
-                    <SettingsField label="GSTIN" value={company.gstin} error={errors.gstin} onChange={(value) => setCompany((prev) => ({ ...prev, gstin: value }))} />
-                    <SettingsField label="Billing Email" type="email" value={company.billingEmail} error={errors.billingEmail} onChange={(value) => setCompany((prev) => ({ ...prev, billingEmail: value }))} />
-                    <SettingsField label="Website" value={company.website} error={errors.website} onChange={(value) => setCompany((prev) => ({ ...prev, website: value }))} />
-                    <div className="sm:col-span-2">
-                      <SettingsField label="Billing Address" value={company.billingAddress} onChange={(value) => setCompany((prev) => ({ ...prev, billingAddress: value }))} />
-                    </div>
-                  </div>
-                  <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-dashed border-[#d8c2b9] bg-[#fffdfc] px-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-10 w-10 place-items-center rounded-2xl bg-[#f3dfd7] text-[#884c2d]"><UploadCloud size={18} /></div>
-                      <div>
-                        <p className="text-sm font-semibold text-[#211a17]">Logo Upload</p>
-                        <p className="text-xs text-[#6c6355]">Update the brand logo used in the client portal and proposal PDF exports.</p>
-                      </div>
-                    </div>
-                    <Button variant="secondary">Upload</Button>
-                  </div>
-                  <div className="mt-6 flex justify-end">
-                    <Button onClick={() => saveSection("company", "Company information")}><Save size={14} /> Save Company</Button>
-                  </div>
-                </div>
-              )}
-
-              {activeSection === "billing" && (
-                <div>
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#211a17]">Billing & Gateway Settings</h3>
-                    <p className="mt-1 text-sm text-[#6c6355]">Configure checkout behavior, invoice defaults, and automatic portal access after payment.</p>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <SettingsSelect label="Payment Gateway" value={billing.gateway} onChange={(value) => setBilling((prev) => ({ ...prev, gateway: value }))} options={["Razorpay", "Stripe", "Manual"]} />
-                    <SettingsSecretField label="API Base URL" value={billing.apiBase} onChange={(value) => setBilling((prev) => ({ ...prev, apiBase: value }))} hint="Hidden by default — click the eye icon to reveal." />
-                    <SettingsField label="Invoice Prefix" value={billing.invoicePrefix} onChange={(value) => setBilling((prev) => ({ ...prev, invoicePrefix: value }))} />
-                    <SettingsSelect label="Default Role After Payment" value={billing.defaultRole} onChange={(value) => setBilling((prev) => ({ ...prev, defaultRole: value }))} options={["user", "superadmin"]} />
-                  </div>
-                  <div className="mt-6 space-y-3">
-                    <SettingsToggle
-                      title="Auto-send portal invite after payment"
-                      description="Once checkout is successful, send the secure password setup link to the client automatically."
-                      checked={billing.autoInviteAfterPayment}
-                      onChange={(value) => setBilling((prev) => ({ ...prev, autoInviteAfterPayment: value }))}
-                    />
-                    <SettingsToggle
-                      title="Allow coupon codes during package checkout"
-                      description="Keep coupon application visible as an optional field inside the pricing and checkout flow."
-                      checked={billing.allowCouponAtCheckout}
-                      onChange={(value) => setBilling((prev) => ({ ...prev, allowCouponAtCheckout: value }))}
-                    />
-                  </div>
-                  <div className="mt-6 flex justify-end">
-                    <Button onClick={() => saveSection("billing", "Billing settings")}><Save size={14} /> Save Billing</Button>
-                  </div>
-                </div>
-              )}
-
-              {activeSection === "email" && (
-                <div>
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#211a17]">Email Delivery Settings</h3>
-                    <p className="mt-1 text-sm text-[#6c6355]">Set the mail sender identity and the secure onboarding route used in invite messages. Delivery itself runs through SendGrid (configured via SENDGRID_API_KEY on the server).</p>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <SettingsField label="Sender Name" value={email.senderName} onChange={(value) => setEmail((prev) => ({ ...prev, senderName: value }))} />
-                    <SettingsField label="Sender Email" type="email" value={email.senderEmail} error={errors.senderEmail} onChange={(value) => setEmail((prev) => ({ ...prev, senderEmail: value }))} hint="Must be a verified sender identity in SendGrid." />
-                    <div className="sm:col-span-2">
-                      <SettingsField label="Secure Onboarding Path" value={email.onboardingPath} onChange={(value) => setEmail((prev) => ({ ...prev, onboardingPath: value }))} />
-                    </div>
-                  </div>
-                  <div className="mt-6 rounded-2xl border border-[#ead8d1] bg-[#fffdfc] px-4 py-4">
-                    <p className="text-sm font-semibold text-[#211a17]">Current flow</p>
-                    <p className="mt-2 text-xs leading-6 text-[#6c6355]">
-                      Paid checkout, then success confirmation, then secure invite mail, then unique password setup, then redirect to the shared login page.
-                    </p>
-                  </div>
-                  <div className="mt-6 flex justify-end">
-                    <Button onClick={() => saveSection("email", "Email settings")}><Save size={14} /> Save Email</Button>
-                  </div>
-                </div>
-              )}
-
-              {activeSection === "notifications" && (
-                <div>
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-[#211a17]">Notification Settings</h3>
-                    <p className="mt-1 text-sm text-[#6c6355]">Choose which operational events should surface inside the admin workspace.</p>
-                  </div>
-                  <div className="space-y-3">
-                    <SettingsToggle
-                      title="Payment success alerts"
-                      description="Show a confirmation toast and admin alert when a package payment is completed."
-                      checked={notifications.paymentSuccess}
-                      onChange={(value) => setNotifications((prev) => ({ ...prev, paymentSuccess: value }))}
-                    />
-                    <SettingsToggle
-                      title="Failed payment alerts"
-                      description="Flag payment failures so the team can follow up quickly."
-                      checked={notifications.failedPayments}
-                      onChange={(value) => setNotifications((prev) => ({ ...prev, failedPayments: value }))}
-                    />
-                    <SettingsToggle
-                      title="Portal invite sent alerts"
-                      description="Notify admins when the onboarding email has been dispatched successfully."
-                      checked={notifications.portalInviteSent}
-                      onChange={(value) => setNotifications((prev) => ({ ...prev, portalInviteSent: value }))}
-                    />
-                    <SettingsToggle
-                      title="Overdue invoice alerts"
-                      description="Surface aged or unpaid invoices in the finance workflow."
-                      checked={notifications.overdueInvoices}
-                      onChange={(value) => setNotifications((prev) => ({ ...prev, overdueInvoices: value }))}
-                    />
-                  </div>
-                  <div className="mt-6 flex justify-end">
-                    <Button onClick={() => saveSection("notifications", "Notification settings")}><Save size={14} /> Save Notifications</Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </Card>
-      </section>
-    </div>
+// Settings > Data Fields — configurable dropdown option lists.
+export function SettingsDataFieldsPage() {
+  return (
+    <SettingsSubPage title="Data Fields" description="Configurable dropdown options across the CRM." icon={SlidersHorizontal}>
+      <DataFieldsSection />
+    </SettingsSubPage>
   );
 }
