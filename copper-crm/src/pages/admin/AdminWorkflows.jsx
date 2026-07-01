@@ -487,22 +487,22 @@ export function TasksPage() {
 
 function SettingsField({ label, value, onChange, type = "text", placeholder, error = "", disabled = false, hint }) {
   return (
-    <label className="block">
-      <span className="text-xs font-bold uppercase tracking-[0.12em] text-[#7b6f63]">{label}</span>
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-semibold text-[#374151]">{label}</label>
       <input
         type={type}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => onChange?.(event.target.value)}
         placeholder={placeholder}
         disabled={disabled}
         aria-invalid={Boolean(error)}
-        className={`mt-2 w-full rounded-2xl border bg-[#fffdfc] px-4 py-3 text-sm text-[#211a17] outline-none transition-all focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60 ${
-          error ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-[#d8c2b9] focus:border-[#884c2d] focus:ring-[#f3dfd7]"
+        className={`h-9 w-full rounded-lg border bg-white px-3 text-sm text-[#111827] outline-none transition-all focus:ring-2 disabled:cursor-not-allowed disabled:bg-[#f9fafb] disabled:text-[#9ca3af] ${
+          error ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-[#e5e7eb] focus:border-[#884c2d] focus:ring-[#884c2d]/20"
         }`}
       />
-      {hint && !error && <span className="mt-1.5 block text-[11px] text-[#9c8c80]">{hint}</span>}
-      {error && <span className="mt-1.5 block text-[11px] font-semibold text-red-500">{error}</span>}
-    </label>
+      {hint && !error && <span className="text-[11px] text-[#9ca3af]">{hint}</span>}
+      {error && <span className="text-[11px] font-semibold text-red-500">{error}</span>}
+    </div>
   );
 }
 
@@ -1045,33 +1045,51 @@ export function SettingsProfilePage() {
     }
   }
 
+  const initials = (profile.fullName || "A").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+
   return (
     <SettingsSubPage title="Profile" description="Your details and account password." icon={UserPlus}>
       {loading ? (
-        <div className="py-16 text-center text-sm text-[#6c6355]">Loading profile…</div>
+        <div className="py-16 text-center text-sm text-[#9ca3af]">Loading…</div>
       ) : (
-        <div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <SettingsField label="Full Name" value={profile.fullName} onChange={(value) => setProfile((prev) => ({ ...prev, fullName: value }))} />
-            <SettingsField label="Email Address" type="email" value={profile.email} disabled hint="Contact support to change your login email." />
-            <div className="sm:col-span-2">
-              <SettingsField label="Mobile Number" type="tel" value={profile.phone} error={errors.phone} onChange={(value) => setProfile((prev) => ({ ...prev, phone: value }))} hint="Used by WhatsApp message templates." />
+        <div className="flex gap-8">
+          {/* Avatar column */}
+          <div className="flex shrink-0 flex-col items-center gap-3 pt-1">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#f3dfd7] text-xl font-bold text-[#884c2d]">
+              {initials}
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-[#111827]">{profile.fullName || "Admin"}</p>
+              <p className="text-xs text-[#9ca3af]">Super Admin</p>
             </div>
           </div>
 
-          <div className="mt-8 border-t border-[#ead8d1] pt-6">
-            <h4 className="text-sm font-bold text-[#211a17]">Password</h4>
-            <p className="mt-1 text-xs text-[#6c6355]">Leave blank to keep your current password.</p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <SettingsField label="Current Password" type="password" value={passwordForm.currentPassword} error={errors.currentPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, currentPassword: value }))} />
-              <div className="hidden sm:block" />
-              <SettingsField label="New Password" type="password" value={passwordForm.newPassword} error={errors.newPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, newPassword: value }))} />
-              <SettingsField label="Confirm Password" type="password" value={passwordForm.confirmPassword} error={errors.confirmPassword} onChange={(value) => setPasswordForm((prev) => ({ ...prev, confirmPassword: value }))} />
+          {/* Form column */}
+          <div className="flex-1 min-w-0">
+            {/* Personal info */}
+            <p className="mb-4 text-[11px] font-bold uppercase tracking-wide text-[#9ca3af]">Personal Info</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SettingsField label="Full Name" value={profile.fullName} onChange={(v) => setProfile((p) => ({ ...p, fullName: v }))} />
+              <SettingsField label="Email Address" type="email" value={profile.email} disabled hint="Contact support to change your login email." />
+              <SettingsField label="Mobile Number" type="tel" value={profile.phone} error={errors.phone} onChange={(v) => setProfile((p) => ({ ...p, phone: v }))} hint="Used by WhatsApp message templates." />
+              <SettingsField label="Job Title" value={profile.title || ""} onChange={(v) => setProfile((p) => ({ ...p, title: v }))} placeholder="e.g. Founder" />
             </div>
-          </div>
 
-          <div className="mt-6 flex justify-end">
-            <Button disabled={saving} onClick={saveProfile}><Save size={14} /> {saving ? "Saving…" : "Save Profile"}</Button>
+            {/* Password */}
+            <div className="mt-6 border-t border-[#f3f4f6] pt-6">
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-[#9ca3af]">Change Password</p>
+              <p className="mb-4 text-xs text-[#6b7280]">Leave blank to keep your current password.</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <SettingsField label="Current Password" type="password" value={passwordForm.currentPassword} error={errors.currentPassword} onChange={(v) => setPasswordForm((p) => ({ ...p, currentPassword: v }))} />
+                <div className="hidden sm:block" />
+                <SettingsField label="New Password" type="password" value={passwordForm.newPassword} error={errors.newPassword} onChange={(v) => setPasswordForm((p) => ({ ...p, newPassword: v }))} />
+                <SettingsField label="Confirm Password" type="password" value={passwordForm.confirmPassword} error={errors.confirmPassword} onChange={(v) => setPasswordForm((p) => ({ ...p, confirmPassword: v }))} />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end border-t border-[#f3f4f6] pt-4">
+              <Button disabled={saving} onClick={saveProfile}><Save size={14} /> {saving ? "Saving…" : "Save Changes"}</Button>
+            </div>
           </div>
         </div>
       )}
