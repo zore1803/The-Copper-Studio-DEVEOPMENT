@@ -100,29 +100,101 @@ function EmptyState({ title, text, action }) {
   );
 }
 
-// Render a live preview of the template body — HTML is rendered directly,
-// plain text is wrapped in simple paragraph styling.
+// ── JSON block schema ────────────────────────────────────────────────────────
+// Supported block types:
+//   heading  — bold large text
+//   p        — regular paragraph
+//   muted    — small grey text
+//   button   — CTA link button (requires "href")
+//   otp      — large spaced code display
+//   box      — coloured info box (optional "title")
+//   divider  — horizontal rule
+
+function blocksToHtml(blocks) {
+  return blocks.map((b) => {
+    const t = b.text || "";
+    switch (b.type) {
+      case "heading":
+        return `<h2 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#111827">${t}</h2>`;
+      case "muted":
+        return `<p style="margin:0 0 12px;font-size:13px;color:#6b7280">${t}</p>`;
+      case "button":
+        return `<p style="margin:16px 0"><a href="${b.href || "#"}" style="display:inline-block;background:#2563eb;color:#fff;padding:11px 20px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">${t}</a></p>`;
+      case "otp":
+        return `<p style="font-size:28px;font-weight:800;letter-spacing:6px;margin:18px 0;color:#2563eb">${t}</p>`;
+      case "box":
+        return `<div style="margin:16px 0;padding:14px 16px;border:1px solid #fde2d6;background:#fff8f6;border-radius:12px">${b.title ? `<p style="margin:0 0 6px;font-weight:700;color:#884c2d">${b.title}</p>` : ""}<p style="margin:0;font-size:14px;color:#525866">${t}</p></div>`;
+      case "divider":
+        return `<hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0">`;
+      default: // "p"
+        return `<p style="margin:0 0 12px">${t.replace(/\n/g, "<br>")}</p>`;
+    }
+  }).join("\n");
+}
+
+function isJsonBody(body = "") {
+  const s = body.trim();
+  return s.startsWith("[") && s.endsWith("]");
+}
+
+function parseBlocks(body = "") {
+  try { return JSON.parse(body); } catch { return null; }
+}
+
+// Convert plain text → JSON blocks (each \n\n paragraph → a "p" block)
+function textToJson(text = "") {
+  const blocks = text.split(/\n\n+/).filter(Boolean).map((para) => ({
+    type: "p",
+    text: para,
+  }));
+  return JSON.stringify(blocks, null, 2);
+}
+
+// Convert JSON blocks → plain text (extract all text values)
+function jsonToText(body = "") {
+  const blocks = parseBlocks(body);
+  if (!blocks) return body;
+  return blocks.map((b) => [b.title, b.text].filter(Boolean).join("\n")).join("\n\n");
+}
+
+// Convert any body format → HTML for sending/preview
+function bodyAnyToHtml(body = "") {
+  if (isJsonBody(body)) {
+    const blocks = parseBlocks(body);
+    return blocks ? blocksToHtml(blocks) : body;
+  }
+  // Legacy HTML or plain text
+  if (/<[a-z][\s\S]*>/i.test(body)) return body;
+  return body.split(/\n\n+/).map((p) => `<p style="margin:0 0 12px">${p.replace(/\n/g, "<br>")}</p>`).join("\n");
+}
+
+// Block type options for the JSON schema reference card
+const BLOCK_TYPES = [
+  { type: "p", desc: "Regular paragraph" },
+  { type: "heading", desc: "Bold large title" },
+  { type: "muted", desc: "Small grey text" },
+  { type: "button", desc: "CTA button — add \"href\" field" },
+  { type: "otp", desc: "Large spaced code" },
+  { type: "box", desc: "Info box — optional \"title\" field" },
+  { type: "divider", desc: "Horizontal rule — no text needed" },
+];
+
+// ── Preview ───────────────────────────────────────────────────────────────────
+
 function TemplatePreview({ subject, body, type }) {
-  const isHtml = /<[a-z][\s\S]*>/i.test(body || "");
-  const previewHtml = isHtml
-    ? body
-    : (body || "")
-        .split(/\n\n+/)
-        .map((p) => `<p style="margin:0 0 12px">${p.replace(/\n/g, "<br/>")}</p>`)
-        .join("");
+  const previewHtml = bodyAnyToHtml(body || "");
 
   return (
     <div className="flex h-full flex-col">
       {subject && (
         <div className="mb-3 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2">
           <span className="text-[10px] font-bold uppercase tracking-wide text-[#9ca3af]">Subject</span>
-          <p className="mt-0.5 text-sm font-medium text-[#111827]">{subject || <span className="text-[#9ca3af]">No subject</span>}</p>
+          <p className="mt-0.5 text-sm font-medium text-[#111827]">{subject}</p>
         </div>
       )}
       <div className="flex-1 overflow-auto rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-inner">
         <div
           style={{ fontFamily: "Inter,Arial,sans-serif", lineHeight: 1.6, color: "#111827", maxWidth: "100%" }}
-          // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{ __html: previewHtml || `<p style="color:#9ca3af">Preview will appear here…</p>` }}
         />
         {type === "email" && (
@@ -136,52 +208,37 @@ function TemplatePreview({ subject, body, type }) {
   );
 }
 
-// Convert plain text → HTML, preserving line counts:
-// - single \n  → <br> on its own line (keeps line count identical in textarea)
-// - \n\n (paragraph) → </p> blank line <p> (also keeps blank line in HTML view)
-function textToHtml(text = "") {
-  const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  return escaped
-    .split(/\n\n+/)
-    .map((para) => `<p>${para.replace(/\n/g, "<br>\n")}</p>`)
-    .join("\n\n");
-}
-
-// Strip HTML → plain text. Any block-level closing tag (h1-h6, p, div, li…)
-// becomes a blank line so the round-trip is symmetric regardless of source HTML.
-function htmlToText(html = "") {
-  const BLOCK_RE = /<\/(p|h[1-6]|div|blockquote|li|tr|td|th|section|article|header|footer)>/gi;
-  return html
-    .replace(/<br\s*\/?>\s*/gi, "\n")
-    .replace(BLOCK_RE, "\n\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function isHtmlBody(body = "") {
-  return /<[a-z][\s\S]*>/i.test(body);
-}
+// ── Template modal ────────────────────────────────────────────────────────────
 
 function TemplateModal({ type, categories, template, onClose, onSave }) {
   const [form, setForm] = useState(template);
   const set = (key) => (value) => setForm((prev) => ({ ...prev, [key]: value }));
   const isEmail = type === "email";
+  const [jsonError, setJsonError] = useState("");
 
-  // bodyMode: "text" or "html" — auto-detect from initial body
-  const [bodyMode, setBodyMode] = useState(() => isHtmlBody(template.body || "") ? "html" : "text");
+  // bodyMode: "text" or "json" — auto-detect from stored body
+  const [bodyMode, setBodyMode] = useState(() => isJsonBody(template.body || "") ? "json" : "text");
 
   function switchMode(nextMode) {
     if (nextMode === bodyMode) return;
-    if (nextMode === "html") {
-      // text → html: convert only if not already HTML
-      set("body")(isHtmlBody(form.body || "") ? form.body : textToHtml(form.body || ""));
+    setJsonError("");
+    if (nextMode === "json") {
+      // If already valid JSON keep it; otherwise convert from text
+      const converted = isJsonBody(form.body || "") ? form.body : textToJson(form.body || "");
+      set("body")(converted);
     } else {
-      // html → text: strip tags
-      set("body")(htmlToText(form.body || ""));
+      // json → text
+      set("body")(jsonToText(form.body || ""));
     }
     setBodyMode(nextMode);
+  }
+
+  function onBodyChange(val) {
+    set("body")(val);
+    if (bodyMode === "json") {
+      try { JSON.parse(val); setJsonError(""); }
+      catch (e) { setJsonError(e.message); }
+    }
   }
 
   return (
@@ -193,7 +250,7 @@ function TemplateModal({ type, categories, template, onClose, onSave }) {
             <h2 className="text-base font-bold text-gray-950">
               {template._id || template.id ? `Edit Template` : `New ${type === "email" ? "Email" : "WhatsApp"} Template`}
             </h2>
-            <p className="mt-0.5 text-xs text-gray-500">Use <code className="rounded bg-gray-100 px-1 py-0.5 font-mono">{"{{variable}}"}</code> tokens for dynamic content. Body accepts plain text or HTML.</p>
+            <p className="mt-0.5 text-xs text-gray-500">Use <code className="rounded bg-gray-100 px-1 py-0.5 font-mono">{"{{variable}}"}</code> tokens for dynamic content. Body can be plain text or a JSON block array.</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={onClose}>Cancel</Button>
@@ -226,30 +283,40 @@ function TemplateModal({ type, categories, template, onClose, onSave }) {
             <div className="block flex-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-[#374151]">Body</span>
-                {/* Text / HTML toggle */}
+                {/* Text / JSON toggle */}
                 <div className="flex rounded-lg border border-[#e5e7eb] p-0.5 text-[11px] font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => switchMode("text")}
+                  <button type="button" onClick={() => switchMode("text")}
                     className={`rounded-md px-2.5 py-1 transition-colors ${bodyMode === "text" ? "bg-[#884c2d] text-white" : "text-[#6b7280] hover:text-[#374151]"}`}
                   >Text</button>
-                  <button
-                    type="button"
-                    onClick={() => switchMode("html")}
-                    className={`rounded-md px-2.5 py-1 transition-colors ${bodyMode === "html" ? "bg-[#884c2d] text-white" : "text-[#6b7280] hover:text-[#374151]"}`}
-                  >HTML</button>
+                  <button type="button" onClick={() => switchMode("json")}
+                    className={`rounded-md px-2.5 py-1 transition-colors ${bodyMode === "json" ? "bg-[#884c2d] text-white" : "text-[#6b7280] hover:text-[#374151]"}`}
+                  >JSON</button>
                 </div>
               </div>
               <textarea
                 key={bodyMode}
                 value={form.body || ""}
-                onChange={(e) => set("body")(e.target.value)}
+                onChange={(e) => onBodyChange(e.target.value)}
                 rows={16}
-                placeholder={bodyMode === "html"
-                  ? "<div>\n  <h2>Hello {{client_name}}</h2>\n  <p>Your invoice {{invoice_id}} is attached.</p>\n</div>"
+                placeholder={bodyMode === "json"
+                  ? `[\n  { "type": "heading", "text": "Hello {{client_name}}" },\n  { "type": "p", "text": "Your invoice {{invoice_id}} is attached." },\n  { "type": "muted", "text": "This is auto-generated." }\n]`
                   : "Hi {{client_name}},\n\nYour invoice {{invoice_id}} is attached.\n\nThanks,\nThe Copper Studio Team"}
-                className={`mt-1.5 w-full resize-none rounded-lg border border-[#e5e7eb] px-3 py-2 text-xs leading-relaxed outline-none focus:border-[#884c2d] focus:ring-2 focus:ring-[#884c2d]/20 ${bodyMode === "html" ? "font-mono" : "font-sans"}`}
+                className={`mt-1.5 w-full resize-none rounded-lg border px-3 py-2 text-xs leading-relaxed outline-none font-mono focus:ring-2 focus:ring-[#884c2d]/20 ${jsonError ? "border-red-400 focus:border-red-400" : "border-[#e5e7eb] focus:border-[#884c2d]"}`}
               />
+              {jsonError && <p className="mt-1 text-[11px] text-red-500">{jsonError}</p>}
+              {bodyMode === "json" && !jsonError && (
+                <div className="mt-2 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-[#9ca3af]">Block types</p>
+                  <div className="mt-2 space-y-1">
+                    {BLOCK_TYPES.map((b) => (
+                      <div key={b.type} className="flex items-baseline gap-2">
+                        <code className="shrink-0 rounded bg-white border border-[#e5e7eb] px-1.5 py-0.5 text-[10px] text-[#884c2d]">{b.type}</code>
+                        <span className="text-[10px] text-[#6b7280]">{b.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <label className="block">
               <span className="text-xs font-semibold text-[#374151]">Status</span>

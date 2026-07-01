@@ -84,14 +84,30 @@ function interpolate(text = "", vars = {}) {
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`);
 }
 
-// Convert a plain-text body (newlines) to HTML paragraphs.
-// If the body already contains HTML tags, return it as-is.
-function bodyToHtml(text = "") {
-  if (/<[a-z][\s\S]*>/i.test(text)) return text;
-  return text
-    .split(/\n\n+/)
-    .map((para) => `<p style="margin:0 0 12px">${para.replace(/\n/g, "<br/>")}</p>`)
-    .join("");
+// Convert a JSON block array → HTML (mirrors the frontend blocksToHtml).
+function blocksToHtml(blocks) {
+  return blocks.map((b) => {
+    const t = b.text || "";
+    switch (b.type) {
+      case "heading": return `<h2 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#111827">${t}</h2>`;
+      case "muted": return `<p style="margin:0 0 12px;font-size:13px;color:#6b7280">${t}</p>`;
+      case "button": return `<p style="margin:16px 0"><a href="${b.href || "#"}" style="display:inline-block;background:#2563eb;color:#fff;padding:11px 20px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">${t}</a></p>`;
+      case "otp": return `<p style="font-size:28px;font-weight:800;letter-spacing:6px;margin:18px 0;color:#2563eb">${t}</p>`;
+      case "box": return `<div style="margin:16px 0;padding:14px 16px;border:1px solid #fde2d6;background:#fff8f6;border-radius:12px">${b.title ? `<p style="margin:0 0 6px;font-weight:700;color:#884c2d">${b.title}</p>` : ""}<p style="margin:0;font-size:14px;color:#525866">${t}</p></div>`;
+      case "divider": return `<hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0">`;
+      default: return `<p style="margin:0 0 12px">${t.replace(/\n/g, "<br>")}</p>`;
+    }
+  }).join("\n");
+}
+
+// Convert any body format (JSON blocks | legacy HTML | plain text) → HTML.
+function bodyAnyToHtml(body = "") {
+  const s = body.trim();
+  if (s.startsWith("[") && s.endsWith("]")) {
+    try { return blocksToHtml(JSON.parse(s)); } catch { /* fall through */ }
+  }
+  if (/<[a-z][\s\S]*>/i.test(s)) return s;
+  return s.split(/\n\n+/).map((p) => `<p style="margin:0 0 12px">${p.replace(/\n/g, "<br>")}</p>`).join("\n");
 }
 
 // Look up an Active (or any) EmailTemplate by category, apply variable
@@ -101,14 +117,10 @@ async function resolveEmailTemplate(category, vars = {}) {
     const tpl = await EmailTemplate.findOne({ category, status: "Active" })
       || await EmailTemplate.findOne({ category });
     if (!tpl || !tpl.body) return null;
-    const bodyHtml = bodyToHtml(interpolate(tpl.body, vars));
-    // HTML bodies already contain their own wrapper — only wrap plain-text ones.
-    const isHtml = /<[a-z][\s\S]*>/i.test(tpl.body);
+    const bodyHtml = bodyAnyToHtml(interpolate(tpl.body, vars));
     return {
       subject: interpolate(tpl.subject || category, vars),
-      html: isHtml
-        ? `${bodyHtml}${signatureHtml()}`
-        : `<div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#111827;max-width:560px">${bodyHtml}${signatureHtml()}</div>`,
+      html: `<div style="font-family:Inter,Arial,sans-serif;line-height:1.6;color:#111827;max-width:560px">${bodyHtml}${signatureHtml()}</div>`,
     };
   } catch {
     return null;
