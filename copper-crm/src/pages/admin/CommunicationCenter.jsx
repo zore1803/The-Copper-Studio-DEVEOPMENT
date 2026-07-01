@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Archive, ChevronDown, Copy, Mail, MessageCircle, Pencil, Plus, Save, Search, Settings2, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "../../components/ui";
 import { useCrmRecords } from "../../hooks/useCrmRecords";
@@ -292,13 +292,6 @@ export default function CommunicationCenter({ mode = "email" }) {
   const [variablesOpen, setVariablesOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
-  const stats = useMemo(() => ({
-    emailTemplates: emailTemplates.length,
-    activeEmail: emailTemplates.filter((template) => template.status === "Active").length,
-    whatsappTemplates: whatsappTemplates.length,
-    activeWhatsapp: whatsappTemplates.filter((template) => template.status === "Active").length,
-  }), [emailTemplates, whatsappTemplates]);
-
   const page = {
     email: { title: "Email Templates", subtitle: "Reusable email templates for proposals, payments, invoices, project updates, and support.", icon: Mail },
     whatsapp: { title: "WhatsApp Templates", subtitle: "Quick customer communication with Meta-ready template states and variables.", icon: MessageCircle },
@@ -370,21 +363,19 @@ export default function CommunicationCenter({ mode = "email" }) {
   }
 
   return (
-    <div className="min-h-full bg-[#F1F1F5] p-6">
-      <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#9ca3af]">Client Communication Center</p>
-          <div className="mt-1 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#fff1ec] text-[#884c2d]">
-              <PageIcon size={18} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-[#111827]">{page.title}</h1>
-              <p className="mt-1 max-w-3xl text-sm text-[#6b7280]">{page.subtitle}</p>
-            </div>
+    <div className="flex min-h-full flex-col bg-[#F1F1F5]">
+      {/* Header strip — matches Companies / Projects style */}
+      <div className="flex flex-col gap-4 border-b border-[#E1E4EA] bg-white px-6 py-3 lg:h-14 lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:py-0">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#fff1ec] text-[#884c2d]">
+            <PageIcon size={15} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-base font-medium text-[#0E121B]">{page.title}</h1>
+            <p className="mt-0.5 truncate text-xs text-[#525866]">{page.subtitle}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <DefaultTemplatesMenu defaults={currentDefaults} existing={currentRecords} onPick={handleCreateSpecificDefault} />
           <Button variant="secondary" onClick={handleCreateDefaults} disabled={seeding}>
             <Sparkles size={14} /> {seeding ? "Creating..." : "Create All"}
@@ -393,13 +384,7 @@ export default function CommunicationCenter({ mode = "email" }) {
         </div>
       </div>
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Email Templates" value={stats.emailTemplates} icon={Mail} />
-        <KpiCard label="Active Email" value={stats.activeEmail} icon={Mail} />
-        <KpiCard label="WhatsApp Templates" value={stats.whatsappTemplates} icon={MessageCircle} />
-        <KpiCard label="Active WhatsApp" value={stats.activeWhatsapp} icon={MessageCircle} />
-      </div>
-
+      <div className="p-6">
       {mode === "whatsapp" ? (
         <TemplateList
           type="WhatsApp"
@@ -423,6 +408,8 @@ export default function CommunicationCenter({ mode = "email" }) {
           onDelete={setDeletingTemplate}
         />
       )}
+
+      </div>
 
       {editingTemplate && (
         <TemplateModal
